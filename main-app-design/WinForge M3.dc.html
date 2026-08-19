@@ -562,7 +562,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       <div style="padding:20px 32px 48px;max-width:980px;animation:wf-in .32s var(--emph) both">
         <h1 style="margin:0;font-size:32px;font-weight:400">Changelog</h1>
         <p style="margin:6px 0 18px;color:var(--md-sys-color-on-surface-variant)">Published WinForge releases with exact dates and commit links. This catalogue is bundled and makes no network request.</p>
-        <div style="display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;margin-bottom:12px;border-radius:999px;background:var(--md-sys-color-surface-container-high)"><span class="ms" aria-hidden="true">search</span><input value="{{ changelogQuery }}" onInput="{{ setChangelogQuery }}" maxlength="128" aria-label="Search changelog" placeholder="Search version, category, or summary" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbChangelog }}" aria-label="Open changelog regex builder" title="Advanced regex builder" style="width:36px;height:36px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms">regular_expression</span></button></div>
+        <div style="display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;margin-bottom:12px;border-radius:999px;background:var(--md-sys-color-surface-container-high)"><span class="ms" aria-hidden="true">search</span><input value="{{ changelogQuery }}" onInput="{{ setChangelogQuery }}" maxlength="128" aria-label="Search changelog" placeholder="Search version, category, or summary" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ useChangelogPlain }}" disabled="{{ changelogPlainDisabled }}" style="height:32px;padding:0 12px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">{{ changelogModeLabel }}</button><button onClick="{{ rbChangelog }}" aria-label="Open changelog regex builder" title="Advanced regex builder" style="width:36px;height:36px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms">regular_expression</span></button></div>
         <div style="display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-bottom:16px"><label style="display:flex;flex-direction:column;gap:5px;font-size:12px">From date<input type="date" value="{{ changelogFrom }}" onInput="{{ setChangelogFrom }}" aria-label="Changelog start date" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"></label><label style="display:flex;flex-direction:column;gap:5px;font-size:12px">To date<input type="date" value="{{ changelogTo }}" onInput="{{ setChangelogTo }}" aria-label="Changelog end date" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"></label><button onClick="{{ copyChangelog }}" disabled="{{ changelogEmpty }}" style="height:40px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Copy filtered view</button><button onClick="{{ exportChangelog }}" disabled="{{ changelogEmpty }}" style="height:40px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)">Export Markdown</button></div>
         <sc-if value="{{ changelogEmpty }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding:18px;border:1px dashed var(--md-sys-color-outline);border-radius:12px;color:var(--md-sys-color-on-surface-variant)">No published release matches the current text and ISO date range.</div></sc-if>
         <div style="display:flex;flex-direction:column;gap:12px"><sc-for list="{{ changelogEntries }}" as="entry" hint-placeholder-count="5"><article style="padding:18px;border-radius:16px;background:var(--md-sys-color-surface-container-low)"><div style="display:flex;justify-content:space-between;gap:12px"><h2 style="margin:0;font-size:18px">{{ entry.version }}</h2><time style="font-family:'Roboto Mono',monospace;font-size:12px">{{ entry.date }}</time></div><div style="margin:8px 0 5px;color:var(--md-sys-color-primary);font-weight:500">{{ entry.category }}</div><p style="margin:0 0 10px">{{ entry.summary }}</p><a href="{{ entry.commitUrl }}" style="color:var(--md-sys-color-primary);font-family:'Roboto Mono',monospace">{{ entry.shortSha }}</a></article></sc-for></div>
@@ -1921,6 +1921,7 @@ class Component extends DCLogic {
     this.changelogQuery = '';
     this.changelogFrom = '';
     this.changelogTo = '';
+    this.changelogRegexMode = false;
     const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
     const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3, showEmojis: true };
     const storedGlobal = L && L.settingsGlobal && typeof L.settingsGlobal === 'object' && !Array.isArray(L.settingsGlobal) ? L.settingsGlobal : {};
@@ -2478,6 +2479,7 @@ class Component extends DCLogic {
     V.rbCopy = () => this.notify('Pattern builder', 'Pattern copied · /' + (rbPattern || '.*') + '/' + this.rbFlagString(), 'success');
     V.rbApply = () => {
       rb.history.unshift(rbPattern);
+      if (rb.target === 'changelog') this.changelogRegexMode = true;
       rb.target = null;
       this.notify('Pattern builder', 'Filter applied · ' + rbRes.matches.length + ' sample matches', 'success');
     };
@@ -2495,6 +2497,9 @@ class Component extends DCLogic {
     V.changelogQuery = this.changelogQuery || ''; V.setChangelogQuery = e => { this.changelogQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
     V.changelogFrom = this.changelogFrom || ''; V.setChangelogFrom = e => { this.changelogFrom = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : ''; this.bump(); };
     V.changelogTo = this.changelogTo || ''; V.setChangelogTo = e => { this.changelogTo = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : ''; this.bump(); };
+    V.changelogModeLabel = this.changelogRegexMode ? 'Regex active · use plain text' : 'Plain text';
+    V.changelogPlainDisabled = !this.changelogRegexMode;
+    V.useChangelogPlain = () => { this.changelogRegexMode = false; this.bump(); };
     V.extQuery = this.extQuery || ''; V.setExtQuery = e => { this.extQuery = e.target.value; this.bump(); };
     V.devQuery = this.devQuery || ''; V.setDevQuery = e => { this.devQuery = e.target.value; this.bump(); };
     V.logQuery = this.logQuery || ''; V.setLogQuery = e => { this.logQuery = e.target.value; this.bump(); };
@@ -2628,7 +2633,13 @@ class Component extends DCLogic {
     V.isSettings = r.view === 'settings';
     V.isChangelog = r.view === 'changelog';
 
-    const filteredChanges = CHANGELOG_ENTRIES.filter(entry => (!this.changelogFrom || entry.date >= this.changelogFrom) && (!this.changelogTo || entry.date <= this.changelogTo) && this.match(this.changelogQuery, entry.version + ' ' + entry.category + ' ' + entry.summary + ' ' + entry.sha));
+    const changelogMatches = entry => {
+      const text = entry.version + ' ' + entry.category + ' ' + entry.summary + ' ' + entry.sha;
+      if (!this.changelogQuery) return true;
+      if (!this.changelogRegexMode) return text.toLowerCase().includes(this.changelogQuery.toLowerCase());
+      try { return new RegExp(this.changelogQuery, this.rbFlagString().replace('g', '') || 'i').test(text); } catch { return false; }
+    };
+    const filteredChanges = CHANGELOG_ENTRIES.filter(entry => (!this.changelogFrom || entry.date >= this.changelogFrom) && (!this.changelogTo || entry.date <= this.changelogTo) && changelogMatches(entry));
     V.changelogEntries = filteredChanges.map(entry => ({ ...entry, shortSha: entry.sha.slice(0, 12), commitUrl: 'https://github.com/Ding-Ding-Projects/material-winforge/commit/' + entry.sha }));
     V.changelogEmpty = filteredChanges.length === 0;
     const changelogMarkdown = () => filteredChanges.map(entry => '## ' + entry.version + ' — ' + entry.date + '\n\n**' + entry.category + '**\n\n' + entry.summary + '\n\nCommit: https://github.com/Ding-Ding-Projects/material-winforge/commit/' + entry.sha).join('\n\n');
