@@ -292,6 +292,11 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
 .dialog-scrim { position: fixed; z-index: 200; inset: 0; display: grid; place-items: start center; padding: max(72px, 10vh) 16px 24px; background: rgba(0, 0, 0, .38); backdrop-filter: blur(5px); }
 .command-palette { width: min(660px, 100%); max-height: min(680px, calc(100vh - 100px)); overflow: hidden; padding: 22px; border: 1px solid var(--outline-variant); border-radius: 30px; background: var(--surface-bright); box-shadow: 0 32px 90px rgba(0, 0, 0, .32); }
 .palette-search { margin: 20px 0 10px; }
+.palette-search-row { display: flex; align-items: start; gap: 10px; margin-top: 20px; }
+.palette-search-row .palette-search { flex: 1; margin: 0; }
+.palette-search-row .regex-builder { z-index: 4; }
+.palette-search-meta { display: flex; justify-content: space-between; gap: 12px; margin: 8px 2px 12px; color: var(--on-surface-variant); font-size: .78rem; }
+.palette-search-meta strong { color: var(--on-surface); }
 .command-list { display: grid; gap: 5px; max-height: 420px; overflow-y: auto; }
 .command-list button { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 58px; padding: 10px 14px; border: 0; border-radius: 15px; background: transparent; cursor: pointer; text-align: left; }
 .command-list button:hover, .command-list button:focus-visible { background: var(--surface-container); }
@@ -386,6 +391,8 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
   .notification-search { flex-direction: column; }
   .notification-search > label, .notification-search .builder-anchor, .notification-search .builder-anchor > button { width: 100%; }
   .notification-center > footer { align-items: stretch; flex-direction: column; }
+  .palette-search-row { flex-direction: column; }
+  .palette-search-row .palette-search, .palette-search-row .builder-anchor, .palette-search-row .builder-anchor > button { width: 100%; }
   .settings-history-button { right: 16px; bottom: 144px; }
   .settings-history-center { padding: 16px; border-radius: 24px; }
   .settings-history-search, .settings-history-filters { align-items: stretch; flex-direction: column; }
