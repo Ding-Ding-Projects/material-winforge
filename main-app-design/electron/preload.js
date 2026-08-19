@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('winforge', {
   packageEngines: () => ipcRenderer.invoke('winforge:package-engines'),
   flushDns: () => ipcRenderer.invoke('winforge:flush-dns'),
   restartExplorer: () => ipcRenderer.invoke('winforge:restart-explorer'),
+  createSnapshot: payload => ipcRenderer.invoke('winforge:create-snapshot', payload),
   launchExternalApp: id => ipcRenderer.invoke('winforge:launch-external-app', id),
   cancelExternalAppLaunch: id => ipcRenderer.invoke('winforge:cancel-external-app-launch', id),
   updateState: () => ipcRenderer.invoke('winforge:update-state'),

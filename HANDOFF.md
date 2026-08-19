@@ -62,3 +62,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Package-engine discovery and its Not checked, Available, Not installed, and Unavailable renderer states were built and packaged but not exercised; Preview queue performs no package mutation.
 - Flush DNS is real and uses fixed bounded `ipconfig.exe /flushdns`; it was packaged but not executed.
 - Restart Explorer is now also real behind an explicit interruption warning and fixed bounded process calls; it was packaged but neither the confirmation nor Explorer termination/restart was exercised.
+- New local snapshot now writes bounded append-only JSON atomically under private app data; it is not yet Git-backed history and creation/restore were not exercised.

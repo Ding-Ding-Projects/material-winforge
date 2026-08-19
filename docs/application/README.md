@@ -9,6 +9,7 @@ The current desktop package is a design preview. Documentation in this category 
 - [Package engine discovery](package-engine-discovery.md)
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)
+- [Local snapshot](local-snapshot.md)
 
 ## Not yet claimed
 

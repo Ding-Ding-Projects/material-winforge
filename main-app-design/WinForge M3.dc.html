@@ -269,7 +269,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 
             <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
               <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Quick actions</h2>
-              <p style="margin:0 0 14px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Flush DNS is real. Restart Explorer is real after confirmation. Every other action below is preview-only.</p>
+              <p style="margin:0 0 14px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Flush DNS, confirmed Restart Explorer, and New local snapshot are real. Empty Recycle Bin and Winget upgrade remain preview-only.</p>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
                 <sc-for list="{{ quickActions }}" as="q" hint-placeholder-count="6">
                   <button onClick="{{ q.run }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 10px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-small);background:transparent;color:var(--md-sys-color-on-surface);font-size:13px" style-hover="background:var(--md-sys-color-surface-container-high)">
@@ -2430,12 +2430,41 @@ class Component extends DCLogic {
         this.notify('Restart Explorer', 'The Explorer restart request failed.' + retry, 'error', true);
       });
     };
+    const createLocalSnapshot = () => {
+      const bridge = window.winforge;
+      const retry = ' Choose New local snapshot again to retry.';
+      if (!bridge || !bridge.createSnapshot) { this.notify('Local snapshot', 'Local snapshot creation is unavailable because the packaged bridge is missing.' + retry, 'warning', true); return; }
+      const safeId = (value, maximum) => String(value || '').replace(/[^a-zA-Z0-9:._-]+/g, '-').slice(0, maximum);
+      const routeState = route => {
+        const view = safeId(route && route.view, 64) || 'dashboard';
+        const routeId = safeId(route && (route.id || route.cat), 128);
+        return { view, id: routeId || null };
+      };
+      const payload = {
+        schemaVersion: 1,
+        theme: ['dark', 'light'].includes(s.theme) ? s.theme : 'dark',
+        lang: ['English', 'Cantonese', 'Bilingual'].includes(s.lang) ? s.lang : 'English',
+        funnyEn: Math.max(1, Math.min(5, Math.round(Number(s.funnyEn) || 1))),
+        funnyZh: Math.max(1, Math.min(5, Math.round(Number(s.funnyZh) || 1))),
+        route: routeState(s.route),
+        tabs: this.tabs.slice(0, 64).map(tab => ({ id: safeId(tab.id, 128) || 'tab', label: String(tab.label || 'Tab').slice(0, 160), route: routeState(tab.route) })),
+        tweaks: Object.entries(this.tweaks).filter(([, value]) => typeof value === 'boolean').slice(0, 1500).map(([id, value]) => ({ id: safeId(id, 160) || 'tweak', value })),
+      };
+      bridge.createSnapshot(payload).then(result => {
+        const allowed = ['created', 'unsupported', 'timeout', 'failed'];
+        if (!result || result.schemaVersion !== 1 || !allowed.includes(result.status) || typeof result.message !== 'string') {
+          this.notify('Local snapshot', 'The snapshot bridge returned an invalid response.' + retry, 'error', true); return;
+        }
+        if (result.status === 'created') this.notify('Local snapshot', result.message, 'success', true);
+        else this.notify('Local snapshot', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
+      }).catch(() => this.notify('Local snapshot', 'The local snapshot request failed.' + retry, 'error', true));
+    };
     V.quickActions = [
       { label: 'Empty Recycle Bin (preview)', icon: 'delete_sweep', run: () => this.notify('Cleanup preview', s.lang === 'Cantonese' ? FUNNY_ZH[s.funnyZh] : FUNNY_EN[s.funnyEn], 'info') },
       { label: 'Flush DNS', icon: 'dns', run: flushDns },
       { label: 'Restart Explorer', icon: 'restart_alt', run: V.openExplorerRestart },
       { label: 'Winget upgrade (preview)', icon: 'upgrade', run: () => this.notify('Package Manager preview', 'No package upgrade was queued or run.', 'info') },
-      { label: 'New snapshot (preview)', icon: 'history', run: () => this.notify('Local history preview', 'No snapshot was created.', 'info') },
+      { label: 'New local snapshot', icon: 'history', run: createLocalSnapshot },
     ];
     V.syncLine = 'Bundled sample data · no external service or account is connected';
     V.runSync = () => this.notify('Preview data', 'Sample values refreshed in memory', 'info');

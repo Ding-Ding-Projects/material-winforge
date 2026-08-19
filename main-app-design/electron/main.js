@@ -6,6 +6,7 @@
 const { app, BrowserWindow, ipcMain, shell, nativeTheme, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { execFile, spawn } = require('child_process');
+const { randomBytes } = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -18,6 +19,7 @@ let updateTimer = null;
 let previousCpuTimes = null;
 let flushDnsActive = false;
 let restartExplorerActive = false;
+let snapshotActive = false;
 const externalAppLaunches = new Map();
 const EXTERNAL_APP_EXECUTABLES = Object.freeze({
   vscode: ['Code.exe', 'code.exe'],
@@ -277,6 +279,84 @@ async function restartExplorer() {
   }
 }
 
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function hasExactKeys(value, keys) {
+  return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function boundedString(value, maximum, pattern = null) {
+  return typeof value === 'string' && value.length >= 1 && value.length <= maximum && (!pattern || pattern.test(value));
+}
+
+function validateSnapshotPayload(payload) {
+  let encoded;
+  try { encoded = JSON.stringify(payload); } catch { return null; }
+  if (!encoded || Buffer.byteLength(encoded, 'utf8') > 256 * 1024) return null;
+  if (!hasExactKeys(payload, ['schemaVersion', 'theme', 'lang', 'funnyEn', 'funnyZh', 'route', 'tabs', 'tweaks'])) return null;
+  if (payload.schemaVersion !== 1 || !['dark', 'light'].includes(payload.theme) || !['English', 'Cantonese', 'Bilingual'].includes(payload.lang)) return null;
+  if (![payload.funnyEn, payload.funnyZh].every((value) => Number.isInteger(value) && value >= 1 && value <= 5)) return null;
+  const routeValid = (route) => hasExactKeys(route, ['view', 'id']) && boundedString(route.view, 64, /^[a-z0-9-]+$/) && (route.id === null || boundedString(route.id, 128, /^[a-zA-Z0-9:._-]+$/));
+  if (!routeValid(payload.route) || !Array.isArray(payload.tabs) || payload.tabs.length > 64 || !Array.isArray(payload.tweaks) || payload.tweaks.length > 1_500) return null;
+  if (!payload.tabs.every((tab) => hasExactKeys(tab, ['id', 'label', 'route']) && boundedString(tab.id, 128, /^[a-zA-Z0-9:._-]+$/) && boundedString(tab.label, 160) && routeValid(tab.route))) return null;
+  const seenTweaks = new Set();
+  if (!payload.tweaks.every((entry) => {
+    if (!hasExactKeys(entry, ['id', 'value']) || !boundedString(entry.id, 160, /^[a-zA-Z0-9._-]+$/) || typeof entry.value !== 'boolean' || seenTweaks.has(entry.id)) return false;
+    seenTweaks.add(entry.id);
+    return true;
+  })) return null;
+  return encoded;
+}
+
+async function renameSnapshotWithRetry(source, destination) {
+  const delays = [0, 15, 35, 60, 90, 120];
+  for (let index = 0; index < delays.length; index += 1) {
+    if (delays[index]) await new Promise((resolve) => setTimeout(resolve, delays[index]));
+    try { await fs.promises.rename(source, destination); return; }
+    catch (error) {
+      if (!['EPERM', 'EACCES', 'EBUSY'].includes(error && error.code) || index === delays.length - 1) throw error;
+    }
+  }
+}
+
+async function createLocalSnapshot(payload) {
+  if (snapshotActive) return { schemaVersion: 1, status: 'failed', message: 'A local snapshot is already being written. Wait, then retry.' };
+  const encoded = validateSnapshotPayload(payload);
+  if (!encoded) return { schemaVersion: 1, status: 'failed', message: 'The local snapshot state did not match the bounded schema.' };
+  snapshotActive = true;
+  let temporary = null;
+  try {
+    const directory = path.join(app.getPath('userData'), 'snapshots');
+    await fs.promises.mkdir(directory, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const nonce = randomBytes(8).toString('hex');
+    const filename = `snapshot-${timestamp}-${nonce}.json`;
+    const destination = path.join(directory, filename);
+    temporary = path.join(directory, `.${filename}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
+    timer.unref();
+    try {
+      const record = `${JSON.stringify({ schemaVersion: 1, createdAt: new Date().toISOString(), state: JSON.parse(encoded) }, null, 2)}\n`;
+      await fs.promises.writeFile(temporary, record, { encoding: 'utf8', flag: 'wx', mode: 0o600, signal: controller.signal });
+    } finally { clearTimeout(timer); }
+    await renameSnapshotWithRetry(temporary, destination);
+    temporary = null;
+    return { schemaVersion: 1, status: 'created', message: 'A new local JSON snapshot was created.' };
+  } catch (error) {
+    if (temporary) { try { await fs.promises.unlink(temporary); } catch {} }
+    if (error && error.name === 'AbortError') return { schemaVersion: 1, status: 'timeout', message: 'Writing the local snapshot timed out. Retry is available.' };
+    if (error && ['ENOSYS', 'ENOTSUP'].includes(error.code)) return { schemaVersion: 1, status: 'unsupported', message: 'Local snapshots are unavailable on this platform.' };
+    return { schemaVersion: 1, status: 'failed', message: 'The local snapshot could not be created. Retry is available.' };
+  } finally {
+    snapshotActive = false;
+  }
+}
+
 async function launchExternalApp(id) {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
   if (externalAppLaunches.has(id)) return externalAppResult(id, 'busy', 'A launch check for this app is already running.');
@@ -447,6 +527,7 @@ ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
 ipcMain.handle('winforge:package-engines', () => readPackageEngines());
 ipcMain.handle('winforge:flush-dns', () => flushDns());
 ipcMain.handle('winforge:restart-explorer', () => restartExplorer());
+ipcMain.handle('winforge:create-snapshot', (_event, payload) => createLocalSnapshot(payload));
 ipcMain.handle('winforge:launch-external-app', (_event, id) => launchExternalApp(id));
 ipcMain.handle('winforge:cancel-external-app-launch', (_event, id) => {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
