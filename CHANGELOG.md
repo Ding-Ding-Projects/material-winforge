@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed the published Pages first render to hydrate from the build-time release manifest, so an already-published installer is not briefly shown as unavailable before client JavaScript starts.
 - Added persisted up/down group-order controls in the tab strip and Settings with localized 44-pixel targets and boundary-aware disabled states.
 
 - Added independent plain-text-first tab searches with anchored JavaScript regex builders inside every rendered group and a separate group-management search in Settings; filtering is transient and preserves membership and collapse state.

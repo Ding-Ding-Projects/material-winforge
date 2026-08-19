@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import releaseManifest from "../public/release-manifest.json";
 import SiteShell from "./SiteShell";
 
 export const dynamic = "force-static";
@@ -11,5 +12,5 @@ export const metadata: Metadata = {
 
 export default function Home() {
   const assetBase = process.env.WINFORGE_BUILD_TARGET === "pages" ? "/material-winforge" : "";
-  return <SiteShell assetBase={assetBase} />;
+  return <SiteShell assetBase={assetBase} initialManifest={releaseManifest} />;
 }

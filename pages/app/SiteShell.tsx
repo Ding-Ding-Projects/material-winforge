@@ -1068,7 +1068,14 @@ function formatBytes(value: number | null) {
   return `${amount.toFixed(unit ? 1 : 0)} ${units[unit]}`;
 }
 
-export default function SiteShell({ assetBase }: { assetBase: string }) {
+export default function SiteShell({
+  assetBase,
+  initialManifest,
+}: {
+  assetBase: string;
+  initialManifest?: unknown;
+}) {
+  const bootManifest = validManifest(initialManifest) ? initialManifest : null;
   const [prefs, setPrefs] = useState(DEFAULTS);
   const [hydrated, setHydrated] = useState(false);
   const [narrowTabs, setNarrowTabs] = useState(false);
@@ -1145,10 +1152,10 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const resetCommitted = useRef(false);
   const paletteOpener = useRef<HTMLElement | null>(null);
   const paletteDialog = useRef<HTMLElement | null>(null);
-  const [manifest, setManifest] = useState<Manifest | null>(null);
+  const [manifest, setManifest] = useState<Manifest | null>(bootManifest);
   const [manifestState, setManifestState] = useState<
     "loading" | "ready" | "failed"
-  >("loading");
+  >(bootManifest ? "ready" : "loading");
   const [toast, setToast] = useState<string | null>(null);
   const [articleId, setArticleId] = useState(ARTICLES[0].id);
   const [settingsGridTarget, setSettingsGridTarget] = useState<Element | null>(
