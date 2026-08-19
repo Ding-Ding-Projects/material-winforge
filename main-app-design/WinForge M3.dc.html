@@ -2477,7 +2477,7 @@ class Component extends DCLogic {
         { title: 'Search Settings', sub: 'Top-level Settings section search', query: '' },
         { title: 'Global defaults and project overrides', sub: 'Projects, inheritance and active scope', query: 'global project overrides inheritance' },
         { title: 'Appearance and language', sub: 'Theme and language mode', query: 'appearance theme language' },
-        { title: 'Funny levels', sub: 'English and Cantonese tone', query: 'funny tone English Cantonese' },
+        { title: 'Funny levels', sub: 'English and Cantonese tone', query: 'funny levels' },
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
       for (const command of settingsCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'settings', route: { view: 'settings' }, label: 'Settings', settingsQuery: command.query });
