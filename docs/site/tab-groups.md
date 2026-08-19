@@ -8,6 +8,8 @@ Each tab exposes **Move… into group…**. The anchored picker lists current gr
 
 Every rendered group has its own local tab search with an independent anchored JavaScript regex builder. Search state is transient, plain text is the default, and filtering never collapses the group or changes stored membership. The Settings group-management card has a separate group-name/member-count search and builder with an explicit no-match state.
 
+The All tabs surface also provides **Close tabs containing text** and **Close tabs not containing text**. Both actions share the same bounded local query and anchored builder predicate, show the eligible count and a tab-name preview, exclude pinned tabs unless the user explicitly includes them, protect the current tab, and require two acknowledgements plus a full-range slider before closing. Escape, Emergency exit, and scrim cancellation leave the tab state unchanged.
+
 Pinned tabs remain exclusively in the stable pinned region. Pinning a grouped tab removes its group membership, persisted records discard pinned membership during normalization, and move attempts cannot place a pinned tab into a group. Group member counts therefore describe exactly the members rendered in the ordinary region.
 
 ## Configuration
@@ -28,7 +30,7 @@ Group state and picker input remain local to the browser. Group persistence cont
 
 This bounded lane compiles the Sites Worker and Pages static export and runs the repository vocabulary, publication, and diff preflights. Source also binds overflow measurement to group-state changes, gives group controls exact localized accessible names/relationships, localizes the picker RegexBuilder, traps focus in the bounded move dialog, and provides at least 44-by-44-pixel group actions. It does not claim tests, lint, browser interaction, accessibility review, visual review, or captures.
 
-Per-group appearance editing, group bulk-close, and the remaining cross-window/master discovery searches are explicitly incomplete.
+Per-group appearance editing, cross-window/master discovery searches, and bulk-close actions outside the All tabs surface are explicitly incomplete.
 
 ## Suggested articles
 

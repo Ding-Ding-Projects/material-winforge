@@ -24,6 +24,7 @@ type GroupSearchState = {
   sample: string;
   builderOpen: boolean;
 };
+type BulkCloseMode = "contains" | "not-contains";
 type TabGroupsState = { schemaVersion: 1; groups: TabGroup[] };
 type LanguageMode = "en" | "yue" | "both";
 type VocabularyCache = {
@@ -1084,6 +1085,25 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const [tabOverflowSample, setTabOverflowSample] = useState(
     "Home\nFeature map\nDocumentation\nSettings\nChangelog\nStatus",
   );
+  const [bulkCloseQuery, setBulkCloseQuery] = useState("");
+  const [bulkCloseRegex, setBulkCloseRegex] = useState(false);
+  const [bulkCloseBuilderOpen, setBulkCloseBuilderOpen] = useState(false);
+  const [bulkCloseFlags, setBulkCloseFlags] = useState({ i: true, m: false });
+  const [bulkCloseSample, setBulkCloseSample] = useState(
+    "Home\nFeature map\nDocumentation\nSettings\nChangelog\nStatus",
+  );
+  const [bulkCloseIncludePinned, setBulkCloseIncludePinned] = useState(false);
+  const [bulkCloseMode, setBulkCloseMode] = useState<BulkCloseMode | null>(
+    null,
+  );
+  const [bulkCloseConfirmOpen, setBulkCloseConfirmOpen] = useState(false);
+  const [bulkCloseKeyTabs, setBulkCloseKeyTabs] = useState(false);
+  const [bulkCloseKeyPinned, setBulkCloseKeyPinned] = useState(false);
+  const [bulkCloseSlider, setBulkCloseSlider] = useState(0);
+  const [bulkCloseComplete, setBulkCloseComplete] = useState(false);
+  const [bulkCloseCompletedCount, setBulkCloseCompletedCount] = useState(0);
+  const bulkCloseOrigin = useRef<HTMLElement | null>(null);
+  const bulkCloseCommitted = useRef(false);
   const tabItemsRef = useRef<HTMLDivElement | null>(null);
   const [movePickerTab, setMovePickerTab] = useState<TabId | null>(null);
   const [moveGroupQuery, setMoveGroupQuery] = useState("");
@@ -1458,12 +1478,16 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         child instanceof HTMLElement &&
         !child.classList.contains("dialog-scrim")
       )
-        child.inert = paletteOpen || resetConfirmOpen || movePickerTab !== null;
+        child.inert =
+          paletteOpen ||
+          resetConfirmOpen ||
+          movePickerTab !== null ||
+          bulkCloseConfirmOpen;
     return () => {
       for (const child of Array.from(shell.children))
         if (child instanceof HTMLElement) child.inert = false;
     };
-  }, [paletteOpen, resetConfirmOpen, movePickerTab]);
+  }, [bulkCloseConfirmOpen, paletteOpen, resetConfirmOpen, movePickerTab]);
   useEffect(() => {
     if (!paletteOpen) return;
     const dialog = paletteDialog.current;
@@ -3207,6 +3231,151 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
           ),
         ).slice(0, 50)
       : [];
+  let bulkClosePattern: RegExp | null = null;
+  let bulkClosePatternError = "";
+  if (bulkCloseRegex && bulkCloseQuery)
+    try {
+      bulkClosePattern = new RegExp(
+        bulkCloseQuery,
+        `${bulkCloseFlags.i ? "i" : ""}${bulkCloseFlags.m ? "m" : ""}`,
+      );
+    } catch (error) {
+      bulkClosePatternError =
+        error instanceof Error ? error.message : "Invalid regular expression";
+    }
+  const bulkCloseMatches =
+    bulkCloseRegex && bulkCloseQuery && !bulkClosePatternError
+      ? Array.from(
+          bulkCloseSample.matchAll(
+            new RegExp(
+              bulkCloseQuery,
+              `${bulkCloseFlags.i ? "i" : ""}${bulkCloseFlags.m ? "m" : ""}g`,
+            ),
+          ),
+        ).slice(0, 50)
+      : [];
+  const bulkCloseCandidates = orderedTabs.filter(
+    (tab) =>
+      tab.id !== activeTab &&
+      (bulkCloseIncludePinned || !prefs.pinnedTabs.includes(tab.id)),
+  );
+  const getBulkCloseAffected = (mode: BulkCloseMode) => {
+    if (!bulkCloseQuery || bulkClosePatternError) return [] as TabId[];
+    return bulkCloseCandidates
+      .filter((tab) => {
+        const text = `${tab.en} ${tab.yue}`;
+        const matches = bulkCloseRegex
+          ? !!bulkClosePattern?.test(text)
+          : text
+              .toLocaleLowerCase()
+              .includes(bulkCloseQuery.toLocaleLowerCase());
+        return mode === "contains" ? matches : !matches;
+      })
+      .map((tab) => tab.id);
+  };
+  const bulkCloseAffected = bulkCloseMode
+    ? getBulkCloseAffected(bulkCloseMode)
+    : [];
+  const openBulkCloseConfirmation = (
+    mode: BulkCloseMode,
+    origin?: HTMLElement,
+  ) => {
+    if (!bulkCloseQuery || bulkClosePatternError) {
+      announce(
+        dual(
+          "Enter a non-empty search before previewing bulk close.",
+          "預覽批量關閉之前，要先輸入搜尋字。",
+          language,
+        ),
+        "warning",
+        "Bulk close",
+      );
+      return;
+    }
+    const affected = getBulkCloseAffected(mode);
+    if (!affected.length) {
+      announce(
+        dual(
+          "No eligible tabs match this action; nothing will close.",
+          "冇符合又合資格嘅分頁；唔會關閉任何嘢。",
+          language,
+        ),
+        "info",
+        "Bulk close",
+      );
+      return;
+    }
+    bulkCloseOrigin.current = origin ?? (document.activeElement as HTMLElement);
+    bulkCloseCommitted.current = false;
+    setBulkCloseMode(mode);
+    setBulkCloseKeyTabs(false);
+    setBulkCloseKeyPinned(false);
+    setBulkCloseSlider(0);
+    setBulkCloseComplete(false);
+    setBulkCloseCompletedCount(0);
+    setBulkCloseConfirmOpen(true);
+  };
+  const closeBulkCloseConfirmation = () => {
+    setBulkCloseConfirmOpen(false);
+    bulkCloseCommitted.current = false;
+    setBulkCloseKeyTabs(false);
+    setBulkCloseKeyPinned(false);
+    setBulkCloseSlider(0);
+    setBulkCloseComplete(false);
+    setBulkCloseCompletedCount(0);
+    setTimeout(() => bulkCloseOrigin.current?.focus(), 0);
+  };
+  const commitBulkClose = () => {
+    if (bulkCloseCommitted.current || !bulkCloseMode) return;
+    const targetIds = getBulkCloseAffected(bulkCloseMode);
+    if (!targetIds.length) {
+      closeBulkCloseConfirmation();
+      return;
+    }
+    const targetSet = new Set(targetIds);
+    setPrefs((current) => ({
+      ...current,
+      tabOrder: current.tabOrder.filter((id) => !targetSet.has(id)),
+      pinnedTabs: current.pinnedTabs.filter((id) => !targetSet.has(id)),
+      tabGroups: {
+        schemaVersion: 1,
+        groups: current.tabGroups.groups.map((group) => ({
+          ...group,
+          tabs: group.tabs.filter((id) => !targetSet.has(id)),
+        })),
+      },
+    }));
+    bulkCloseCommitted.current = true;
+    setBulkCloseCompletedCount(targetIds.length);
+    setBulkCloseSlider(100);
+    setBulkCloseComplete(true);
+    announce(
+      dual(
+        `${targetIds.length} tabs closed; the current tab stayed open.`,
+        `已關閉 ${targetIds.length} 個分頁；目前分頁保留。`,
+        language,
+      ),
+      "success",
+      "Bulk close",
+    );
+  };
+  const advanceBulkCloseSlider = (value: number) => {
+    if (!bulkCloseKeyTabs || !bulkCloseKeyPinned || bulkCloseCommitted.current)
+      return;
+    setBulkCloseSlider(value);
+    if (value === 100) commitBulkClose();
+  };
+  useEffect(() => {
+    if (!bulkCloseConfirmOpen) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeBulkCloseConfirmation();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [bulkCloseConfirmOpen, closeBulkCloseConfirmation]);
   const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
     if (target.getAttribute("role") !== "tab") return;
@@ -3719,6 +3888,110 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                       `${filteredOverflowTabs.length} ${dual("tabs", "個分頁", language)}`}
                   </strong>
                 </p>
+                <section className="bulk-close-tools" aria-labelledby="bulk-close-title">
+                  <h3 id="bulk-close-title">
+                    {dual("Bulk close tabs", "批量關閉分頁", language)}
+                  </h3>
+                  <div className="bulk-close-search">
+                    <label>
+                      <span aria-hidden="true">⌕</span>
+                      <input
+                        maxLength={128}
+                        value={bulkCloseQuery}
+                        onChange={(event) => setBulkCloseQuery(event.target.value)}
+                        placeholder={dual(
+                          "Search visible tab labels",
+                          "搜尋分頁顯示名稱",
+                          language,
+                        )}
+                        aria-label={dual(
+                          "Search tabs for bulk close",
+                          "搜尋要批量關閉嘅分頁",
+                          language,
+                        )}
+                        aria-invalid={Boolean(bulkClosePatternError)}
+                      />
+                    </label>
+                    <div className="builder-anchor">
+                      <button
+                        type="button"
+                        className={bulkCloseRegex ? "active" : ""}
+                        onClick={() =>
+                          setBulkCloseBuilderOpen((value) => !value)
+                        }
+                        aria-expanded={bulkCloseBuilderOpen}
+                        aria-controls="bulk-close-regex"
+                      >
+                        {dual("Regex builder", "正規表示式工具", language)}
+                      </button>
+                      {bulkCloseBuilderOpen && (
+                        <RegexBuilder
+                          builderId="bulk-close-regex"
+                          language={language}
+                          query={bulkCloseQuery}
+                          setQuery={(value) => {
+                            setBulkCloseQuery(value.slice(0, 128));
+                            setBulkCloseRegex(true);
+                          }}
+                          regexMode={bulkCloseRegex}
+                          setRegexMode={setBulkCloseRegex}
+                          flags={bulkCloseFlags}
+                          setFlags={setBulkCloseFlags}
+                          error={bulkClosePatternError}
+                          sample={bulkCloseSample}
+                          setSample={setBulkCloseSample}
+                          matches={bulkCloseMatches}
+                          announce={announce}
+                          close={() => setBulkCloseBuilderOpen(false)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <p className="bulk-close-meta" aria-live="polite">
+                    {bulkClosePatternError ||
+                      dual(
+                        `${bulkCloseAffected.length} eligible tabs will be affected; the current tab is protected.`,
+                        `有 ${bulkCloseAffected.length} 個合資格分頁會受影響；目前分頁受保護。`,
+                        language,
+                      )}
+                  </p>
+                  <label className="bulk-close-pinned">
+                    <input
+                      type="checkbox"
+                      checked={bulkCloseIncludePinned}
+                      onChange={(event) =>
+                        setBulkCloseIncludePinned(event.target.checked)
+                      }
+                    />
+                    <span>
+                      {dual(
+                        "Include pinned tabs (protected by default)",
+                        "包括釘選分頁（預設受保護）",
+                        language,
+                      )}
+                    </span>
+                  </label>
+                  <div className="bulk-close-actions">
+                    <button
+                      type="button"
+                      disabled={!bulkCloseQuery || Boolean(bulkClosePatternError)}
+                      onClick={(event) =>
+                        openBulkCloseConfirmation("contains", event.currentTarget)
+                      }
+                    >
+                      {dual("Close tabs containing text", "關閉包含文字嘅分頁", language)}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!bulkCloseQuery || Boolean(bulkClosePatternError)}
+                      onClick={(event) =>
+                        openBulkCloseConfirmation("not-contains", event.currentTarget)
+                      }
+                    >
+                      {dual("Close tabs not containing text", "關閉唔包含文字嘅分頁", language)}
+                    </button>
+                  </div>
+                </section>
                 <button type="button" className="overflow-manage-groups" onClick={() => { setTabOverflowOpen(false); setTabOverflowBuilderOpen(false); openSetting("tab-group-settings"); }}>{dual("Manage tab groups", "管理分頁群組", language)}</button>
                 <div className="tab-overflow-list">
                   {filteredOverflowTabs.map((tab) => {
@@ -5613,6 +5886,32 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
           cancel={closeResetConfirmation}
         />
       )}
+      {bulkCloseConfirmOpen && (
+        <BulkCloseConfirmation
+          language={language}
+          mode={bulkCloseMode ?? "contains"}
+          query={bulkCloseQuery}
+          includePinned={bulkCloseIncludePinned}
+          tabs={bulkCloseAffected
+            .map((id) => TABS.find((tab) => tab.id === id))
+            .filter((tab): tab is (typeof TABS)[number] => Boolean(tab))}
+          keyTabs={bulkCloseKeyTabs}
+          setKeyTabs={(value) => {
+            setBulkCloseKeyTabs(value);
+            setBulkCloseSlider(0);
+          }}
+          keyPinned={bulkCloseKeyPinned}
+          setKeyPinned={(value) => {
+            setBulkCloseKeyPinned(value);
+            setBulkCloseSlider(0);
+          }}
+          slider={bulkCloseSlider}
+          setSlider={advanceBulkCloseSlider}
+          complete={bulkCloseComplete}
+          completedCount={bulkCloseCompletedCount}
+          cancel={closeBulkCloseConfirmation}
+        />
+      )}
       {notificationOpen && (
         <NotificationCenter
           language={language}
@@ -5945,6 +6244,7 @@ function ResetSettingsConfirmation({
   slider,
   setSlider,
   complete,
+  completedCount,
   cancel,
 }: {
   language: LanguageMode;
@@ -5955,6 +6255,7 @@ function ResetSettingsConfirmation({
   slider: number;
   setSlider: (value: number) => void;
   complete: boolean;
+  completedCount: number;
   cancel: () => void;
 }) {
   const armed = keySettings && keyProjects;
@@ -6089,6 +6390,184 @@ function ResetSettingsConfirmation({
                   "重設授權滑桿",
                   language,
                 )}
+                aria-valuetext={`${slider}%`}
+              />
+              <output>{slider}%</output>
+              <span className="reset-progress" aria-hidden="true">
+                <i style={{ width: `${slider}%` }} />
+              </span>
+            </label>
+            <button type="button" className="emergency-button" onClick={cancel}>
+              {dual("Emergency exit · Cancel", "緊急離開 · 取消", language)}
+            </button>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function BulkCloseConfirmation({
+  language,
+  mode,
+  query,
+  includePinned,
+  tabs,
+  keyTabs,
+  setKeyTabs,
+  keyPinned,
+  setKeyPinned,
+  slider,
+  setSlider,
+  complete,
+  cancel,
+}: {
+  language: LanguageMode;
+  mode: BulkCloseMode;
+  query: string;
+  includePinned: boolean;
+  tabs: Array<(typeof TABS)[number]>;
+  keyTabs: boolean;
+  setKeyTabs: (value: boolean) => void;
+  keyPinned: boolean;
+  setKeyPinned: (value: boolean) => void;
+  slider: number;
+  setSlider: (value: number) => void;
+  complete: boolean;
+  cancel: () => void;
+}) {
+  const armed = keyTabs && keyPinned;
+  const actionEn =
+    mode === "contains" ? "Close tabs containing text" : "Close tabs not containing text";
+  const actionYue =
+    mode === "contains" ? "關閉包含文字嘅分頁" : "關閉唔包含文字嘅分頁";
+  return (
+    <div
+      className="dialog-scrim bulk-close-scrim"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) cancel();
+      }}
+    >
+      <section
+        className={`reset-confirmation bulk-close-confirmation ${complete ? "complete" : ""}`}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="bulk-close-confirm-title"
+        aria-describedby="bulk-close-confirm-impact"
+      >
+        <header>
+          <div>
+            <span className="eyebrow">
+              {dual("Destructive tab action", "破壞性分頁操作", language)}
+            </span>
+            <h2 id="bulk-close-confirm-title">
+              {complete
+                ? dual("Tabs closed", "分頁已關閉", language)
+                : dual("Close matching tabs?", "關閉符合條件嘅分頁？", language)}
+            </h2>
+          </div>
+          <button
+            type="button"
+            autoFocus
+            onClick={cancel}
+            aria-label={dual("Emergency exit", "緊急離開", language)}
+          >
+            ×
+          </button>
+        </header>
+        {complete ? (
+          <div className="reset-completion" role="status" aria-live="polite">
+            <span aria-hidden="true">✓</span>
+            <p>
+              {dual(
+                `${completedCount} tabs were closed. The current tab stayed open, and pinned tabs were ${includePinned ? "included by your explicit choice" : "protected by default"}.`,
+                `已關閉 ${completedCount} 個分頁。目前分頁保留，釘選分頁${includePinned ? "按你明確選擇而包括" : "按預設獲保護"}。`,
+                language,
+              )}
+            </p>
+            <button type="button" className="filled-button" onClick={cancel}>
+              {dual("Close", "關閉", language)}
+            </button>
+          </div>
+        ) : (
+          <>
+            <p id="bulk-close-confirm-impact">
+              {dual(
+                `${actionEn} for “${query}” will close exactly ${tabs.length} eligible tabs. The current tab stays open. Any future unsaved-work prompt still applies per tab.`,
+                `${actionYue}「${query}」會關閉確實 ${tabs.length} 個合資格分頁。目前分頁保留；日後每個分頁嘅未保存工作提示照樣適用。`,
+                language,
+              )}
+            </p>
+            <ul className="bulk-close-preview" aria-label={dual("Tabs to close", "將會關閉嘅分頁", language)}>
+              {tabs.slice(0, 8).map((tab) => (
+                <li key={tab.id}>{dual(tab.en, tab.yue, language)}</li>
+              ))}
+              {tabs.length > 8 && (
+                <li>
+                  {dual(
+                    `and ${tabs.length - 8} more`,
+                    `仲有 ${tabs.length - 8} 個`,
+                    language,
+                  )}
+                </li>
+              )}
+            </ul>
+            <div className="reset-keys">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={keyTabs}
+                  onChange={(event) => setKeyTabs(event.target.checked)}
+                />
+                <span>
+                  <strong>{dual("Key 1 · Tabs", "鎖匙 1 · 分頁", language)}</strong>
+                  <small>
+                    {dual(
+                      `I understand ${tabs.length} named tabs will close.`,
+                      `我明白會關閉 ${tabs.length} 個列明嘅分頁。`,
+                      language,
+                    )}
+                  </small>
+                </span>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={keyPinned}
+                  onChange={(event) => setKeyPinned(event.target.checked)}
+                />
+                <span>
+                  <strong>{dual("Key 2 · Protection", "鎖匙 2 · 保護", language)}</strong>
+                  <small>
+                    {dual(
+                      includePinned
+                        ? "I understand my explicit choice includes pinned tabs."
+                        : "I understand pinned tabs remain protected by default.",
+                      includePinned
+                        ? "我明白自己明確選擇包括釘選分頁。"
+                        : "我明白釘選分頁按預設會受保護。",
+                      language,
+                    )}
+                  </small>
+                </span>
+              </label>
+            </div>
+            <label className={`reset-slider ${armed ? "armed" : ""}`}>
+              <span>
+                {armed
+                  ? dual("Slide fully to authorize closing", "推到最盡先授權關閉", language)
+                  : dual("Complete both keys to unlock the slider", "完成兩條鎖匙先可以解鎖滑桿", language)}
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={slider}
+                disabled={!armed}
+                onChange={(event) => setSlider(Number(event.target.value))}
+                aria-label={dual("Bulk close authorization slider", "批量關閉授權滑桿", language)}
                 aria-valuetext={`${slider}%`}
               />
               <output>{slider}%</output>
