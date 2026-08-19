@@ -61,6 +61,13 @@ type VocabularyCache = {
   schemaVersion: 1;
   replacements: Record<string, string>;
 };
+type SchoolModeState = {
+  schemaVersion: 1;
+  enabled: boolean;
+  name: string;
+  credentialSalt: string | null;
+  credentialHash: string | null;
+};
 type LogoPreset = "forge" | "tile" | "mono";
 type SiteSettingValues = {
   language: LanguageMode;
@@ -156,6 +163,7 @@ const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
 const SETTINGS_HISTORY_KEY = "winforge-material-preview-settings-history-v1";
 const NARRATION_KEY = "winforge-material-preview-narration-v1";
 const SCHEDULE_KEY = "winforge-material-preview-schedules-v1";
+const SCHOOL_MODE_KEY = "winforge-material-preview-school-mode-v1";
 const PREFERENCES_MAX_BYTES = 512 * 1024;
 const NOTIFICATION_MAX_BYTES = 128 * 1024;
 const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
@@ -191,6 +199,13 @@ const DEFAULTS: Preferences = {
     projects: [],
     activeProjectId: null,
   },
+};
+const DEFAULT_SCHOOL_MODE: SchoolModeState = {
+  schemaVersion: 1,
+  enabled: false,
+  name: "School mode",
+  credentialSalt: null,
+  credentialHash: null,
 };
 const SITE_SETTING_KEYS: SiteSettingKey[] = [
   "language",
@@ -556,6 +571,22 @@ function readLocalRecord(key: string, maxBytes: number): { raw: string | null; a
 function removeLocalRecord(key: string): boolean { try { localStorage.removeItem(key); return true; } catch { return false; } }
 function writeLocalRecord(key: string, value: unknown, maxBytes: number): boolean {
   try { const serialized = JSON.stringify(value); if (serializedBytes(serialized) > maxBytes) return false; localStorage.setItem(key, serialized); return true; } catch { return false; }
+}
+function normalizeSchoolMode(value: unknown): SchoolModeState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Partial<SchoolModeState>;
+  if (Object.keys(root).some((key) => !["schemaVersion", "enabled", "name", "credentialSalt", "credentialHash"].includes(key))) return null;
+  if (root.schemaVersion !== 1 || typeof root.enabled !== "boolean" || typeof root.name !== "string" || !root.name.trim() || root.name.trim().length > 64 || /[\u0000-\u001f\u007f]/.test(root.name)) return null;
+  const nullable = (candidate: unknown) => candidate === null || (typeof candidate === "string" && /^[A-Za-z0-9+/=_-]{16,256}$/.test(candidate));
+  if (!nullable(root.credentialSalt) || !nullable(root.credentialHash)) return null;
+  if (root.enabled && (!root.credentialSalt || !root.credentialHash)) return null;
+  return { schemaVersion: 1, enabled: root.enabled, name: root.name.trim(), credentialSalt: root.credentialSalt ?? null, credentialHash: root.credentialHash ?? null };
+}
+function encodeBytes(bytes: Uint8Array): string { let output = ""; bytes.forEach((byte) => { output += String.fromCharCode(byte); }); return btoa(output).replace(/=+$/, ""); }
+async function hashSchoolCredential(credential: string, salt: string): Promise<string> {
+  const data = new TextEncoder().encode(`${salt}:${credential}`);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return encodeBytes(new Uint8Array(digest));
 }
 function boundSettingsHistory(history: SettingsHistory): SettingsHistory {
   const records: SettingsHistoryRecord[] = [];
@@ -1285,6 +1316,10 @@ export default function SiteShell({
 }) {
   const bootManifest = validManifest(initialManifest) ? initialManifest : null;
   const [prefs, setPrefs] = useState(DEFAULTS);
+  const [schoolMode, setSchoolMode] = useState<SchoolModeState>(DEFAULT_SCHOOL_MODE);
+  const [schoolNameInput, setSchoolNameInput] = useState("");
+  const [schoolCredentialInput, setSchoolCredentialInput] = useState("");
+  const [schoolUnlockInput, setSchoolUnlockInput] = useState("");
   const [narration, setNarration] = useState<NarrationSettings>(DEFAULT_NARRATION);
   const [schedule, setSchedule] = useState<ScheduleState>(DEFAULT_SCHEDULE);
   const [scheduleTick, setScheduleTick] = useState(0);
@@ -1479,7 +1514,8 @@ export default function SiteShell({
     null,
   );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const language = prefs.language;
+  const schoolEnabled = schoolMode.enabled;
+  const language = schoolEnabled ? "en" : prefs.language;
   const drainSpeech = useCallback(() => {
     if (speechRunning.current || !narration.enabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const next = speechQueue.current.shift();
@@ -1614,6 +1650,16 @@ export default function SiteShell({
       } catch {
         removeLocalRecord(STORAGE_KEY);
       }
+    const schoolRecord = readLocalRecord(SCHOOL_MODE_KEY, 16 * 1024);
+    if (!schoolRecord.available) setPersistenceAvailable(false);
+    if (schoolRecord.oversized) removeLocalRecord(SCHOOL_MODE_KEY);
+    if (schoolRecord.raw) {
+      try {
+        const parsed = normalizeSchoolMode(JSON.parse(schoolRecord.raw));
+        if (parsed) { setSchoolMode(parsed); setSchoolNameInput(parsed.name); }
+        else removeLocalRecord(SCHOOL_MODE_KEY);
+      } catch { removeLocalRecord(SCHOOL_MODE_KEY); }
+    }
     const hash = location.hash.slice(1) as TabId;
     if (TABS.some((tab) => tab.id === hash)) setActiveTab(hash);
     const notificationRecord = readLocalRecord(NOTIFICATION_KEY, NOTIFICATION_MAX_BYTES);
@@ -1667,6 +1713,9 @@ export default function SiteShell({
   useEffect(() => {
     if (hydrated && !writeLocalRecord(STORAGE_KEY, prefs, PREFERENCES_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, prefs]);
+  useEffect(() => {
+    if (hydrated && !writeLocalRecord(SCHOOL_MODE_KEY, schoolMode, 16 * 1024)) setPersistenceAvailable(false);
+  }, [hydrated, schoolMode]);
   useEffect(() => {
     if (hydrated && !writeLocalRecord(NARRATION_KEY, narration, NARRATION_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, narration]);
@@ -2387,6 +2436,41 @@ export default function SiteShell({
     );
     announce(note);
   };
+  const enableSchoolMode = async () => {
+    const name = schoolNameInput.trim();
+    const credential = schoolCredentialInput;
+    if (!name || name.length > 64 || /[\u0000-\u001f\u007f]/.test(name) || credential.length < 4 || credential.length > 128) {
+      announce("Choose a mode name and a local unlock credential from 4–128 characters.", "warning", "School mode");
+      return;
+    }
+    if (!(typeof crypto !== "undefined" && crypto.getRandomValues && crypto.subtle)) {
+      announce("This browser cannot create a local credential hash, so School mode remains off.", "error", "School mode");
+      return;
+    }
+    const saltBytes = new Uint8Array(16);
+    crypto.getRandomValues(saltBytes);
+    const credentialSalt = encodeBytes(saltBytes);
+    const credentialHash = await hashSchoolCredential(credential, credentialSalt);
+    setSchoolMode({ schemaVersion: 1, enabled: true, name, credentialSalt, credentialHash });
+    setSchoolCredentialInput("");
+    setSchoolUnlockInput("");
+    announce(`${name} is on. English-only copy is active; this is a local UX mode, not security.`, "success", "School mode");
+  };
+  const disableSchoolMode = async () => {
+    if (!schoolMode.credentialSalt || !schoolMode.credentialHash) {
+      announce("No local unlock credential is available. Clear this site's storage to reset School mode.", "warning", "School mode");
+      return;
+    }
+    const candidate = await hashSchoolCredential(schoolUnlockInput, schoolMode.credentialSalt);
+    if (candidate !== schoolMode.credentialHash) {
+      setSchoolUnlockInput("");
+      announce("That local credential did not match. Clear this site's storage to recover the UX mode.", "error", "School mode");
+      return;
+    }
+    setSchoolMode({ ...schoolMode, enabled: false });
+    setSchoolUnlockInput("");
+    announce(`${schoolMode.name} is off. Your previous language, tone, vocabulary, and dim-sum choices are restored.`, "success", "School mode");
+  };
   const scheduleSettingOptions: Array<[SiteSettingKey, string, string]> = [
     ["language", "Language", "語言"],
     ["funnyEnglish", "English funny level", "英文玩味程度"],
@@ -2428,7 +2512,7 @@ export default function SiteShell({
     announce(dual("Local schedule removed.", "本機排程已移除。", language), "success", "Schedule");
   };
   const personalText = (original: string) =>
-    prefs.personalVocabulary?.replacements[original] ?? original;
+    schoolEnabled ? original : (prefs.personalVocabulary?.replacements[original] ?? original);
   const clearVocabulary = () => {
     setPrefs((p) => ({ ...p, personalVocabulary: null }));
     setVocabStatus("no-file");
@@ -2580,18 +2664,21 @@ export default function SiteShell({
     }
   }, [flags, query, regexMode]);
   const results = useMemo(() => {
-    if (!query) return CATALOG;
+    const visibleCatalog = schoolEnabled
+      ? CATALOG.filter((item) => !/dim[- ]?sum|dish|surprise/i.test(`${item.id} ${item.title} ${item.summary}`))
+      : CATALOG;
+    if (!query) return visibleCatalog;
     const text = (item: CatalogItem) =>
       `${item.title} ${item.titleYue} ${item.summary} ${item.summaryYue} ${item.category}`;
     if (regexMode)
       return regexResult.expression
-        ? CATALOG.filter((item) => regexResult.expression?.test(text(item)))
+        ? visibleCatalog.filter((item) => regexResult.expression?.test(text(item)))
         : [];
     const needle = query.toLocaleLowerCase();
-    return CATALOG.filter((item) =>
+    return visibleCatalog.filter((item) =>
       text(item).toLocaleLowerCase().includes(needle),
     );
-  }, [query, regexMode, regexResult.expression]);
+  }, [query, regexMode, regexResult.expression, schoolEnabled]);
   const sampleMatches = useMemo(() => {
     if (!regexMode || !query || !regexResult.expression)
       return [] as RegExpMatchArray[];
@@ -2729,6 +2816,7 @@ export default function SiteShell({
       `Global defaults project overrides active inherited reset ${activeSettingsProject?.name ?? "global"}`,
     ],
     ["language", `Language mode English Cantonese bilingual ${prefs.language}`],
+    ["school-mode", `School mode ${schoolMode.name} ${schoolMode.enabled ? "enabled English only locked" : "off local unlock"}`],
     ["funny-en", `English funny level tone ${prefs.funnyEnglish}`],
     ["funny-yue", `Cantonese funny level tone ${prefs.funnyCantonese}`],
     ["theme", `Theme system light dark ${prefs.theme}`],
@@ -3180,6 +3268,14 @@ export default function SiteShell({
       detail: dual("Open site destination", "開啟網站目的地", language),
       action: () => selectTab(tab.id, `panel-${tab.id}`),
     })),
+    {
+      id: "school-mode",
+      label: schoolMode.enabled ? schoolMode.name : dual("School mode", "School mode", language),
+      detail: schoolMode.enabled
+        ? "English-only UX mode is enabled; unlock locally to restore prior choices."
+        : "Rename and enable a local English-only UX mode.",
+      action: () => openSetting("school-mode"),
+    },
     {
       id: "search",
       label: dual("Focus site search", "跳去網站搜尋", language),
@@ -5432,6 +5528,29 @@ export default function SiteShell({
             )}
             <div className="settings-grid">
               <SettingCard
+                id="school-mode"
+                hidden={!settingsVisible("school-mode")}
+                title={schoolMode.name}
+                description="A local UX mode that uses English-only copy while enabled. It is not security, encryption, or account protection."
+                provenance={schoolMode.enabled ? "Enabled locally · previous language, tone, vocabulary, and dim-sum choices are retained." : "Off locally · no credential is stored until you enable this mode."}
+              >
+                {!schoolMode.enabled ? (
+                  <div className="school-mode-controls">
+                    <label><span>Mode name</span><input value={schoolNameInput} maxLength={64} onChange={(event) => setSchoolNameInput(event.target.value)} placeholder="School mode" /></label>
+                    <label><span>Local unlock credential</span><input type="password" value={schoolCredentialInput} maxLength={128} onChange={(event) => setSchoolCredentialInput(event.target.value)} autoComplete="new-password" /></label>
+                    <button type="button" className="filled-button" onClick={enableSchoolMode}>Enable local mode</button>
+                    <p className="supporting-copy">The credential is salted and hashed with the browser's Web Crypto API; its plaintext is never persisted. Clear this site's storage to reset the mode if the credential is forgotten.</p>
+                  </div>
+                ) : (
+                  <div className="school-mode-controls">
+                    <p className="supporting-copy">{schoolMode.name} is enabled. English-only copy is active and funny-level controls, personal vocabulary, and dim-sum content are unavailable until you unlock.</p>
+                    <label><span>Local unlock credential</span><input type="password" value={schoolUnlockInput} maxLength={128} onChange={(event) => setSchoolUnlockInput(event.target.value)} autoComplete="current-password" /></label>
+                    <button type="button" className="filled-button" onClick={disableSchoolMode}>Unlock and turn off</button>
+                    <p className="supporting-copy">This is a self-imposed UX lock, not security. Recovery: clear this site's browser storage, then reload.</p>
+                  </div>
+                )}
+              </SettingCard>
+              <SettingCard
                 id="scheduled-settings"
                 hidden={!settingsVisible("schedule")}
                 title={dual("Scheduled settings", "排程設定", language)}
@@ -5505,7 +5624,7 @@ export default function SiteShell({
                 />
               </SettingCard>
               <SettingCard
-                hidden={!settingsVisible("funny-en")}
+                hidden={schoolEnabled || !settingsVisible("funny-en")}
                 title={dual("English funny level", "英文玩味程度", language)}
                 description={dual(
                   "Styles English copy from serious to playful without changing facts.",
@@ -5527,7 +5646,7 @@ export default function SiteShell({
                 />
               </SettingCard>
               <SettingCard
-                hidden={!settingsVisible("funny-yue")}
+                hidden={schoolEnabled || !settingsVisible("funny-yue")}
                 title={dual(
                   "Cantonese funny level",
                   "廣東話玩味程度",
@@ -6537,7 +6656,7 @@ export default function SiteShell({
               </div>
               <div
                 id="site-vocabulary-status"
-                hidden={!settingsVisible("vocabulary")}
+                hidden={schoolEnabled || !settingsVisible("vocabulary")}
                 tabIndex={-1}
               >
                 <SettingCard

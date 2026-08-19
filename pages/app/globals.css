@@ -35,6 +35,22 @@
   background: var(--surface);
 }
 
+.school-mode-controls {
+  display: grid;
+  gap: 12px;
+  max-width: 44rem;
+}
+
+.school-mode-controls > label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.school-mode-controls input {
+  min-height: 44px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --surface: #08140c;

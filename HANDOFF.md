@@ -1,5 +1,13 @@
 # Handoff
 
+## School-mode lane — `codex/luna-school-mode`
+
+- Added local user-renamable School mode to `pages/app/SiteShell.tsx` and `main-app-design/WinForge M3.dc.html`.
+- The mode stores only a bounded name, random salt, and Web Crypto SHA-256 credential hash. It forces English-only copy immediately, hides funny-level and personal-vocabulary controls, keeps dim-sum content undiscoverable while enabled, and restores prior choices after a correct local unlock.
+- Added `docs/site/school-mode.md`, `docs/application/school-mode.md`, both documentation index entries, and the completeness inventory row.
+- Recovery is local browser/app data clearing; this is a UX mode, not security. No credential plaintext is persisted or exported.
+- Tests, lint, reviews, packaged/runtime interaction, accessibility review, captures, release, and publication are unverified and intentionally unrun in this bounded lane.
+
 ## Scheduled-settings lane — checkpoint `6b33a58`
 
 - Added the browser-local scheduled-settings editor and lifecycle in `pages/app/SiteShell.tsx`, including bounded rule persistence, local-time date/time/weekday semantics, deterministic last-match precedence, temporary override application, restoration of base settings and ownership, Settings search, and command-palette routing.

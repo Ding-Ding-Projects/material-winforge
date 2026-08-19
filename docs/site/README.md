@@ -12,6 +12,7 @@
 - [Tab groups](tab-groups.md) — bounded local grouping, group management, and the searchable Move… into group… picker.
 - [Site narrator](narration.md) — opt-in local speech, runtime voice pickers, serialized bilingual narration, and bounded rate/pitch controls.
 - [Scheduled settings](scheduled-settings.md) — bounded browser-local date/time/weekday overrides with deterministic precedence and base-setting restoration.
+- [School mode](school-mode.md) — a local renamed English-only UX mode with hashed unlock and honest browser-storage recovery.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 

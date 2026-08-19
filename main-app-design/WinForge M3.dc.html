@@ -576,6 +576,21 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         <div style="display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;margin-bottom:16px;border-radius:999px;background:var(--md-sys-color-surface-container-high)" role="search"><span class="ms" aria-hidden="true">search</span><input value="{{ settingsQuery }}" onInput="{{ setSettingsQuery }}" maxlength="128" aria-label="Search Settings sections" placeholder="Search Settings sections and current values" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbSettings }}" title="Advanced regex builder" aria-label="Open Settings regex builder" style="width:36px;height:36px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:17px">regular_expression</span></button></div>
         <sc-if value="{{ settingsNoMatch }}" hint-placeholder-val="{{ false }}"><div style="margin-bottom:16px;padding:14px 16px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)" role="status">No Settings section matches this search. Persisted values and the active project are unchanged.</div></sc-if>
 
+        <sc-if value="{{ showSettingsSchool }}" hint-placeholder-val="{{ true }}">
+        <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">{{ schoolModeName }}</h2>
+          <p style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">A local English-only UX mode. This is not security, encryption, or account protection. Prior language, tone, personal vocabulary, and dim-sum choices return when it is turned off.</p>
+          <sc-if value="{{ schoolModeEnabled }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><label style="display:flex;flex-direction:column;gap:5px;min-width:220px;font-size:12px">Local unlock credential<input type="password" value="{{ schoolUnlockInput }}" onInput="{{ setSchoolUnlockInput }}" autocomplete="current-password" maxlength="128" style="height:40px;padding:0 12px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><button onClick="{{ disableSchoolMode }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Unlock and turn off</button></div>
+            <p style="margin:12px 0 0;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Forgotten credential recovery: clear this app's local data, then reload. No credential plaintext is stored.</p>
+          </sc-if>
+          <sc-if value="{{ schoolModeDisabled }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><label style="display:flex;flex-direction:column;gap:5px;min-width:220px;font-size:12px">Mode name<input value="{{ schoolNameInput }}" onInput="{{ setSchoolNameInput }}" maxlength="64" placeholder="School mode" style="height:40px;padding:0 12px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><label style="display:flex;flex-direction:column;gap:5px;min-width:220px;font-size:12px">Local unlock credential<input type="password" value="{{ schoolCredentialInput }}" onInput="{{ setSchoolCredentialInput }}" autocomplete="new-password" maxlength="128" style="height:40px;padding:0 12px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><button onClick="{{ enableSchoolMode }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Enable local mode</button></div>
+            <p style="margin:12px 0 0;font-size:12px;color:var(--md-sys-color-on-surface-variant)">The credential is salted and hashed with Web Crypto before local persistence; its plaintext never enters the saved preview record. Clear this app's local data to reset.</p>
+          </sc-if>
+        </section>
+        </sc-if>
+
         <sc-if value="{{ showSettingsProjects }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Global defaults and project overrides</h2>
@@ -856,7 +871,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
               </div>
             </section>
             <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
-              <h2 style="margin:0 0 8px;font-size:16px;font-weight:500">{{ personalVocabularyTitle }}</h2>
+              <sc-if value="{{ showMemoryVocabulary }}" hint-placeholder-val="{{ true }}"><h2 style="margin:0 0 8px;font-size:16px;font-weight:500">{{ personalVocabularyTitle }}</h2>
               <p id="personal-vocabulary-status" role="status" aria-live="polite" tabindex="-1" style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ vocabLine }}</p>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
                 <label style="display:flex;align-items:center;gap:8px;height:36px;padding:0 18px 0 14px;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-size:13px;font-weight:500;cursor:pointer">
@@ -864,7 +879,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
                   <input id="personal-vocabulary-file" type="file" accept="application/json,.json" onChange="{{ loadVocabFile }}" aria-label="Choose a local personal vocabulary JSON file" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">
                 </label>
                 <button onClick="{{ clearVocab }}" disabled="{{ vocabClearDisabled }}" style="height:36px;padding:0 18px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:13px;font-weight:500" style-hover="background:var(--md-sys-color-surface-container-high)">{{ vocabClearLabel }}</button>
-              </div>
+              </div></sc-if>
             </section>
           </div>
         </div>
@@ -1964,6 +1979,7 @@ class Component extends DCLogic {
     const activeSettingsProject = this.settingsProjects.find(project => project.id === this.activeProjectId);
     const effectiveSettings = { ...this.settingsGlobal, ...(activeSettingsProject ? activeSettingsProject.overrides : {}) };
     this.personalVocabulary = this.validateVocabularyPayload(L && L.personalVocabulary);
+    this.schoolMode = this.validateSchoolMode(L && L.schoolMode);
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -1973,7 +1989,7 @@ class Component extends DCLogic {
       funnyEn: effectiveSettings.funnyEn,
       funnyZh: effectiveSettings.funnyZh,
       showEmojis: effectiveSettings.showEmojis,
-      projectNameInput: '',
+      projectNameInput: '', schoolNameInput: this.schoolMode.name, schoolCredentialInput: '', schoolUnlockInput: '',
       scheduleDraftLabel: '', scheduleDraftStartDate: '', scheduleDraftEndDate: '', scheduleDraftStartTime: '09:00', scheduleDraftEndTime: '17:00', scheduleDraftWeekdays: [...SCHEDULE_WEEKDAYS], scheduleDraftPriority: 0, scheduleDraftSource: 'local', scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '',
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
@@ -1995,6 +2011,26 @@ class Component extends DCLogic {
   }
 
   load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  validateSchoolMode(payload) {
+    const fallback = { schemaVersion: 1, enabled: false, name: 'School mode', previousLanguage: 'English', credentialSalt: null, credentialHash: null };
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return fallback;
+    const valid = value => value === null || (typeof value === 'string' && /^[A-Za-z0-9+/=_-]{16,256}$/.test(value));
+    const name = typeof payload.name === 'string' && payload.name.trim().length <= 64 && !/[\u0000-\u001f\u007f]/.test(payload.name) ? payload.name.trim() : fallback.name;
+    const previousLanguage = ['English', 'Cantonese', 'Bilingual'].includes(payload.previousLanguage) ? payload.previousLanguage : fallback.previousLanguage;
+    return { schemaVersion: 1, enabled: payload.enabled === true && valid(payload.credentialSalt) && valid(payload.credentialHash) && !!payload.credentialSalt && !!payload.credentialHash, name, previousLanguage, credentialSalt: valid(payload.credentialSalt) ? payload.credentialSalt : null, credentialHash: valid(payload.credentialHash) ? payload.credentialHash : null };
+  }
+  hashSchoolCredential(credential, salt) { return crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + credential)).then(bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/=+$/, '')); }
+  enableSchoolMode() {
+    const name = String(this.state.schoolNameInput || '').trim(); const credential = String(this.state.schoolCredentialInput || '');
+    if (!name || name.length > 64 || credential.length < 4 || credential.length > 128) { this.notify('School mode', 'Choose a mode name and a local unlock credential from 4–128 characters.', 'warning', true); return; }
+    const bytes = new Uint8Array(16); crypto.getRandomValues(bytes); const salt = btoa(String.fromCharCode(...bytes)).replace(/=+$/, '');
+    this.hashSchoolCredential(credential, salt).then(hash => { this.schoolMode = { schemaVersion: 1, enabled: true, name, previousLanguage: this.state.lang, credentialSalt: salt, credentialHash: hash }; this.setState({ lang: 'English', schoolCredentialInput: '', schoolUnlockInput: '' }, () => { this.persist(); this.bump(); }); this.notify(name, 'English-only UX mode is active. This is not security or encryption.', 'success', true); });
+  }
+  disableSchoolMode() {
+    const credential = String(this.state.schoolUnlockInput || '');
+    if (!this.schoolMode.credentialSalt || !this.schoolMode.credentialHash) { this.notify('School mode', 'Clear this app\'s local data to reset the UX mode.', 'warning', true); return; }
+    this.hashSchoolCredential(credential, this.schoolMode.credentialSalt).then(hash => { if (hash !== this.schoolMode.credentialHash) { this.setState({ schoolUnlockInput: '' }); this.notify('School mode', 'That local credential did not match. Clear this app\'s local data to recover.', 'error', true); return; } const previous = this.schoolMode.previousLanguage; this.schoolMode = { ...this.schoolMode, enabled: false }; this.setState({ lang: previous, schoolUnlockInput: '' }, () => { this.persist(); this.bump(); }); this.notify(this.schoolMode.name, 'Mode is off. Previous language, tone, vocabulary, and dim-sum choices are restored.', 'success', true); });
+  }
   validateSchedules(payload) {
     if (!Array.isArray(payload)) return [];
     const seen = new Set();
@@ -2139,6 +2175,7 @@ class Component extends DCLogic {
         settingsGlobal: this.settingsGlobal, settingsProjects: this.settingsProjects, activeProjectId: this.activeProjectId,
         schedules: this.schedules.slice(0, 50),
         personalVocabulary: this.personalVocabulary,
+        schoolMode: this.schoolMode,
         reactor: this.rx.snapshot(), rlog: this.rlogLines.slice(0, 60), ship: this.ship || this.savedShip,
       }));
     } catch (e) {}
@@ -2667,6 +2704,7 @@ class Component extends DCLogic {
         { title: 'Appearance and language', sub: 'Theme and language mode', query: 'appearance theme language' },
         { title: 'Show emojis in dialogs and message boxes', sub: 'Decorative notification and snackbar emoji', query: 'appearance emoji dialogs message boxes' },
         { title: 'Funny levels', sub: 'English and Cantonese tone', query: 'funny levels' },
+        { title: 'School mode', sub: 'Local renamed English-only UX mode and unlock', query: 'school mode local unlock English-only' },
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
       for (const command of settingsCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'settings', route: { view: 'settings' }, label: 'Settings', settingsQuery: command.query });
@@ -2676,7 +2714,7 @@ class Component extends DCLogic {
         { title: 'Personal vocabulary status', sub: 'Open the local loaded, invalid or no-file state', action: 'status' },
         { title: 'Clear personal vocabulary', sub: 'Purge the validated local cache and restore shipped wording', action: 'clear' },
       ];
-      for (const command of vocabularyCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'translate', route: { view: 'memory' }, label: 'Preview Data', vocabAction: command.action });
+      for (const command of vocabularyCommands) if (!this.schoolMode.enabled && this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'translate', route: { view: 'memory' }, label: 'Preview Data', vocabAction: command.action });
       if (q) {
         for (const c of this.D.categories || []) {
           for (const f of c.features) {
@@ -3081,12 +3119,20 @@ class Component extends DCLogic {
 
     // settings
     const settingsSearch = this.settingsQuery || '';
+    V.showSettingsSchool = this.match(settingsSearch, 'school mode local unlock English-only rename reset UX mode ' + this.schoolMode.name);
     V.showSettingsProjects = this.match(settingsSearch, 'global defaults project overrides active project picker inherited values reset project create local project');
     V.showSettingsAppearance = this.match(settingsSearch, 'appearance theme dark light language mode English Cantonese bilingual emoji dialogs message boxes current ' + s.theme + ' ' + s.lang + ' ' + s.showEmojis);
-    V.showSettingsFunny = this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
+    V.showSettingsFunny = !this.schoolMode.enabled && this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
     V.showSettingsSchedule = this.match(settingsSearch, 'scheduled settings schedule calendar date time weekday timezone local api home assistant temporary override precedence external source credential');
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
-    V.settingsNoMatch = !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsSchedule && !V.showSettingsLocal;
+    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsSchedule && !V.showSettingsLocal;
+    V.schoolModeEnabled = this.schoolMode.enabled;
+    V.schoolModeDisabled = !this.schoolMode.enabled;
+    V.schoolModeName = this.schoolMode.name;
+    V.schoolNameInput = s.schoolNameInput; V.setSchoolNameInput = e => this.setState({ schoolNameInput: String(e.target.value || '').slice(0, 64) });
+    V.schoolCredentialInput = s.schoolCredentialInput; V.setSchoolCredentialInput = e => this.setState({ schoolCredentialInput: String(e.target.value || '').slice(0, 128) });
+    V.schoolUnlockInput = s.schoolUnlockInput; V.setSchoolUnlockInput = e => this.setState({ schoolUnlockInput: String(e.target.value || '').slice(0, 128) });
+    V.enableSchoolMode = () => this.enableSchoolMode(); V.disableSchoolMode = () => this.disableSchoolMode();
     const activeProject = this.settingsProjects.find(project => project.id === this.activeProjectId) || null;
     const applyScope = () => {
       const values = { ...this.settingsGlobal, ...(activeProject ? activeProject.overrides : {}) };
@@ -3456,6 +3502,7 @@ class Component extends DCLogic {
     };
     V.previewDataTitle = this.personalText('Preview Data');
     V.personalVocabularyTitle = this.personalText('Personal vocabulary');
+    V.showMemoryVocabulary = !this.schoolMode.enabled;
     V.vocabUploadLabel = this.personalText(this.personalVocabulary ? 'Replace dictionary' : 'Upload dictionary');
     V.vocabClearLabel = this.personalText('Clear dictionary');
     V.vocabClearDisabled = !this.personalVocabulary;

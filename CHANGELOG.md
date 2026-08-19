@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added local, user-renamable School mode to the Pages shell and desktop design/runtime surface: salted Web Crypto unlock hashes, immediate English-only presentation, hidden funny-level/personal-vocabulary/dim-sum affordances while enabled, prior-choice restoration, command-palette discovery, and honest local-storage recovery. Tests, lint, runtime interaction, accessibility review, captures, release, and publication remain unrun for this slice.
+
 - Added a bounded browser-local scheduled-settings editor with local-time date, time, and weekday matching, deterministic last-match precedence, temporary overrides that restore base ownership/settings, Settings search and command-palette routing, and explicit no-external-source disclosure.
 - Added the desktop Scheduled settings editor with bounded local rules, local-time date/time and weekday matching, deterministic priority, temporary override restoration, and explicit unconfigured HTTPS API/Home Assistant credential boundaries. Tests, lint, packaged interaction, and captures remain unrun for this slice.
 
