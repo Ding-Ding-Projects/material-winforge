@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('winforge', {
   packageEngines: () => ipcRenderer.invoke('winforge:package-engines'),
   flushDns: () => ipcRenderer.invoke('winforge:flush-dns'),
   restartExplorer: () => ipcRenderer.invoke('winforge:restart-explorer'),
+  emptyRecycleBin: () => ipcRenderer.invoke('winforge:empty-recycle-bin'),
   createSnapshot: payload => ipcRenderer.invoke('winforge:create-snapshot', payload),
   wingetUpgrade: ids => ipcRenderer.invoke('winforge:winget-upgrade', ids),
   cancelWingetUpgrade: () => ipcRenderer.invoke('winforge:cancel-winget-upgrade'),

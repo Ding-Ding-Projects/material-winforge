@@ -269,7 +269,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 
             <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
               <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Quick actions</h2>
-              <p style="margin:0 0 14px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Flush DNS, confirmed Restart Explorer, and New local snapshot are real. Empty Recycle Bin and Winget upgrade remain preview-only.</p>
+              <p style="margin:0 0 14px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Flush DNS, confirmed Restart Explorer, New local snapshot, and confirmed Empty Recycle Bin are real. The dashboard Winget upgrade action remains preview-only.</p>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
                 <sc-for list="{{ quickActions }}" as="q" hint-placeholder-count="6">
                   <button onClick="{{ q.run }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 10px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-small);background:transparent;color:var(--md-sys-color-on-surface);font-size:13px" style-hover="background:var(--md-sys-color-surface-container-high)">
@@ -1240,6 +1240,41 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
     </div>
   </sc-if>
 
+  <sc-if value="{{ recycleConfirm }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ emergencyExitRecycle }}" style="position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="empty-recycle-title" aria-describedby="empty-recycle-impact" style="width:min(620px,94vw);max-height:88vh;overflow:auto;padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);animation:wf-dialog .25s var(--spring) both">
+        <sc-if value="{{ recycleNotComplete }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:flex-start;gap:16px">
+            <span class="ms" aria-hidden="true" style="font-size:30px;color:var(--md-sys-color-error)">delete_forever</span>
+            <div style="flex:1">
+              <h2 id="empty-recycle-title" style="margin:0 0 8px;font-size:22px;font-weight:500">Permanently empty the Recycle Bin?</h2>
+              <p id="empty-recycle-impact" style="margin:0;color:var(--md-sys-color-on-surface-variant);line-height:1.55">All Recycle Bin contents will be permanently deleted. WinForge cannot recover them.</p>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
+            <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)"><input type="checkbox" checked="{{ recycleKeyOne }}" disabled="{{ recycleControlsDisabled }}" onChange="{{ toggleRecycleKeyOne }}" style="width:20px;height:20px;flex-shrink:0"><span>I understand every Recycle Bin item will be permanently deleted.</span></label>
+            <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)"><input type="checkbox" checked="{{ recycleKeyTwo }}" disabled="{{ recycleControlsDisabled }}" onChange="{{ toggleRecycleKeyTwo }}" style="width:20px;height:20px;flex-shrink:0"><span>I understand WinForge cannot recover the deleted contents.</span></label>
+          </div>
+          <div style="margin-top:20px;padding:16px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low)">
+            <label for="empty-recycle-slider" style="display:flex;justify-content:space-between;gap:12px;font-weight:500"><span>Slide fully to authorize deletion</span><span>{{ recycleProgressText }}</span></label>
+            <input id="empty-recycle-slider" type="range" min="0" max="100" step="1" value="{{ recycleSlider }}" disabled="{{ recycleSliderDisabled }}" onInput="{{ setRecycleSlider }}" aria-describedby="empty-recycle-impact" style="width:100%;height:44px;accent-color:var(--md-sys-color-error)">
+            <div role="progressbar" aria-label="Deletion authorization progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ recycleSlider }}" style="height:8px;overflow:hidden;border-radius:999px;background:var(--md-sys-color-surface-container-highest)"><div style="height:100%;width:{{ recycleSlider }}%;background:var(--md-sys-color-error);transition:width .16s linear"></div></div>
+            <div role="status" aria-live="polite" style="margin-top:10px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ recycleStatusText }}</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:22px"><button onClick="{{ emergencyExitRecycle }}" disabled="{{ recycleRunning }}" autofocus style="height:42px;padding:0 22px;border:2px solid var(--md-sys-color-error);border-radius:999px;background:transparent;color:var(--md-sys-color-error);font-size:14px;font-weight:600">Emergency exit</button></div>
+        </sc-if>
+        <sc-if value="{{ recycleComplete }}" hint-placeholder-val="{{ false }}">
+          <div role="status" aria-live="polite" style="text-align:center;padding:12px 8px">
+            <span class="ms" aria-hidden="true" style="font-size:52px;color:var(--md-sys-color-primary)">check_circle</span>
+            <h2 id="empty-recycle-title" style="margin:10px 0 8px;font-size:24px;font-weight:500">Recycle Bin emptied</h2>
+            <p style="margin:0;color:var(--md-sys-color-on-surface-variant)">Windows reported that the operation completed.</p>
+            <button onClick="{{ closeRecycleComplete }}" autofocus style="height:42px;margin-top:22px;padding:0 24px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:14px;font-weight:500">Close</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ wingetReview }}" hint-placeholder-val="{{ false }}">
     <div onClick="{{ closeWingetReview }}" style="position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px">
       <div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="winget-review-title" style="width:min(620px,94vw);max-height:84vh;overflow:auto;padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);animation:wf-dialog .25s var(--spring) both">
@@ -1810,6 +1845,7 @@ class Component extends DCLogic {
     this.updateInfo = { state: 'idle', currentVersion: '1.0.0', version: null, releaseNotesUrl: null, progress: null, message: 'Updates have not been checked yet.', unsigned: true };
     this.externalAppStates = {};
     this.packageEngineStates = {};
+    this.recycleSubmitActive = false;
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -1820,6 +1856,7 @@ class Component extends DCLogic {
       funnyZh: (L && L.funnyZh) || 3,
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
+      recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
       wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null,
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
@@ -1880,7 +1917,7 @@ class Component extends DCLogic {
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
-      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false, wingetReview: this.state.wingetRunning ? this.state.wingetReview : false });
+      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false, wingetReview: this.state.wingetRunning ? this.state.wingetReview : false, recycleConfirm: this.state.recycleRunning ? this.state.recycleConfirm : false, recycleKeyOne: this.state.recycleRunning ? this.state.recycleKeyOne : false, recycleKeyTwo: this.state.recycleRunning ? this.state.recycleKeyTwo : false, recycleSlider: this.state.recycleRunning ? this.state.recycleSlider : 0, recycleComplete: this.state.recycleRunning ? this.state.recycleComplete : false });
     };
     window.addEventListener('keydown', this.onKey);
     if (window.winforge && window.winforge.updateState) {
@@ -2462,6 +2499,61 @@ class Component extends DCLogic {
         this.notify('Restart Explorer', 'The Explorer restart request failed.' + retry, 'error', true);
       });
     };
+    V.recycleConfirm = s.recycleConfirm;
+    V.recycleKeyOne = s.recycleKeyOne;
+    V.recycleKeyTwo = s.recycleKeyTwo;
+    V.recycleSlider = s.recycleSlider;
+    V.recycleRunning = s.recycleRunning;
+    V.recycleComplete = s.recycleComplete;
+    V.recycleNotComplete = !s.recycleComplete;
+    V.recycleControlsDisabled = s.recycleRunning || s.recycleComplete;
+    V.recycleSliderDisabled = !s.recycleKeyOne || !s.recycleKeyTwo || s.recycleRunning || s.recycleComplete;
+    V.recycleProgressText = s.recycleRunning ? 'Working…' : s.recycleSlider + '%';
+    V.recycleStatusText = s.recycleRunning ? 'Windows is emptying the Recycle Bin. Controls stay disabled until it returns.' : (s.recycleKeyOne && s.recycleKeyTwo ? 'Move the slider to 100% to run the operation.' : 'Complete both independent checks to enable the slider.');
+    V.openRecycleConfirmation = () => this.setState({ recycleConfirm: true, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false });
+    V.emergencyExitRecycle = () => { if (!this.state.recycleRunning) this.setState({ recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleComplete: false }); };
+    V.closeRecycleComplete = V.emergencyExitRecycle;
+    V.toggleRecycleKeyOne = event => { if (!this.state.recycleRunning) this.setState({ recycleKeyOne: !!event.target.checked, recycleSlider: 0 }); };
+    V.toggleRecycleKeyTwo = event => { if (!this.state.recycleRunning) this.setState({ recycleKeyTwo: !!event.target.checked, recycleSlider: 0 }); };
+    const emptyRecycleBin = () => {
+      if (this.recycleSubmitActive || this.state.recycleRunning || !this.state.recycleKeyOne || !this.state.recycleKeyTwo) return;
+      this.recycleSubmitActive = true;
+      const bridge = window.winforge;
+      const retry = ' Keep this confirmation open and complete the slider again to retry.';
+      if (!bridge || !bridge.emptyRecycleBin) {
+        this.recycleSubmitActive = false;
+        this.setState({ recycleSlider: 0 });
+        this.notify('Empty Recycle Bin', 'Emptying the Recycle Bin is unavailable because the packaged bridge is missing.' + retry, 'warning', true);
+        return;
+      }
+      this.setState({ recycleRunning: true });
+      bridge.emptyRecycleBin().then(result => {
+        this.recycleSubmitActive = false;
+        const allowed = ['emptied', 'unsupported', 'timeout', 'failed'];
+        if (!result || result.schemaVersion !== 1 || !allowed.includes(result.status) || typeof result.message !== 'string' || result.message.length > 240) {
+          this.setState({ recycleRunning: false, recycleSlider: 0 });
+          this.notify('Empty Recycle Bin', 'The Recycle Bin bridge returned an invalid response.' + retry, 'error', true);
+          return;
+        }
+        if (result.status === 'emptied') {
+          this.setState({ recycleRunning: false, recycleComplete: true });
+          this.notify('Empty Recycle Bin', result.message, 'success', true);
+        } else {
+          this.setState({ recycleRunning: false, recycleSlider: 0 });
+          this.notify('Empty Recycle Bin', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
+        }
+      }).catch(() => {
+        this.recycleSubmitActive = false;
+        this.setState({ recycleRunning: false, recycleSlider: 0 });
+        this.notify('Empty Recycle Bin', 'The Recycle Bin request failed.' + retry, 'error', true);
+      });
+    };
+    V.setRecycleSlider = event => {
+      if (this.state.recycleRunning || !this.state.recycleKeyOne || !this.state.recycleKeyTwo) return;
+      const value = Math.max(0, Math.min(100, Math.round(Number(event.target.value) || 0)));
+      this.setState({ recycleSlider: value });
+      if (value === 100) emptyRecycleBin();
+    };
     const createLocalSnapshot = () => {
       const bridge = window.winforge;
       const retry = ' Choose New local snapshot again to retry.';
@@ -2492,7 +2584,7 @@ class Component extends DCLogic {
       }).catch(() => this.notify('Local snapshot', 'The local snapshot request failed.' + retry, 'error', true));
     };
     V.quickActions = [
-      { label: 'Empty Recycle Bin (preview)', icon: 'delete_sweep', run: () => this.notify('Cleanup preview', s.lang === 'Cantonese' ? FUNNY_ZH[s.funnyZh] : FUNNY_EN[s.funnyEn], 'info') },
+      { label: 'Empty Recycle Bin', icon: 'delete_sweep', run: V.openRecycleConfirmation },
       { label: 'Flush DNS', icon: 'dns', run: flushDns },
       { label: 'Restart Explorer', icon: 'restart_alt', run: V.openExplorerRestart },
       { label: 'Winget upgrade (preview)', icon: 'upgrade', run: () => this.notify('Package Manager preview', 'No package upgrade was queued or run.', 'info') },

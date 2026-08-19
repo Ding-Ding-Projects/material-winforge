@@ -19,6 +19,7 @@ let updateTimer = null;
 let previousCpuTimes = null;
 let flushDnsActive = false;
 let restartExplorerActive = false;
+let emptyRecycleBinActive = false;
 let snapshotActive = false;
 let wingetUpgradeActive = null;
 const externalAppLaunches = new Map();
@@ -224,6 +225,26 @@ function flushDns() {
       if (!error) { resolve({ schemaVersion: 1, status: 'flushed', message: 'The Windows DNS resolver cache was flushed.' }); return; }
       if (error.killed || error.code === 'ETIMEDOUT') { resolve({ schemaVersion: 1, status: 'timeout', message: 'DNS cache flushing timed out. Retry is available.' }); return; }
       resolve({ schemaVersion: 1, status: 'failed', message: 'Windows did not complete the DNS cache flush. Retry is available.' });
+    });
+  });
+}
+
+function emptyRecycleBin() {
+  if (process.platform !== 'win32') return Promise.resolve({ schemaVersion: 1, status: 'unsupported', message: 'Emptying the Recycle Bin is supported only on Windows.' });
+  if (emptyRecycleBinActive) return Promise.resolve({ schemaVersion: 1, status: 'failed', message: 'A Recycle Bin empty operation is already running. Wait, then retry.' });
+  emptyRecycleBinActive = true;
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Clear-RecycleBin -Force -ErrorAction Stop'], {
+      windowsHide: true,
+      timeout: 30_000,
+      maxBuffer: 128 * 1024,
+      encoding: 'utf8',
+      shell: false,
+    }, (error) => {
+      emptyRecycleBinActive = false;
+      if (!error) { resolve({ schemaVersion: 1, status: 'emptied', message: 'The Recycle Bin was emptied.' }); return; }
+      if (error.killed || error.code === 'ETIMEDOUT') { resolve({ schemaVersion: 1, status: 'timeout', message: 'Emptying the Recycle Bin timed out. Retry is available.' }); return; }
+      resolve({ schemaVersion: 1, status: 'failed', message: 'Windows did not empty the Recycle Bin. Retry is available.' });
     });
   });
 }
@@ -598,6 +619,7 @@ ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
 ipcMain.handle('winforge:package-engines', () => readPackageEngines());
 ipcMain.handle('winforge:flush-dns', () => flushDns());
 ipcMain.handle('winforge:restart-explorer', () => restartExplorer());
+ipcMain.handle('winforge:empty-recycle-bin', () => emptyRecycleBin());
 ipcMain.handle('winforge:create-snapshot', (_event, payload) => createLocalSnapshot(payload));
 ipcMain.handle('winforge:winget-upgrade', (_event, ids) => upgradeWingetPackages(ids));
 ipcMain.handle('winforge:cancel-winget-upgrade', () => {

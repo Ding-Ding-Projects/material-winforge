@@ -11,6 +11,7 @@ The current desktop package is a design preview. Documentation in this category 
 - [Restart Explorer](restart-explorer.md)
 - [Local snapshot](local-snapshot.md)
 - [Reviewed Winget upgrades](winget-upgrades.md)
+- [Empty Recycle Bin](empty-recycle-bin.md)
 
 ## Not yet claimed
 

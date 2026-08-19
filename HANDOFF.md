@@ -24,6 +24,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Privileged unsigned Squirrel update checks on startup, every six hours, and manually, with a persistent localized renderer banner and explicit restart/defer actions.
 - Read-only system metrics from the privileged main process, with bounded no-input IPC output and explicit unavailable states instead of random CPU, memory, disk, network, and uptime values.
 - Fixed-ID external-app discovery and launching through a no-shell main-process bridge; renderer paths and executable names are never accepted, and install chains remain preview-only.
+- Empty Recycle Bin now requires two independent impact acknowledgements and a full authorization slider before a fixed, no-input Windows command can run; only bounded status and safe copy return to the renderer.
 
 ## Verification state
 
@@ -64,3 +65,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Restart Explorer is now also real behind an explicit interruption warning and fixed bounded process calls; it was packaged but neither the confirmation nor Explorer termination/restart was exercised.
 - New local snapshot now writes bounded append-only JSON atomically under private app data; it is not yet Git-backed history and creation/restore were not exercised.
 - Reviewed Winget upgrades now support only `Git.Git`, `Microsoft.PowerShell`, and `GitHub.cli`; review, execution, progress, cancellation, timeout, and partial queue handling were packaged but not exercised.
+- Empty Recycle Bin is a real destructive action behind its own super-confirmation surface; the action, cancellation paths, permanent deletion, and completion state were deliberately not exercised.
