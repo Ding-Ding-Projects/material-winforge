@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a bounded top-level Pages Settings search covering every shipped Settings card, with literal matching by default, an independent anchored full regex builder, honest no-match state, and exact command-palette focus routing.
+
 - Extended Pages tab docking to all four edges with persisted real layouts, rendered ARIA orientation, axis-correct keyboard navigation, localized Settings selection, command-palette routing, and a compact narrow-width fallback.
 
 - Added Pages app-logo customization with three existing-brand presets, bounded byte-verified local PNG/JPEG loading, persistent live site rendering, truthful failure states, and command-palette destinations.

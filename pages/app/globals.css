@@ -241,6 +241,13 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .suggested-articles ul { margin-bottom: 0; }
 
 .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-search-region { position: relative; margin-bottom: 18px; }
+.settings-search-row { display: flex; align-items: start; gap: 10px; }
+.settings-search-row .search-field { flex: 1; }
+.settings-search-row .regex-builder { z-index: 6; }
+.settings-search-meta { display: flex; justify-content: space-between; gap: 12px; margin: 8px 2px 0; color: var(--on-surface-variant); font-size: .8rem; }
+.settings-search-meta strong { color: var(--on-surface); }
+.settings-no-match { margin-bottom: 18px; }
 .setting-card { display: grid; gap: 22px; padding: 24px; }
 .setting-card h2 { font-size: 1.22rem; }
 .setting-card p { margin-bottom: 7px; font-size: .9rem; }
@@ -434,6 +441,8 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
   .settings-history-search, .settings-history-filters { align-items: stretch; flex-direction: column; }
   .settings-history-center > footer { align-items: stretch; flex-direction: column; }
   .settings-history-list article { align-items: stretch; flex-direction: column; }
+  .settings-search-row { flex-direction: column; }
+  .settings-search-row .search-field, .settings-search-row .builder-anchor, .settings-search-row .builder-anchor > button { width: 100%; }
   .logo-presets { grid-template-columns: 1fr; }
 }
 
