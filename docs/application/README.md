@@ -11,6 +11,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Package engine discovery](package-engine-discovery.md)
 - [Global defaults and project overrides](project-settings-overrides.md)
 - [Personal vocabulary JSON](personal-vocabulary.md)
+- [Message emoji preference](message-emoji-preference.md)
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)
 - [Local snapshot](local-snapshot.md)

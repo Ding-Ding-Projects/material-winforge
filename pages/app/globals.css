@@ -259,6 +259,8 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .status-card small { color: var(--on-surface-variant); }
 .status-card h2 { margin: 5px 0 8px; font-size: 1.12rem; }
 .status-card p { margin-bottom: 0; font-size: .85rem; }
+.emoji-decoration { display: none; font-size: 1.15rem; }
+.site-shell.emoji-on .emoji-decoration { display: inline; }
 .manifest-card { margin-top: 18px; padding: clamp(22px, 4vw, 36px); }
 .manifest-state { padding: 7px 11px; border-radius: 999px; background: var(--surface-container-high); font-size: .74rem; font-weight: 740; }
 .manifest-state.success { background: var(--primary-container); color: var(--on-primary-container); }

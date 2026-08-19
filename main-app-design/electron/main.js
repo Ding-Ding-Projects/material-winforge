@@ -62,7 +62,8 @@ const WINGET_UPGRADE_ALLOWLIST = Object.freeze({
 });
 const SNAPSHOT_BASENAME = /^snapshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{16}\.json$/;
 const SNAPSHOT_MAX_BYTES = 300 * 1024;
-const APP_SETTING_KEYS = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
+const APP_SETTING_KEYS_V1 = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
+const APP_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS_V1, 'showEmojis']);
 let updateState = {
   state: 'idle',
   currentVersion: app.getVersion(),
@@ -326,31 +327,32 @@ function boundedString(value, maximum, pattern = null) {
 }
 
 function validateSnapshotOwnership(ownership, payload) {
-  if (!hasExactKeys(ownership, ['schemaVersion', 'global', 'projects', 'activeProjectId']) || ownership.schemaVersion !== 1) return false;
-  const settingValid = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
-  if (!hasExactKeys(ownership.global, APP_SETTING_KEYS) || !Object.entries(ownership.global).every(([key, value]) => settingValid(key, value))) return false;
+  if (!hasExactKeys(ownership, ['schemaVersion', 'global', 'projects', 'activeProjectId']) || ![1, 2].includes(ownership.schemaVersion)) return false;
+  const settingValid = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
+  const settingKeys = ownership.schemaVersion === 2 ? APP_SETTING_KEYS : APP_SETTING_KEYS_V1;
+  if (!hasExactKeys(ownership.global, settingKeys) || !Object.entries(ownership.global).every(([key, value]) => settingValid(key, value))) return false;
   if (!Array.isArray(ownership.projects) || ownership.projects.length > 50) return false;
   const seen = new Set();
   for (const project of ownership.projects) {
     if (!hasExactKeys(project, ['id', 'name', 'overrides']) || !boundedString(project.id, 56, /^project-[a-z0-9-]{6,48}$/) || seen.has(project.id) || !boundedString(project.name, 64) || !project.name.trim() || /[\u0000-\u001f\u007f]/.test(project.name) || !isPlainObject(project.overrides)) return false;
     const keys = Object.keys(project.overrides);
-    if (keys.length > APP_SETTING_KEYS.length || !keys.every((key) => APP_SETTING_KEYS.includes(key) && settingValid(key, project.overrides[key]))) return false;
+    if (keys.length > settingKeys.length || !keys.every((key) => settingKeys.includes(key) && settingValid(key, project.overrides[key]))) return false;
     seen.add(project.id);
   }
   if (!(ownership.activeProjectId === null || (typeof ownership.activeProjectId === 'string' && seen.has(ownership.activeProjectId)))) return false;
   const active = ownership.projects.find((project) => project.id === ownership.activeProjectId);
   const effective = { ...ownership.global, ...(active ? active.overrides : {}) };
-  return effective.theme === payload.theme && effective.lang === payload.lang && effective.funnyEn === payload.funnyEn && effective.funnyZh === payload.funnyZh;
+  return effective.theme === payload.theme && effective.lang === payload.lang && effective.funnyEn === payload.funnyEn && effective.funnyZh === payload.funnyZh && (payload.schemaVersion < 3 || effective.showEmojis === payload.showEmojis);
 }
 
 function validateSnapshotPayload(payload) {
   let encoded;
   try { encoded = JSON.stringify(payload); } catch { return null; }
   if (!encoded || Buffer.byteLength(encoded, 'utf8') > 256 * 1024) return null;
-  const expectedKeys = payload && payload.schemaVersion === 2 ? ['schemaVersion', 'theme', 'lang', 'funnyEn', 'funnyZh', 'route', 'tabs', 'tweaks', 'ownership'] : ['schemaVersion', 'theme', 'lang', 'funnyEn', 'funnyZh', 'route', 'tabs', 'tweaks'];
+  const expectedKeys = payload && payload.schemaVersion === 3 ? ['schemaVersion', 'theme', 'lang', 'funnyEn', 'funnyZh', 'showEmojis', 'route', 'tabs', 'tweaks', 'ownership'] : payload && payload.schemaVersion === 2 ? ['schemaVersion', 'theme', 'lang', 'funnyEn', 'funnyZh', 'route', 'tabs', 'tweaks', 'ownership'] : ['schemaVersion', 'theme', 'lang', 'funnyEn', 'funnyZh', 'route', 'tabs', 'tweaks'];
   if (!hasExactKeys(payload, expectedKeys)) return null;
-  if (![1, 2].includes(payload.schemaVersion) || !['dark', 'light'].includes(payload.theme) || !['English', 'Cantonese', 'Bilingual'].includes(payload.lang)) return null;
-  if (payload.schemaVersion === 2 && !validateSnapshotOwnership(payload.ownership, payload)) return null;
+  if (![1, 2, 3].includes(payload.schemaVersion) || !['dark', 'light'].includes(payload.theme) || !['English', 'Cantonese', 'Bilingual'].includes(payload.lang) || (payload.schemaVersion === 3 && typeof payload.showEmojis !== 'boolean')) return null;
+  if (payload.schemaVersion >= 2 && (payload.ownership?.schemaVersion !== payload.schemaVersion - 1 || !validateSnapshotOwnership(payload.ownership, payload))) return null;
   if (![payload.funnyEn, payload.funnyZh].every((value) => Number.isInteger(value) && value >= 1 && value <= 5)) return null;
   const routeValid = (route) => hasExactKeys(route, ['view', 'id']) && boundedString(route.view, 64, /^[a-z0-9-]+$/) && (route.id === null || boundedString(route.id, 128, /^[a-zA-Z0-9:._-]+$/));
   if (!routeValid(payload.route) || !Array.isArray(payload.tabs) || payload.tabs.length > 64 || !Array.isArray(payload.tweaks) || payload.tweaks.length > 1_500) return null;

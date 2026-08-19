@@ -35,6 +35,6 @@ The accelerated pass built and packaged the Electron application. Tests, actual 
 - [Read-only system metrics](read-only-system-metrics.md)
 Snapshot creation now feeds the bounded local history and restore surface described in [Local snapshot history and restore](local-snapshot-history.md). A restore first creates a new safety snapshot of the current presentation state and stops without applying anything when that backup fails.
 
-New snapshots use state schema version 2 and include a versioned, bounded project-settings ownership block. Existing schema-version 1 snapshots remain readable and never erase current ownership records. The c144163 packaged artifact verified v2 creation and safety-first restore back to the recorded project state; v1 compatibility remains unverified.
+New snapshots use state schema version 3 and include the effective emoji-decoration preference plus a version-2 bounded project-settings ownership block. Existing schema versions 1 and 2 remain readable; version 2 migrates the new preference to its shipped default. The c144163 packaged artifact verified the earlier v2 creation and safety-first restore path; v3 migration and restore remain unverified.
 
 When an existing Git installation is discoverable, creation also appends a redacted metadata entry to a private local revision journal. Git absence or journal failure is reported but never prevents the snapshot itself from succeeding.

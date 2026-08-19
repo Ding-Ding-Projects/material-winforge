@@ -6,7 +6,7 @@ Preview Data lists up to the 50 newest valid local JSON snapshots. Each row show
 
 Restore opens a renderer-owned confirmation naming the selected creation time and the presentation state that will be replaced. Cancel, clicking outside, or pressing Escape leaves current state untouched. Confirm first creates a fresh snapshot of the current state. Only after that safety snapshot succeeds does the renderer request and apply the selected theme, language, English and Cantonese tone levels, route, tabs, and bounded tweak switches.
 
-New state schema version 2 snapshots additionally contain an exact ownership block: block schema version, four global defaults, at most 50 validated user-project records, sparse allowlisted overrides, and a null or known active-project identifier. The main process and renderer independently validate all keys, values, counts, IDs, names, and effective-value consistency. A valid schema-version 2 restore applies presentation and ownership atomically. Legacy schema-version 1 snapshots restore presentation only and preserve current ownership.
+New state schema version 3 snapshots additionally contain the effective emoji-decoration preference and an exact version-2 ownership block: five global defaults, at most 50 validated user-project records, sparse allowlisted overrides, and a null or known active-project identifier. The main process and renderer independently validate all keys, values, counts, IDs, names, and effective-value consistency. A valid schema-version 3 restore applies presentation and ownership atomically. Legacy schema-version 1 snapshots restore presentation only; schema-version 2 ownership migrates the new preference to its shipped default.
 
 ## Revision journal
 
@@ -33,4 +33,4 @@ The main process owns the private snapshot and journal directories. Listing acce
 
 ## Verification boundary
 
-The c144163 packaged artifact verified snapshot creation, journal entry/listing, Light alteration, restore confirmation, safety-snapshot-first execution, schema-version 2 ownership restore, and return to the recorded Dark project state. Git absence, configured-remote refusal, bounded journal parsing/search variants, schema-version 1 compatibility, malformed/timeout paths, cancellation, tests, lint, type checking, installer execution, and screenshots remain unverified.
+The c144163 packaged artifact verified snapshot creation, journal entry/listing, Light alteration, restore confirmation, safety-snapshot-first execution, schema-version 2 ownership restore, and return to the recorded Dark project state. Schema-version 3 emoji ownership, legacy migration, Git absence, configured-remote refusal, bounded journal parsing/search variants, schema-version 1 compatibility, malformed/timeout paths, cancellation, tests, lint, type checking, installer execution, and screenshots remain unverified.

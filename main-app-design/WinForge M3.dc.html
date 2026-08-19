@@ -603,6 +603,13 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
               </sc-for>
             </div>
           </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:16px;margin-top:16px;border-top:1px solid var(--md-sys-color-outline-variant)">
+            <div>
+              <div style="font-size:14px;font-weight:500">Show emojis in dialogs and message boxes</div>
+              <div style="font-size:12.5px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">Adds aria-hidden decoration to notifications and snackbars. Facts and control labels stay unchanged.</div>
+            </div>
+            <button onClick="{{ toggleShowEmojis }}" role="switch" aria-checked="{{ showEmojis }}" aria-label="Show emojis in dialogs and message boxes" style="width:52px;height:32px;padding:3px;border:none;border-radius:999px;background:{{ emojiToggleBg }};display:flex;justify-content:{{ emojiToggleJustify }};align-items:center"><span aria-hidden="true" style="width:26px;height:26px;border-radius:50%;background:var(--md-sys-color-surface);box-shadow:var(--md-sys-elevation-level1)"></span></button>
+          </div>
         </section>
         </sc-if>
 
@@ -1241,7 +1248,8 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         <div style="flex:1;overflow-y:auto;padding:0 12px 16px;display:flex;flex-direction:column;gap:8px">
           <sc-for list="{{ notifications }}" as="n" hint-placeholder-count="4">
             <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:{{ n.bg }};color:{{ n.fg }}">
-              <span class="ms" style="font-size:19px;flex-shrink:0">{{ n.icon }}</span>
+              <span class="ms" aria-hidden="true" style="font-size:19px;flex-shrink:0">{{ n.icon }}</span>
+              <sc-if value="{{ n.showEmoji }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="font-size:18px;flex-shrink:0">{{ n.emoji }}</span></sc-if>
               <div style="flex:1;min-width:0">
                 <div style="font-size:13px;font-weight:500">{{ n.title }}</div>
                 <div style="font-size:12.5px;opacity:.9;margin-top:2px;word-break:break-word">{{ n.body }}</div>
@@ -1274,7 +1282,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
   </sc-if>
 
   <sc-if value="{{ snapshotRestoreConfirm }}" hint-placeholder-val="{{ false }}">
-    <div onClick="{{ cancelSnapshotRestore }}" style="position:fixed;inset:0;z-index:94;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:24px"><div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="snapshot-restore-title" style="width:min(560px,94vw);padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3)"><h2 id="snapshot-restore-title" style="margin:0 0 8px;font-size:22px;font-weight:500">Restore this local snapshot?</h2><p style="margin:0;color:var(--md-sys-color-on-surface-variant);line-height:1.5">Snapshot from <strong>{{ snapshotRestoreLabel }}</strong> will replace the current presentation theme, language, tone levels, route, tabs, and tweak switches. A fresh safety snapshot of the current state must succeed first.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px"><button onClick="{{ cancelSnapshotRestore }}" disabled="{{ snapshotRestoring }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Cancel</button><button onClick="{{ confirmSnapshotRestore }}" disabled="{{ snapshotRestoring }}" style="height:40px;padding:0 20px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">{{ snapshotRestoreButton }}</button></div></div></div>
+    <div onClick="{{ cancelSnapshotRestore }}" style="position:fixed;inset:0;z-index:94;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:24px"><div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="snapshot-restore-title" style="width:min(560px,94vw);padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3)"><h2 id="snapshot-restore-title" style="margin:0 0 8px;font-size:22px;font-weight:500">Restore this local snapshot?</h2><p style="margin:0;color:var(--md-sys-color-on-surface-variant);line-height:1.5">Snapshot from <strong>{{ snapshotRestoreLabel }}</strong> will replace the current presentation theme, language, tone levels, emoji-decoration preference, route, tabs, and tweak switches. A fresh safety snapshot of the current state must succeed first.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px"><button onClick="{{ cancelSnapshotRestore }}" disabled="{{ snapshotRestoring }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Cancel</button><button onClick="{{ confirmSnapshotRestore }}" disabled="{{ snapshotRestoring }}" style="height:40px;padding:0 20px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">{{ snapshotRestoreButton }}</button></div></div></div>
   </sc-if>
 
   <sc-if value="{{ recycleConfirm }}" hint-placeholder-val="{{ false }}">
@@ -1446,7 +1454,8 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
   <div style="position:fixed;right:20px;bottom:20px;z-index:70;display:flex;flex-direction:column-reverse;gap:10px;pointer-events:none">
     <sc-for list="{{ snacks }}" as="s" hint-placeholder-count="0">
       <div style="display:flex;align-items:center;gap:14px;min-width:280px;max-width:420px;padding:12px 14px 12px 18px;border-radius:var(--md-sys-shape-corner-small);background:var(--md-sys-color-inverse-surface);color:var(--md-sys-color-inverse-on-surface);box-shadow:var(--md-sys-elevation-level3);animation:wf-snack .28s var(--spring) both;pointer-events:auto">
-        <span class="ms" style="font-size:19px;color:{{ s.color }};flex-shrink:0">{{ s.icon }}</span>
+        <span class="ms" aria-hidden="true" style="font-size:19px;color:{{ s.color }};flex-shrink:0">{{ s.icon }}</span>
+        <sc-if value="{{ s.showEmoji }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="font-size:18px;flex-shrink:0">{{ s.emoji }}</span></sc-if>
         <span style="flex:1;font-size:13.5px">{{ s.msg }}</span>
       </div>
     </sc-for>
@@ -1699,7 +1708,8 @@ const RAIL = [
 ];
 
 const PKG_VIEWS = ['Discover', 'Updates', 'Installed', 'Bundles', 'Sources', 'Ignored', 'Setup', 'Settings', 'Operations'];
-const APP_SETTING_KEYS = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
+const APP_SETTING_KEYS_V1 = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
+const APP_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS_V1, 'showEmojis']);
 const PKG_ENGINES = [
   { id: 'winget', label: 'WinGet', icon: 'window' }, { id: 'scoop', label: 'Scoop', icon: 'water_drop' },
   { id: 'choco', label: 'Chocolatey', icon: 'cookie' }, { id: 'pip', label: 'pip', icon: 'code' },
@@ -1888,9 +1898,10 @@ class Component extends DCLogic {
     this.journalQuery = '';
     this.projectQuery = '';
     this.settingsQuery = '';
-    const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
-    const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3 };
-    this.settingsGlobal = L && L.settingsGlobal && APP_SETTING_KEYS.every(key => validSetting(key, L.settingsGlobal[key])) && Object.keys(L.settingsGlobal).length === APP_SETTING_KEYS.length ? { theme: L.settingsGlobal.theme, lang: L.settingsGlobal.lang, funnyEn: L.settingsGlobal.funnyEn, funnyZh: L.settingsGlobal.funnyZh } : fallbackGlobal;
+    const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
+    const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3, showEmojis: true };
+    const storedGlobal = L && L.settingsGlobal && typeof L.settingsGlobal === 'object' && !Array.isArray(L.settingsGlobal) ? L.settingsGlobal : {};
+    this.settingsGlobal = { ...fallbackGlobal, ...Object.fromEntries(APP_SETTING_KEYS.filter(key => validSetting(key, storedGlobal[key])).map(key => [key, storedGlobal[key]])) };
     const seenProjects = new Set();
     this.settingsProjects = (L && Array.isArray(L.settingsProjects) ? L.settingsProjects : []).slice(0, 50).filter(project => project && typeof project.id === 'string' && /^project-[a-z0-9-]{6,48}$/.test(project.id) && !seenProjects.has(project.id) && typeof project.name === 'string' && project.name.trim().length >= 1 && project.name.trim().length <= 64 && project.overrides && typeof project.overrides === 'object' && !Array.isArray(project.overrides) && Object.keys(project.overrides).every(key => APP_SETTING_KEYS.includes(key) && validSetting(key, project.overrides[key])) && (seenProjects.add(project.id) || true)).map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
     this.activeProjectId = L && typeof L.activeProjectId === 'string' && this.settingsProjects.some(project => project.id === L.activeProjectId) ? L.activeProjectId : null;
@@ -1905,6 +1916,7 @@ class Component extends DCLogic {
       lang: effectiveSettings.lang,
       funnyEn: effectiveSettings.funnyEn,
       funnyZh: effectiveSettings.funnyZh,
+      showEmojis: effectiveSettings.showEmojis,
       projectNameInput: '',
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
@@ -1992,7 +2004,7 @@ class Component extends DCLogic {
     const s = this.state;
     const safeId = (value, maximum) => String(value || '').replace(/[^a-zA-Z0-9:._-]+/g, '-').slice(0, maximum);
     const routeState = route => { const view = safeId(route && route.view, 64) || 'dashboard'; const id = safeId(route && (route.id || route.cat), 128); return { view, id: id || null }; };
-    return { schemaVersion: 2, theme: ['dark', 'light'].includes(s.theme) ? s.theme : 'dark', lang: ['English', 'Cantonese', 'Bilingual'].includes(s.lang) ? s.lang : 'English', funnyEn: Math.max(1, Math.min(5, Math.round(Number(s.funnyEn) || 1))), funnyZh: Math.max(1, Math.min(5, Math.round(Number(s.funnyZh) || 1))), route: routeState(s.route), tabs: this.tabs.slice(0, 64).map(tab => ({ id: safeId(tab.id, 128) || 'tab', label: String(tab.label || 'Tab').slice(0, 160), route: routeState(tab.route) })), tweaks: Object.entries(this.tweaks).filter(([, value]) => typeof value === 'boolean').slice(0, 1500).map(([id, value]) => ({ id: safeId(id, 160) || 'tweak', value })), ownership: { schemaVersion: 1, global: { ...this.settingsGlobal }, projects: this.settingsProjects.slice(0, 50).map(project => ({ id: project.id, name: project.name, overrides: { ...project.overrides } })), activeProjectId: this.activeProjectId } };
+    return { schemaVersion: 3, theme: ['dark', 'light'].includes(s.theme) ? s.theme : 'dark', lang: ['English', 'Cantonese', 'Bilingual'].includes(s.lang) ? s.lang : 'English', funnyEn: Math.max(1, Math.min(5, Math.round(Number(s.funnyEn) || 1))), funnyZh: Math.max(1, Math.min(5, Math.round(Number(s.funnyZh) || 1))), showEmojis: s.showEmojis === true, route: routeState(s.route), tabs: this.tabs.slice(0, 64).map(tab => ({ id: safeId(tab.id, 128) || 'tab', label: String(tab.label || 'Tab').slice(0, 160), route: routeState(tab.route) })), tweaks: Object.entries(this.tweaks).filter(([, value]) => typeof value === 'boolean').slice(0, 1500).map(([id, value]) => ({ id: safeId(id, 160) || 'tweak', value })), ownership: { schemaVersion: 2, global: { ...this.settingsGlobal }, projects: this.settingsProjects.slice(0, 50).map(project => ({ id: project.id, name: project.name, overrides: { ...project.overrides } })), activeProjectId: this.activeProjectId } };
   }
   refreshSnapshots() {
     const bridge = window.winforge;
@@ -2025,7 +2037,7 @@ class Component extends DCLogic {
       localStorage.setItem(KEY, JSON.stringify({
         tweaks: this.tweaks, notifs: this.notifs.slice(0, 200), tabs: this.tabs,
         theme: this.state.theme, lang: this.state.lang, funnyEn: this.state.funnyEn,
-        funnyZh: this.state.funnyZh, route: this.state.route,
+        funnyZh: this.state.funnyZh, showEmojis: this.state.showEmojis, route: this.state.route,
         settingsGlobal: this.settingsGlobal, settingsProjects: this.settingsProjects, activeProjectId: this.activeProjectId,
         personalVocabulary: this.personalVocabulary,
         reactor: this.rx.snapshot(), rlog: this.rlogLines.slice(0, 60), ship: this.ship || this.savedShip,
@@ -2474,19 +2486,19 @@ class Component extends DCLogic {
     V.toggleNotifs = () => { if (!s.notifsOpen) this.seenCount = this.notifs.length; this.setState({ notifsOpen: !s.notifsOpen }); };
     V.clearNotifs = () => { this.notifs = []; this.seenCount = 0; this.persist(); this.setState(st => ({ tick: st.tick + 1 })); };
     const sevMap = {
-      info: { bg: 'var(--md-sys-color-surface-container-high)', fg: onSurf, icon: 'info' },
-      success: { bg: 'var(--dm-green-container)', fg: 'var(--dm-green-on-container)', icon: 'check_circle' },
-      warning: { bg: 'var(--dm-amber-container)', fg: 'var(--dm-amber-on-container)', icon: 'warning' },
-      error: { bg: 'var(--md-sys-color-error-container)', fg: 'var(--md-sys-color-on-error-container)', icon: 'error' },
+      info: { bg: 'var(--md-sys-color-surface-container-high)', fg: onSurf, icon: 'info', emoji: 'ℹ️' },
+      success: { bg: 'var(--dm-green-container)', fg: 'var(--dm-green-on-container)', icon: 'check_circle', emoji: '✅' },
+      warning: { bg: 'var(--dm-amber-container)', fg: 'var(--dm-amber-on-container)', icon: 'warning', emoji: '⚠️' },
+      error: { bg: 'var(--md-sys-color-error-container)', fg: 'var(--md-sys-color-on-error-container)', icon: 'error', emoji: '❌' },
     };
     V.notifications = this.notifs.filter(n => this.match(this.notifQuery, n.title + ' ' + n.body)).slice(0, 60).map(n => {
       const m = sevMap[n.sev] || sevMap.info;
-      return { title: n.title, body: n.body, time: n.time, bg: m.bg, fg: m.fg, icon: m.icon };
+      return { title: n.title, body: n.body, time: n.time, bg: m.bg, fg: m.fg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis };
     });
     V.notifFooter = this.notifs.length + ' of 200 kept locally · information and success auto-dismiss, warnings and errors are retained';
     V.snacks = this.snacks.map(x => {
       const m = sevMap[x.sev] || sevMap.info;
-      return { msg: x.msg, icon: m.icon, color: x.sev === 'error' ? err : (x.sev === 'success' ? green : prim) };
+      return { msg: x.msg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis, color: x.sev === 'error' ? err : (x.sev === 'success' ? green : prim) };
     });
 
     // tabs
@@ -2544,6 +2556,7 @@ class Component extends DCLogic {
         { title: 'Search Settings', sub: 'Top-level Settings section search', query: '' },
         { title: 'Global defaults and project overrides', sub: 'Projects, inheritance and active scope', query: 'global project overrides inheritance' },
         { title: 'Appearance and language', sub: 'Theme and language mode', query: 'appearance theme language' },
+        { title: 'Show emojis in dialogs and message boxes', sub: 'Decorative notification and snackbar emoji', query: 'appearance emoji dialogs message boxes' },
         { title: 'Funny levels', sub: 'English and Cantonese tone', query: 'funny levels' },
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
@@ -2945,7 +2958,7 @@ class Component extends DCLogic {
     // settings
     const settingsSearch = this.settingsQuery || '';
     V.showSettingsProjects = this.match(settingsSearch, 'global defaults project overrides active project picker inherited values reset project create local project');
-    V.showSettingsAppearance = this.match(settingsSearch, 'appearance theme dark light language mode English Cantonese bilingual current ' + s.theme + ' ' + s.lang);
+    V.showSettingsAppearance = this.match(settingsSearch, 'appearance theme dark light language mode English Cantonese bilingual emoji dialogs message boxes current ' + s.theme + ' ' + s.lang + ' ' + s.showEmojis);
     V.showSettingsFunny = this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
     V.settingsNoMatch = !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsLocal;
@@ -2984,13 +2997,13 @@ class Component extends DCLogic {
       this.settingsProjects.push({ id, name, overrides: {} });
       this.activeProjectId = id;
       this.setState({ ...this.settingsGlobal, projectNameInput: '' }, () => this.persist());
-      this.notify('Local project', name + ' was created locally with all four settings inherited.', 'success', true);
+      this.notify('Local project', name + ' was created locally with all five settings inherited.', 'success', true);
     };
     V.resetProjectOverrides = () => {
       if (!activeProject) return;
       activeProject.overrides = {};
       applyScope();
-      this.notify('Project settings', activeProject.name + ' now inherits all four global defaults.', 'success', true);
+      this.notify('Project settings', activeProject.name + ' now inherits all five global defaults.', 'success', true);
     };
     V.themeOptions = ['Dark', 'Light'].map(l => {
       const act = s.theme === l.toLowerCase();
@@ -3000,6 +3013,10 @@ class Component extends DCLogic {
       const act = s.lang === l;
       return { label: l === 'Cantonese' ? '粵語' : l, set: () => writeSetting('lang', l), bg: act ? prim : 'transparent', fg: act ? 'var(--md-sys-color-on-primary)' : onVar };
     });
+    V.showEmojis = s.showEmojis;
+    V.toggleShowEmojis = () => writeSetting('showEmojis', !s.showEmojis);
+    V.emojiToggleBg = s.showEmojis ? prim : 'var(--md-sys-color-surface-container-highest)';
+    V.emojiToggleJustify = s.showEmojis ? 'flex-end' : 'flex-start';
     V.funnySliders = [
       { label: 'English funny level', value: s.funnyEn, preview: FUNNY_EN[s.funnyEn], change: e => writeSetting('funnyEn', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
       { label: '粵語 funny level', value: s.funnyZh, preview: FUNNY_ZH[s.funnyZh], change: e => writeSetting('funnyZh', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
@@ -3247,32 +3264,34 @@ class Component extends DCLogic {
       }).then(result => {
         const state = result && result.state;
         const routeValid = route => route && Object.keys(route).length === 2 && Object.hasOwn(route, 'view') && Object.hasOwn(route, 'id') && typeof route.view === 'string' && /^[a-z0-9-]{1,64}$/.test(route.view) && (route.id === null || (typeof route.id === 'string' && /^[a-zA-Z0-9:._-]{1,128}$/.test(route.id)));
-        const settingValid = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
+        const settingValid = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
         const ownershipValid = ownership => {
-          if (!ownership || Object.keys(ownership).length !== 4 || ownership.schemaVersion !== 1 || !ownership.global || !Array.isArray(ownership.projects) || ownership.projects.length > 50 || !APP_SETTING_KEYS.every(key => settingValid(key, ownership.global[key])) || Object.keys(ownership.global).length !== APP_SETTING_KEYS.length) return false;
+          if (!ownership || Object.keys(ownership).length !== 4 || ![1, 2].includes(ownership.schemaVersion) || !ownership.global || !Array.isArray(ownership.projects) || ownership.projects.length > 50) return false;
+          const ownershipKeys = ownership.schemaVersion === 2 ? APP_SETTING_KEYS : APP_SETTING_KEYS_V1;
+          if (!ownershipKeys.every(key => settingValid(key, ownership.global[key])) || Object.keys(ownership.global).length !== ownershipKeys.length) return false;
           const seen = new Set();
           for (const project of ownership.projects) {
             if (!project || Object.keys(project).length !== 3 || !/^project-[a-z0-9-]{6,48}$/.test(project.id) || seen.has(project.id) || typeof project.name !== 'string' || project.name.trim().length < 1 || project.name.trim().length > 64 || /[\u0000-\u001f\u007f]/.test(project.name) || !project.overrides || Array.isArray(project.overrides)) return false;
             const keys = Object.keys(project.overrides);
-            if (keys.length > APP_SETTING_KEYS.length || !keys.every(key => APP_SETTING_KEYS.includes(key) && settingValid(key, project.overrides[key]))) return false;
+            if (keys.length > ownershipKeys.length || !keys.every(key => ownershipKeys.includes(key) && settingValid(key, project.overrides[key]))) return false;
             seen.add(project.id);
           }
           if (!(ownership.activeProjectId === null || (typeof ownership.activeProjectId === 'string' && seen.has(ownership.activeProjectId)))) return false;
           const active = ownership.projects.find(project => project.id === ownership.activeProjectId);
           const effective = { ...ownership.global, ...(active ? active.overrides : {}) };
-          return effective.theme === state.theme && effective.lang === state.lang && effective.funnyEn === state.funnyEn && effective.funnyZh === state.funnyZh;
+          return effective.theme === state.theme && effective.lang === state.lang && effective.funnyEn === state.funnyEn && effective.funnyZh === state.funnyZh && (state.schemaVersion < 3 || effective.showEmojis === state.showEmojis);
         };
-        const valid = result && result.schemaVersion === 1 && result.status === 'restored' && state && [1, 2].includes(state.schemaVersion) && Object.keys(state).length === (state.schemaVersion === 2 ? 9 : 8) && ['dark', 'light'].includes(state.theme) && ['English', 'Cantonese', 'Bilingual'].includes(state.lang) && Number.isInteger(state.funnyEn) && state.funnyEn >= 1 && state.funnyEn <= 5 && Number.isInteger(state.funnyZh) && state.funnyZh >= 1 && state.funnyZh <= 5 && routeValid(state.route) && Array.isArray(state.tabs) && state.tabs.length <= 64 && state.tabs.every(tab => tab && Object.keys(tab).length === 3 && /^[a-zA-Z0-9:._-]{1,128}$/.test(tab.id) && typeof tab.label === 'string' && tab.label.length >= 1 && tab.label.length <= 160 && routeValid(tab.route)) && Array.isArray(state.tweaks) && state.tweaks.length <= 1500 && state.tweaks.every(entry => entry && Object.keys(entry).length === 2 && /^[a-zA-Z0-9._-]{1,160}$/.test(entry.id) && typeof entry.value === 'boolean') && (state.schemaVersion === 1 ? !Object.hasOwn(state, 'ownership') : ownershipValid(state.ownership));
+        const valid = result && result.schemaVersion === 1 && result.status === 'restored' && state && [1, 2, 3].includes(state.schemaVersion) && Object.keys(state).length === (state.schemaVersion === 3 ? 10 : state.schemaVersion === 2 ? 9 : 8) && ['dark', 'light'].includes(state.theme) && ['English', 'Cantonese', 'Bilingual'].includes(state.lang) && Number.isInteger(state.funnyEn) && state.funnyEn >= 1 && state.funnyEn <= 5 && Number.isInteger(state.funnyZh) && state.funnyZh >= 1 && state.funnyZh <= 5 && (state.schemaVersion < 3 || typeof state.showEmojis === 'boolean') && routeValid(state.route) && Array.isArray(state.tabs) && state.tabs.length <= 64 && state.tabs.every(tab => tab && Object.keys(tab).length === 3 && /^[a-zA-Z0-9:._-]{1,128}$/.test(tab.id) && typeof tab.label === 'string' && tab.label.length >= 1 && tab.label.length <= 160 && routeValid(tab.route)) && Array.isArray(state.tweaks) && state.tweaks.length <= 1500 && state.tweaks.every(entry => entry && Object.keys(entry).length === 2 && /^[a-zA-Z0-9._-]{1,160}$/.test(entry.id) && typeof entry.value === 'boolean') && (state.schemaVersion === 1 ? !Object.hasOwn(state, 'ownership') : state.ownership?.schemaVersion === state.schemaVersion - 1 && ownershipValid(state.ownership));
         if (!valid) throw new Error('restore');
         const routeForUi = route => route.id ? { view: route.view, id: route.id, cat: route.id } : { view: route.view };
         this.tabs = state.tabs.map(tab => ({ id: tab.id, label: tab.label, icon: 'tab', route: routeForUi(tab.route) }));
         this.tweaks = Object.fromEntries(state.tweaks.map(entry => [entry.id, entry.value]));
-        if (state.schemaVersion === 2) {
-          this.settingsGlobal = { ...state.ownership.global };
+        if (state.schemaVersion >= 2) {
+          this.settingsGlobal = { showEmojis: true, ...state.ownership.global };
           this.settingsProjects = state.ownership.projects.map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
           this.activeProjectId = state.ownership.activeProjectId;
         }
-        this.setState({ theme: state.theme, lang: state.lang, funnyEn: state.funnyEn, funnyZh: state.funnyZh, route: routeForUi(state.route), snapshotRestoring: false, snapshotRestoreConfirm: false, snapshotRestoreId: null }, () => { this.persist(); this.refreshSnapshots(); this.refreshJournal(); });
+        this.setState({ theme: state.theme, lang: state.lang, funnyEn: state.funnyEn, funnyZh: state.funnyZh, showEmojis: state.schemaVersion === 3 ? state.showEmojis : state.schemaVersion === 2 ? this.settingsGlobal.showEmojis : this.state.showEmojis, route: routeForUi(state.route), snapshotRestoring: false, snapshotRestoreConfirm: false, snapshotRestoreId: null }, () => { this.persist(); this.refreshSnapshots(); this.refreshJournal(); });
         this.notify('Restore snapshot', 'The snapshot was restored after a fresh safety snapshot was created.', 'success', true);
       }).catch(error => {
         this.setState({ snapshotRestoring: false });

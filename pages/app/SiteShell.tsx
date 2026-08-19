@@ -2,10 +2,12 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type TabId = "home" | "features" | "docs" | "settings" | "status";
 type LanguageMode = "en" | "yue" | "both";
 type Preferences = {
+  schemaVersion: 1;
   language: LanguageMode;
   funnyEnglish: number;
   funnyCantonese: number;
@@ -13,6 +15,7 @@ type Preferences = {
   dock: "left" | "top";
   density: "comfortable" | "compact";
   accent: string;
+  showEmojis: boolean;
 };
 type Manifest = {
   schemaVersion: number;
@@ -40,6 +43,7 @@ type CatalogItem = {
 
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
 const DEFAULTS: Preferences = {
+  schemaVersion: 1,
   language: "en",
   funnyEnglish: 2,
   funnyCantonese: 3,
@@ -47,6 +51,7 @@ const DEFAULTS: Preferences = {
   dock: "left",
   density: "comfortable",
   accent: "#2f7d45",
+  showEmojis: true,
 };
 const TABS: Array<{ id: TabId; icon: string; en: string; yue: string }> = [
   { id: "home", icon: "⌂", en: "Home", yue: "首頁" },
@@ -115,10 +120,11 @@ const ARTICLES = [
 function dual(en: string, yue: string, mode: LanguageMode) {
   return mode === "yue" ? yue : mode === "both" ? `${en} · ${yue}` : en;
 }
-function validPreferences(value: unknown): value is Preferences {
-  if (!value || typeof value !== "object") return false;
+function normalizePreferences(value: unknown): Preferences | null {
+  if (!value || typeof value !== "object") return null;
   const v = value as Partial<Preferences>;
-  return ["en", "yue", "both"].includes(v.language ?? "") && ["system", "light", "dark"].includes(v.theme ?? "") && ["left", "top"].includes(v.dock ?? "") && ["comfortable", "compact"].includes(v.density ?? "") && Number.isFinite(v.funnyEnglish) && Number.isFinite(v.funnyCantonese) && typeof v.accent === "string" && /^#[0-9a-f]{6}$/i.test(v.accent);
+  const valid = ["en", "yue", "both"].includes(v.language ?? "") && ["system", "light", "dark"].includes(v.theme ?? "") && ["left", "top"].includes(v.dock ?? "") && ["comfortable", "compact"].includes(v.density ?? "") && Number.isFinite(v.funnyEnglish) && Number.isFinite(v.funnyCantonese) && typeof v.accent === "string" && /^#[0-9a-f]{6}$/i.test(v.accent) && (v.schemaVersion === undefined || v.schemaVersion === 1) && (v.showEmojis === undefined || typeof v.showEmojis === "boolean");
+  return valid ? { ...DEFAULTS, ...v, schemaVersion: 1, showEmojis: v.showEmojis ?? true } as Preferences : null;
 }
 function validManifest(value: unknown): value is Manifest {
   if (!value || typeof value !== "object") return false;
@@ -148,6 +154,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const [manifestState, setManifestState] = useState<"loading" | "ready" | "failed">("loading");
   const [toast, setToast] = useState<string | null>(null);
   const [articleId, setArticleId] = useState(ARTICLES[0].id);
+  const [settingsGridTarget, setSettingsGridTarget] = useState<Element | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const language = prefs.language;
   const announce = useCallback((message: string) => {
@@ -158,12 +165,17 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) try { const parsed: unknown = JSON.parse(raw); if (validPreferences(parsed)) setPrefs(parsed); } catch { localStorage.removeItem(STORAGE_KEY); }
+    if (raw) try { const parsed = normalizePreferences(JSON.parse(raw)); if (parsed) setPrefs(parsed); else localStorage.removeItem(STORAGE_KEY); } catch { localStorage.removeItem(STORAGE_KEY); }
     const hash = location.hash.slice(1) as TabId;
     if (TABS.some((tab) => tab.id === hash)) setActiveTab(hash);
     setHydrated(true);
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); }, [hydrated, prefs]);
+  useEffect(() => {
+    if (activeTab !== "settings") { setSettingsGridTarget(null); return; }
+    const timer = setTimeout(() => setSettingsGridTarget(document.querySelector("#panel-settings .settings-grid")), 0);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
   useEffect(() => {
     document.documentElement.dataset.theme = prefs.theme;
     document.documentElement.style.colorScheme = prefs.theme === "system" ? "light dark" : prefs.theme;
@@ -205,11 +217,11 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const heroEn = ["Explore the Material 3 direction and use only a release link backed by published metadata.", "A practical tour of Material 3, with downloads kept on an evidence-only leash.", "Meet the interface, tune the site, and let the release manifest do the serious paperwork.", "Tour the polished controls; the installer wakes only when a real release brings receipts.", "Admire the shiny controls and leave the installer asleep until a real build clocks in."];
   const heroYue = ["探索 Material 3 介面方向，並只使用有已發佈資料支持嘅下載連結。", "睇清 Material 3 設計方向，下載連結就交俾真實發佈資料把關。", "試吓介面同網站設定，嚴肅文件就交俾發佈清單處理。", "介面任睇任試；真發佈帶齊證據返嚟，安裝按鈕先起身返工。", "先睇靚仔介面兼調教分頁；真安裝包未返工，下載掣就乖乖瞓覺。"];
   const heroCopy = dual(heroEn[Math.max(1, Math.min(5, prefs.funnyEnglish)) - 1], heroYue[Math.max(1, Math.min(5, prefs.funnyCantonese)) - 1], language);
-  const commands = [...TABS.map((tab) => ({ id: tab.id, label: dual(tab.en, tab.yue, language), detail: dual("Open site destination", "開啟網站目的地", language), action: () => selectTab(tab.id, `panel-${tab.id}`) })), { id: "search", label: dual("Focus site search", "跳去網站搜尋", language), detail: dual("Search features and articles", "搜尋功能同文章", language), action: () => selectTab("features", "site-search") }, { id: "reset", label: dual("Reset site preferences", "重設網站偏好", language), detail: dual("Restore documented defaults", "回復文件列明嘅預設值", language), action: () => { setPrefs(DEFAULTS); announce("Site preferences reset."); } }];
+  const commands = [...TABS.map((tab) => ({ id: tab.id, label: dual(tab.en, tab.yue, language), detail: dual("Open site destination", "開啟網站目的地", language), action: () => selectTab(tab.id, `panel-${tab.id}`) })), { id: "search", label: dual("Focus site search", "跳去網站搜尋", language), detail: dual("Search features and articles", "搜尋功能同文章", language), action: () => selectTab("features", "site-search") }, { id: "emoji-preference", label: dual("Show emojis in dialogs and message boxes", "喺對話框同訊息框顯示 emoji", language), detail: dual("Open the persisted decoration preference", "開啟已保存嘅裝飾偏好", language), action: () => selectTab("settings", "emoji-preference") }, { id: "reset", label: dual("Reset site preferences", "重設網站偏好", language), detail: dual("Restore documented defaults", "回復文件列明嘅預設值", language), action: () => { setPrefs(DEFAULTS); announce("Site preferences reset."); } }];
   const filteredCommands = commands.filter((c) => `${c.label} ${c.detail}`.toLocaleLowerCase().includes(paletteQuery.toLocaleLowerCase()));
 
   return (
-    <main className={`site-shell dock-${prefs.dock} density-${prefs.density}`} style={{ "--accent": prefs.accent } as CSSProperties}>
+    <main className={`site-shell dock-${prefs.dock} density-${prefs.density} emoji-${prefs.showEmojis ? "on" : "off"}`} style={{ "--accent": prefs.accent } as CSSProperties}>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="top-app-bar">
         <button className="brand" type="button" onClick={() => selectTab("home")} aria-label="WinForge home"><img src={iconPath} width="42" height="42" alt="" /><span><strong>WinForge</strong><small>Material 3 Preview</small></span></button>
@@ -227,10 +239,11 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         {activeTab === "docs" && <Panel id="docs"><PageHeading eyebrow={dual("Offline-friendly guide", "離線友善指南", language)} title={dual("Documentation", "使用文件", language)} body={dual("Every article covers behavior, configuration, failure modes, security, verification, and useful next reading.", "每篇文章都有行為、設定、失敗處理、安全、驗證同下一篇建議。", language)} /><div className="docs-layout"><nav className="article-list" aria-label="Documentation articles">{ARTICLES.map((article) => <button key={article.id} type="button" className={articleId === article.id ? "active" : ""} onClick={() => setArticleId(article.id)}><span>{dual(article.title, article.titleYue, language)}</span><small>{dual("Article", "文章", language)}</small></button>)}</nav>{ARTICLES.filter((a) => a.id === articleId).map((article) => <article key={article.id} id={`article-${article.id}`} className="article-content" tabIndex={-1}><span className="eyebrow">{dual("Feature article", "功能文章", language)}</span><h2>{dual(article.title, article.titleYue, language)}</h2>{article.sections.map(([enTitle, yueTitle, enBody, yueBody]) => <DocSection key={enTitle} title={dual(enTitle, yueTitle, language)}>{dual(enBody, yueBody, language)}</DocSection>)}<div className="suggested-articles"><strong>{dual("Suggested articles", "建議文章", language)}</strong><ul>{article.related.map((item) => <li key={item}>{item}</li>)}</ul></div></article>)}</div></Panel>}
         {activeTab === "settings" && <Panel id="settings"><PageHeading eyebrow={dual("Stored on this device", "只留喺呢部裝置", language)} title={dual("Site settings", "網站設定", language)} body={dual("These controls customize this landing page only. They never change the installed app or Windows.", "呢啲控制只改呢個落地頁，唔會更改已安裝應用程式或者 Windows。", language)} /><div className="settings-grid"><SettingCard title={dual("Language mode", "語言模式", language)} description={dual("Choose the language used by this site.", "揀呢個網站用咩語言。", language)} provenance={dual("Stored locally after your first change.", "第一次改動之後留喺本機。", language)}><Segments label="Language mode" value={prefs.language} options={[["en", "English"], ["yue", "廣東話"], ["both", "English · 廣東話"]]} onChange={(v) => update("language", v as LanguageMode, "Language mode updated.")} /></SettingCard><SettingCard title={dual("English funny level", "英文玩味程度", language)} description={dual("Styles English copy from serious to playful without changing facts.", "英文文案由認真到玩味，但唔會改事實。", language)} provenance={`Current value: ${prefs.funnyEnglish} / 5`}><Range label="English funny level" value={prefs.funnyEnglish} onChange={(v) => update("funnyEnglish", v, `English funny level set to ${v}.`)} /></SettingCard><SettingCard title={dual("Cantonese funny level", "廣東話玩味程度", language)} description={dual("Styles Cantonese copy independently from English.", "廣東話文案可以同英文分開調校。", language)} provenance={`Current value: ${prefs.funnyCantonese} / 5`}><Range label="Cantonese funny level" value={prefs.funnyCantonese} onChange={(v) => update("funnyCantonese", v, `Cantonese funny level set to ${v}.`)} /></SettingCard><SettingCard title={dual("Theme", "主題", language)} description={dual("Follow the device or choose light or dark.", "跟裝置或者揀光亮／深色。", language)} provenance={`Current value: ${prefs.theme}`}><Segments label="Theme" value={prefs.theme} options={[["system", dual("System", "跟系統", language)], ["light", dual("Light", "光亮", language)], ["dark", dual("Dark", "深色", language)]]} onChange={(v) => update("theme", v as Preferences["theme"], "Theme updated.")} /></SettingCard><SettingCard title={dual("Tab position", "分頁位置", language)} description={dual("Dock tabs left or move them to the top.", "分頁列可以放左邊或者頂部。", language)} provenance={`Current value: ${prefs.dock}`}><Segments label="Tab position" value={prefs.dock} options={[["left", dual("Left", "左邊", language)], ["top", dual("Top", "頂部", language)]]} onChange={(v) => update("dock", v as Preferences["dock"], "Tab position updated.")} /></SettingCard><SettingCard title={dual("Density", "密度", language)} description={dual("Adjust spacing without hiding information.", "調整間距，但唔會刪走資料。", language)} provenance={`Current value: ${prefs.density}`}><Segments label="Density" value={prefs.density} options={[["comfortable", dual("Comfortable", "舒適", language)], ["compact", dual("Compact", "緊密", language)]]} onChange={(v) => update("density", v as Preferences["density"], "Density updated.")} /></SettingCard><SettingCard title={dual("Accent color", "重點色", language)} description={dual("Choose the emphasis color for controls and focus.", "揀控制同焦點提示嘅重點色。", language)} provenance={`Current value: ${prefs.accent}`}><label className="color-control"><input type="color" value={prefs.accent} onChange={(e) => update("accent", e.target.value, "Accent color updated.")} aria-label="Accent color" /><code>{prefs.accent}</code></label></SettingCard></div><div className="reset-card"><div><h2>{dual("Reset local preferences", "重設本機偏好", language)}</h2><p>{dual("Restore every documented default in one action.", "一撳回復所有文件列明嘅預設值。", language)}</p></div><button className="outlined-button" type="button" onClick={() => { setPrefs(DEFAULTS); announce("Site preferences reset."); }}>{dual("Reset settings", "重設設定", language)}</button></div></Panel>}
         {activeTab === "status" && <Panel id="status"><PageHeading eyebrow={dual("Evidence, not predictions", "證據唔係預測", language)} title={dual("Publication status", "發佈狀態", language)} body={dual("This surface reports only what the versioned manifest can support.", "呢個畫面只會報版本化清單支持到嘅資料。", language)} /><div className="status-grid"><StatusCard state="info" label={dual("Site role", "網站角色", language)} value={dual("Landing page and documentation preview", "落地頁同文件預覽", language)} detail={dual("No operating-system control runs here.", "呢度冇執行系統控制。", language)} /><StatusCard state={published ? "success" : manifestState === "failed" ? "error" : "waiting"} label={dual("Installer", "安裝程式", language)} value={published ? `${manifest?.version} · ${manifest?.platform}` : manifestState === "loading" ? dual("Reading manifest", "讀緊清單", language) : dual("Not published", "未發佈", language)} detail={published ? `${manifest?.assetName} · ${formatBytes(manifest?.size ?? null)}` : dual("The download action remains disabled.", "下載操作保持停用。", language)} /><StatusCard state="waiting" label={dual("Runtime proof", "執行證據", language)} value={dual("Not claimed by this site", "網站冇聲稱有", language)} detail={dual("A source preview is not installation evidence.", "原始碼預覽唔等於安裝證據。", language)} /></div><div className="manifest-card"><div className="manifest-heading"><div><span className="eyebrow">release-manifest.json</span><h2>{dual("Release record", "發佈記錄", language)}</h2></div><span className={`manifest-state ${published ? "success" : "waiting"}`}>{published ? "published" : manifestState}</span></div><dl><Row label="Schema" value={manifest?.schemaVersion?.toString() ?? "1"} /><Row label="Version" value={manifest?.version ?? "Unavailable"} /><Row label="Tag" value={manifest?.tag ?? "Unavailable"} /><Row label="Commit" value={manifest?.commit ?? "Unavailable"} /><Row label="Platform" value={manifest?.platform ?? "Windows x64"} /><Row label="Asset" value={manifest?.assetName ?? "Unavailable"} /><Row label="SHA-256" value={manifest?.sha256 ?? "Unavailable"} mono /><Row label="Size" value={formatBytes(manifest?.size ?? null)} /><Row label="Published" value={manifest?.publishedAt ?? "Unavailable"} /></dl><div className="unsigned-note"><span aria-hidden="true">!</span><p>{dual("Windows release artifacts are unsigned and may show an unknown-publisher or SmartScreen warning. This site does not claim signature verification.", "Windows 發佈檔案未經簽署，可能會顯示未知發佈者或者 SmartScreen 警告；網站唔會聲稱驗證過簽署。", language)}</p></div></div></Panel>}
+        {settingsGridTarget && createPortal(<div id="emoji-preference" tabIndex={-1}><SettingCard title={dual("Show emojis in dialogs and message boxes", "喺對話框同訊息框顯示 emoji", language)} description={dual("Adds non-semantic decoration to site notifications and status cards. Facts and control labels stay unchanged.", "只會喺網站通知同狀態卡加非語意裝飾；事實同控制標籤保持不變。", language)} provenance={dual(`Current value: ${prefs.showEmojis ? "On" : "Off"}`, `目前值：${prefs.showEmojis ? "開" : "關"}`, language)}><Segments label="Show emojis in dialogs and message boxes" value={prefs.showEmojis ? "on" : "off"} options={[["on", dual("On", "開", language)], ["off", dual("Off", "關", language)]]} onChange={(v) => update("showEmojis", v === "on", dual("Emoji decoration preference updated.", "Emoji 裝飾偏好已更新。", language))} /></SettingCard></div>, settingsGridTarget)}
       </div>
       <footer><span>WinForge · Material 3 Preview</span><span>{dual("Site preferences stay in this browser.", "網站偏好留喺呢個瀏覽器。", language)}</span><a href="https://github.com/Ding-Ding-Projects/material-winforge">GitHub</a></footer>
       {paletteOpen && <div className="dialog-scrim" role="presentation" onMouseDown={(e) => { if (e.currentTarget === e.target) setPaletteOpen(false); }}><section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="palette-title"><header><div><span className="eyebrow">Ctrl+Shift+F</span><h2 id="palette-title">{dual("Command palette", "指令選單", language)}</h2></div><button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close command palette">×</button></header><label className="palette-search"><span aria-hidden="true">⌕</span><input autoFocus value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder={dual("Search destinations and settings", "搜尋目的地同設定", language)} /></label><div className="command-list">{filteredCommands.map((c) => <button key={c.id} type="button" onClick={() => { c.action(); setPaletteOpen(false); }}><span><strong>{c.label}</strong><small>{c.detail}</small></span><span aria-hidden="true">↵</span></button>)}{!filteredCommands.length && <p className="palette-empty">{dual("No commands match.", "冇相符指令。", language)}</p>}</div></section></div>}
-      <div className={`snackbar ${toast ? "visible" : ""}`} role="status" aria-live="polite"><span aria-hidden="true">✓</span><span>{toast}</span>{toast && <button type="button" onClick={() => setToast(null)} aria-label="Dismiss notification">×</button>}</div>
+      <div className={`snackbar ${toast ? "visible" : ""}`} role="status" aria-live="polite">{prefs.showEmojis && <span aria-hidden="true">✅</span>}<span>{toast}</span>{toast && <button type="button" onClick={() => setToast(null)} aria-label="Dismiss notification">×</button>}</div>
     </main>
   );
 }
@@ -242,7 +255,7 @@ function DocSection({ title, children }: { title: string; children: ReactNode })
 function SettingCard({ title, description, provenance, children }: { title: string; description: string; provenance: string; children: ReactNode }) { return <article className="setting-card"><div><h2>{title}</h2><p>{description}</p><small>{provenance}</small></div>{children}</article>; }
 function Segments({ label, options, value, onChange }: { label: string; options: string[][]; value: string; onChange: (v: string) => void }) { return <div className="segmented-control" role="radiogroup" aria-label={label}>{options.map(([v, text]) => <button key={v} type="button" role="radio" aria-checked={value === v} className={value === v ? "selected" : ""} onClick={() => onChange(v)}>{text}</button>)}</div>; }
 function Range({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) { return <label className="range-control"><span>1 · Serious</span><input type="range" min="1" max="5" step="1" value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} /><span>5 · Playful</span><output>{value}</output></label>; }
-function StatusCard({ state, label, value, detail }: { state: "success" | "waiting" | "error" | "info"; label: string; value: string; detail: string }) { const symbol = { success: "✓", waiting: "○", error: "!", info: "i" }[state]; return <article className={`status-card ${state}`}><span className="status-symbol" aria-hidden="true">{symbol}</span><div><small>{label}</small><h2>{value}</h2><p>{detail}</p></div></article>; }
+function StatusCard({ state, label, value, detail }: { state: "success" | "waiting" | "error" | "info"; label: string; value: string; detail: string }) { const symbol = { success: "✓", waiting: "○", error: "!", info: "i" }[state]; const emoji = { success: "✅", waiting: "⏳", error: "❌", info: "ℹ️" }[state]; return <article className={`status-card ${state}`}><span className="status-symbol" aria-hidden="true">{symbol}</span><span className="emoji-decoration" aria-hidden="true">{emoji}</span><div><small>{label}</small><h2>{value}</h2><p>{detail}</p></div></article>; }
 function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) { return <div><dt>{label}</dt><dd className={mono ? "mono" : ""}>{value}</dd></div>; }
 
 function RegexBuilder({ query, setQuery, regexMode, setRegexMode, flags, setFlags, error, sample, setSample, matches, announce, close }: { query: string; setQuery: (v: string) => void; regexMode: boolean; setRegexMode: (v: boolean) => void; flags: { i: boolean; m: boolean }; setFlags: (v: { i: boolean; m: boolean }) => void; error: string; sample: string; setSample: (v: string) => void; matches: RegExpMatchArray[]; announce: (v: string) => void; close: () => void }) {
