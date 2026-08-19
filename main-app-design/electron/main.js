@@ -5,6 +5,7 @@
 
 const { app, BrowserWindow, ipcMain, shell, nativeTheme, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const { execFile } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -15,6 +16,24 @@ let win = null;
 let updateCheck = null;
 let updateTimer = null;
 let previousCpuTimes = null;
+const externalAppLaunches = new Map();
+const EXTERNAL_APP_EXECUTABLES = Object.freeze({
+  vscode: ['Code.exe', 'code.exe'],
+  githubdesktop: ['GitHubDesktop.exe'],
+  libreoffice: ['soffice.exe', 'libreoffice.exe'],
+  blender: ['blender.exe'],
+  gimp: ['gimp-3.exe', 'gimp-2.10.exe', 'gimp.exe'],
+  inkscape: ['inkscape.exe'],
+  krita: ['krita.exe'],
+  darktable: ['darktable.exe'],
+  obs: ['obs64.exe', 'obs32.exe'],
+  audacity: ['Audacity.exe'],
+  handbrake: ['HandBrake.exe'],
+  shotcut: ['shotcut.exe'],
+  virtualbox: ['VirtualBox.exe'],
+  dockerdesktop: ['Docker Desktop.exe'],
+  wireshark: ['Wireshark.exe'],
+});
 let updateState = {
   state: 'idle',
   currentVersion: app.getVersion(),
@@ -113,6 +132,63 @@ function readSystemMetrics() {
     result.uptimeSeconds = uptime === null ? null : Math.round(uptime);
   } catch {}
   return result;
+}
+
+function externalAppResult(id, status, message) {
+  return { schemaVersion: 1, id, status, message: String(message).slice(0, 240) };
+}
+
+function discoverExecutable(candidate, signal) {
+  return new Promise((resolve) => {
+    execFile('where.exe', [candidate], {
+      windowsHide: true,
+      timeout: 3_000,
+      maxBuffer: 64 * 1024,
+      encoding: 'utf8',
+      shell: false,
+      signal,
+    }, (error, stdout) => {
+      if (error) {
+        if (signal.aborted || error.name === 'AbortError') resolve({ status: 'cancelled' });
+        else if (error.killed || error.code === 'ETIMEDOUT') resolve({ status: 'timeout' });
+        else resolve({ status: 'not-found' });
+        return;
+      }
+      const match = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+      if (!match || match.length > 1024 || /[\u0000-\u001f]/.test(match) || !path.isAbsolute(match) || path.basename(match).toLowerCase() !== candidate.toLowerCase()) {
+        resolve({ status: 'not-found' });
+        return;
+      }
+      try {
+        if (!fs.statSync(match).isFile()) { resolve({ status: 'not-found' }); return; }
+      } catch { resolve({ status: 'not-found' }); return; }
+      resolve({ status: 'found', executable: match });
+    });
+  });
+}
+
+async function launchExternalApp(id) {
+  if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
+  if (externalAppLaunches.has(id)) return externalAppResult(id, 'busy', 'A launch check for this app is already running.');
+  const controller = new AbortController();
+  externalAppLaunches.set(id, controller);
+  try {
+    for (const candidate of EXTERNAL_APP_EXECUTABLES[id]) {
+      const discovery = await discoverExecutable(candidate, controller.signal);
+      if (discovery.status === 'cancelled') return externalAppResult(id, 'cancelled', 'The launch check was cancelled.');
+      if (discovery.status === 'timeout') return externalAppResult(id, 'timeout', 'Executable discovery timed out.');
+      if (discovery.status !== 'found') continue;
+      const openError = await shell.openPath(discovery.executable);
+      if (openError) return externalAppResult(id, 'error', 'The installed app was found but could not be opened.');
+      return externalAppResult(id, 'launched', 'The installed app was opened.');
+    }
+    return externalAppResult(id, 'not-installed', 'No allowed executable candidate was found on PATH.');
+  } catch (error) {
+    if (controller.signal.aborted) return externalAppResult(id, 'cancelled', 'The launch check was cancelled.');
+    return externalAppResult(id, 'error', 'Executable discovery or launch failed.');
+  } finally {
+    externalAppLaunches.delete(id);
+  }
 }
 
 function classifyUpdateError(error) {
@@ -258,6 +334,14 @@ ipcMain.on('winforge:close', () => win && win.close());
 ipcMain.handle('winforge:version', () => app.getVersion());
 ipcMain.handle('winforge:mode', () => 'preview');
 ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
+ipcMain.handle('winforge:launch-external-app', (_event, id) => launchExternalApp(id));
+ipcMain.handle('winforge:cancel-external-app-launch', (_event, id) => {
+  if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
+  const controller = externalAppLaunches.get(id);
+  if (!controller) return externalAppResult(id, 'idle', 'No launch check is active for this app.');
+  controller.abort();
+  return externalAppResult(id, 'cancelling', 'Cancellation was requested.');
+});
 ipcMain.handle('winforge:update-state', () => updateState);
 ipcMain.handle('winforge:update-check', () => checkForUpdates('manual'));
 ipcMain.handle('winforge:update-cancel', () => {

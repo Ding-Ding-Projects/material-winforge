@@ -23,6 +23,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Hand-written universal-feature and checked-in design-reference parity inventories that mark missing source and evidence fail-closed.
 - Privileged unsigned Squirrel update checks on startup, every six hours, and manually, with a persistent localized renderer banner and explicit restart/defer actions.
 - Read-only system metrics from the privileged main process, with bounded no-input IPC output and explicit unavailable states instead of random CPU, memory, disk, network, and uptime values.
+- Fixed-ID external-app discovery and launching through a no-shell main-process bridge; renderer paths and executable names are never accepted, and install chains remain preview-only.
 
 ## Verification state
 
@@ -56,3 +57,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Universal completeness and design-parity rows remain incomplete because the ultra-speed pass intentionally ran no tests, built-artifact interactions, negative regressions, visual audits, or captures.
 - The update source and package route are present, but offline, invalid metadata, corrupt package, cancellation, deferred restart, unsaved work, installation, and rollback guidance have not been exercised against a published feed.
 - The system-metrics bridge was built and packaged but not exercised in the running artifact; its live values and dashboard rendering remain unverified.
+- External-app discovery, actual launch, cancellation, timeout, and duplicate-request behaviour were not exercised in the running artifact.

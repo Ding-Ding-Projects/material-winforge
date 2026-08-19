@@ -675,7 +675,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       <sc-if value="{{ isApps }}" hint-placeholder-val="{{ false }}">
       <div style="padding:20px 32px 48px;max-width:1240px;animation:wf-in .32s var(--emph) both">
         <h1 style="margin:0;font-size:32px;font-weight:400">External App Launcher</h1>
-        <p style="margin:6px 0 16px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Big native apps that cannot be reimplemented run in their original form as a popup. Each entry is a data-only manifest with an ordered winget dependency chain.</p>
+        <p style="margin:6px 0 16px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Launches use fixed internal executable names and a bounded installed-app check. Install chains remain preview-only and never run from this surface.</p>
         <div style="display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;margin-bottom:20px;border-radius:999px;background:var(--md-sys-color-surface-container-high)">
           <span class="ms" style="font-size:20px;color:var(--md-sys-color-on-surface-variant)">search</span>
           <input value="{{ extQuery }}" onInput="{{ setExtQuery }}" placeholder="Search external apps and winget ids" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--md-sys-color-on-surface);font-size:14px">
@@ -696,7 +696,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
               </div>
               <div style="display:flex;gap:8px">
                 <button onClick="{{ a.primary }}" style="flex:1;height:36px;border:none;border-radius:999px;background:{{ a.primaryBg }};color:{{ a.primaryFg }};font-size:13px;font-weight:500" style-hover="filter:brightness(1.14)">{{ a.primaryLabel }}</button>
-                <button onClick="{{ a.locate }}" title="Locate executable manually" style="width:36px;height:36px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-on-surface-variant);display:grid;place-items:center" style-hover="background:var(--md-sys-color-surface-container-high)"><span class="ms" style="font-size:17px">folder_open</span></button>
+                <button onClick="{{ a.locate }}" title="{{ a.secondaryTitle }}" style="width:36px;height:36px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-on-surface-variant);display:grid;place-items:center" style-hover="background:var(--md-sys-color-surface-container-high)"><span class="ms" style="font-size:17px">refresh</span></button>
               </div>
             </div>
           </sc-for>
@@ -1610,21 +1610,21 @@ const PKG_CATALOG = [
   { name: 'Docker Desktop', id: 'Docker.DockerDesktop', version: '4.38.0', engine: 'winget', icon: 'deployed_code' },
 ];
 const EXTERNAL_APPS = [
-  { id: 'vscode', name: 'Visual Studio Code', winget: 'Microsoft.VisualStudioCode', icon: 'code', found: true },
-  { id: 'githubdesktop', name: 'GitHub Desktop', winget: 'GitHub.GitHubDesktop', icon: 'merge', found: true },
-  { id: 'libreoffice', name: 'LibreOffice', winget: 'TheDocumentFoundation.LibreOffice', icon: 'description', found: true },
-  { id: 'blender', name: 'Blender', winget: 'BlenderFoundation.Blender', icon: 'view_in_ar', found: false },
-  { id: 'gimp', name: 'GIMP', winget: 'GIMP.GIMP', icon: 'brush', found: true },
-  { id: 'inkscape', name: 'Inkscape', winget: 'Inkscape.Inkscape', icon: 'gesture', found: false },
-  { id: 'krita', name: 'Krita', winget: 'KDE.Krita', icon: 'palette', found: false },
-  { id: 'darktable', name: 'darktable', winget: 'darktable.darktable', icon: 'photo_camera', found: false },
-  { id: 'obs', name: 'OBS Studio', winget: 'OBSProject.OBSStudio', icon: 'videocam', found: true },
-  { id: 'audacity', name: 'Audacity', winget: 'Audacity.Audacity', icon: 'graphic_eq', found: true },
-  { id: 'handbrake', name: 'HandBrake', winget: 'HandBrake.HandBrake', icon: 'movie_edit', found: false },
-  { id: 'shotcut', name: 'Shotcut', winget: 'Meltytech.Shotcut', icon: 'movie', found: false },
-  { id: 'virtualbox', name: 'VirtualBox', winget: 'Oracle.VirtualBox', icon: 'dvr', found: false },
-  { id: 'dockerdesktop', name: 'Docker Desktop', winget: 'Docker.DockerDesktop', icon: 'deployed_code', found: true },
-  { id: 'wireshark', name: 'Wireshark', winget: 'WiresharkFoundation.Wireshark', icon: 'network_check', found: true },
+  { id: 'vscode', name: 'Visual Studio Code', winget: 'Microsoft.VisualStudioCode', icon: 'code' },
+  { id: 'githubdesktop', name: 'GitHub Desktop', winget: 'GitHub.GitHubDesktop', icon: 'merge' },
+  { id: 'libreoffice', name: 'LibreOffice', winget: 'TheDocumentFoundation.LibreOffice', icon: 'description' },
+  { id: 'blender', name: 'Blender', winget: 'BlenderFoundation.Blender', icon: 'view_in_ar' },
+  { id: 'gimp', name: 'GIMP', winget: 'GIMP.GIMP', icon: 'brush' },
+  { id: 'inkscape', name: 'Inkscape', winget: 'Inkscape.Inkscape', icon: 'gesture' },
+  { id: 'krita', name: 'Krita', winget: 'KDE.Krita', icon: 'palette' },
+  { id: 'darktable', name: 'darktable', winget: 'darktable.darktable', icon: 'photo_camera' },
+  { id: 'obs', name: 'OBS Studio', winget: 'OBSProject.OBSStudio', icon: 'videocam' },
+  { id: 'audacity', name: 'Audacity', winget: 'Audacity.Audacity', icon: 'graphic_eq' },
+  { id: 'handbrake', name: 'HandBrake', winget: 'HandBrake.HandBrake', icon: 'movie_edit' },
+  { id: 'shotcut', name: 'Shotcut', winget: 'Meltytech.Shotcut', icon: 'movie' },
+  { id: 'virtualbox', name: 'VirtualBox', winget: 'Oracle.VirtualBox', icon: 'dvr' },
+  { id: 'dockerdesktop', name: 'Docker Desktop', winget: 'Docker.DockerDesktop', icon: 'deployed_code' },
+  { id: 'wireshark', name: 'Wireshark', winget: 'WiresharkFoundation.Wireshark', icon: 'network_check' },
 ];
 
 const CAT_ICONS = {
@@ -1765,6 +1765,7 @@ class Component extends DCLogic {
     this.rlogLines = (L && L.rlog) || [{ t: this.stamp(), msg: 'Reactor held in MODE 5 cold shutdown · operator startup required', color: 'meta' }];
     this.snacks = [];
     this.updateInfo = { state: 'idle', currentVersion: '1.0.0', version: null, releaseNotesUrl: null, progress: null, message: 'Updates have not been checked yet.', unsigned: true };
+    this.externalAppStates = {};
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -2607,17 +2608,53 @@ class Component extends DCLogic {
 
     // external app launcher
     V.isApps = r.view === 'apps';
-    V.appCards = EXTERNAL_APPS.filter(a => this.match(this.extQuery, a.name + ' ' + a.winget)).map(a => ({
-      name: a.name, wingetId: a.winget, icon: a.icon,
-      state: a.found ? 'Resolved from App Paths' : 'Not installed — winget chain ready',
-      stateIcon: a.found ? 'check_circle' : 'download',
-      stateColor: a.found ? green : onVar,
-      primaryLabel: a.found ? 'Launch' : 'Install chain',
-      primaryBg: a.found ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-secondary-container)',
-      primaryFg: a.found ? 'var(--md-sys-color-on-primary)' : 'var(--md-sys-color-on-secondary-container)',
-      primary: () => this.notify(a.name, a.found ? 'Launched as a popup at normal integrity' : 'Installing dependency chain touchlessly via winget', a.found ? 'success' : 'info'),
-      locate: () => this.notify(a.name, 'Manual executable locator opened', 'info'),
-    }));
+    const launchExternal = a => {
+      const bridge = window.winforge;
+      const current = this.externalAppStates[a.id] || { status: 'idle' };
+      if (current.status === 'checking') {
+        if (bridge && bridge.cancelExternalAppLaunch) bridge.cancelExternalAppLaunch(a.id);
+        return;
+      }
+      if (!bridge || !bridge.launchExternalApp) {
+        this.externalAppStates[a.id] = { status: 'error', message: 'Installed-app launching requires the packaged desktop bridge.' };
+        this.bump();
+        return;
+      }
+      this.externalAppStates[a.id] = { status: 'checking', message: 'Checking fixed executable candidates…' };
+      this.bump();
+      bridge.launchExternalApp(a.id).then(result => {
+        const allowed = ['launched', 'not-installed', 'timeout', 'cancelled', 'busy', 'error', 'invalid-id'];
+        const safe = result && result.schemaVersion === 1 && result.id === a.id && allowed.includes(result.status) && typeof result.message === 'string';
+        const next = safe ? { status: result.status, message: result.message.slice(0, 240) } : { status: 'error', message: 'The launcher returned an invalid response.' };
+        this.externalAppStates[a.id] = next;
+        this.bump();
+        if (next.status === 'launched') this.notify(a.name, 'The installed app was opened.', 'success');
+        else if (next.status === 'not-installed') this.notify(a.name, 'No allowed executable candidate was found. The install chain remains preview-only.', 'warning');
+        else if (next.status !== 'cancelled') this.notify(a.name, next.message, 'error');
+      }).catch(() => {
+        this.externalAppStates[a.id] = { status: 'error', message: 'Installed-app discovery or launch failed.' };
+        this.bump();
+        this.notify(a.name, 'Installed-app discovery or launch failed.', 'error');
+      });
+    };
+    V.appCards = EXTERNAL_APPS.filter(a => this.match(this.extQuery, a.name + ' ' + a.winget)).map(a => {
+      const launch = this.externalAppStates[a.id] || { status: 'idle', message: 'Not checked yet.' };
+      const checking = launch.status === 'checking';
+      const missing = launch.status === 'not-installed';
+      const launched = launch.status === 'launched';
+      return {
+        name: a.name, wingetId: a.winget, icon: a.icon,
+        state: checking ? 'Checking installed candidates…' : (missing ? 'Not installed on PATH · install chain is preview-only' : launch.message),
+        stateIcon: checking ? 'progress_activity' : (launched ? 'check_circle' : (missing ? 'download' : (launch.status === 'idle' ? 'help' : 'error'))),
+        stateColor: launched ? green : (['error', 'timeout', 'invalid-id'].includes(launch.status) ? err : onVar),
+        primaryLabel: checking ? 'Cancel' : (missing ? 'Install chain (preview)' : 'Launch / check'),
+        primaryBg: launched ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-secondary-container)',
+        primaryFg: launched ? 'var(--md-sys-color-on-primary)' : 'var(--md-sys-color-on-secondary-container)',
+        primary: missing ? () => this.notify(a.name, 'Preview only · no package installation was started.', 'info') : () => launchExternal(a),
+        secondaryTitle: 'Check installed app again',
+        locate: () => launchExternal(a),
+      };
+    });
 
     // developer workflow
     V.isTerminal = r.view === 'terminal';
