@@ -269,7 +269,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 
             <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
               <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Quick actions</h2>
-              <p style="margin:0 0 14px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Only Flush DNS runs a real operating-system command. Every other action below is preview-only.</p>
+              <p style="margin:0 0 14px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Flush DNS is real. Restart Explorer is real after confirmation. Every other action below is preview-only.</p>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
                 <sc-for list="{{ quickActions }}" as="q" hint-placeholder-count="6">
                   <button onClick="{{ q.run }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 10px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-small);background:transparent;color:var(--md-sys-color-on-surface);font-size:13px" style-hover="background:var(--md-sys-color-surface-container-high)">
@@ -1222,6 +1222,24 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
     </sc-if>
   </div>
 
+  <sc-if value="{{ explorerConfirm }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cancelExplorerRestart }}" style="position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="restart-explorer-title" style="width:min(520px,94vw);padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);animation:wf-dialog .25s var(--spring) both">
+        <div style="display:flex;align-items:flex-start;gap:16px">
+          <span class="ms" aria-hidden="true" style="font-size:28px;color:var(--md-sys-color-error)">restart_alt</span>
+          <div style="flex:1">
+            <h2 id="restart-explorer-title" style="margin:0 0 8px;font-size:22px;font-weight:500">Restart Windows Explorer?</h2>
+            <p style="margin:0;color:var(--md-sys-color-on-surface-variant);line-height:1.5">Explorer windows will close and restart. Unsaved File Explorer work may be interrupted.</p>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px">
+          <button onClick="{{ cancelExplorerRestart }}" disabled="{{ explorerRestarting }}" style="height:40px;padding:0 20px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:14px;font-weight:500">Cancel</button>
+          <button onClick="{{ confirmExplorerRestart }}" disabled="{{ explorerRestarting }}" style="height:40px;padding:0 22px;border:none;border-radius:999px;background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);font-size:14px;font-weight:500">{{ explorerConfirmLabel }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
     <div onClick="{{ closePalette }}" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.5);display:flex;justify-content:center;padding-top:12vh">
       <div onClick="{{ stopEvent }}" style="width:min(680px,92vw);max-height:66vh;display:flex;flex-direction:column;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);overflow:hidden;animation:wf-in .22s var(--emph) both">
@@ -1777,7 +1795,7 @@ class Component extends DCLogic {
       funnyEn: (L && L.funnyEn) || 3,
       funnyZh: (L && L.funnyZh) || 3,
       route: (L && L.route) || { view: 'dashboard' },
-      paletteOpen: false, paletteQuery: '',
+      paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
       sys: {
@@ -1837,7 +1855,7 @@ class Component extends DCLogic {
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
-      else if (e.key === 'Escape') this.setState({ paletteOpen: false });
+      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false });
     };
     window.addEventListener('keydown', this.onKey);
     if (window.winforge && window.winforge.updateState) {
@@ -2384,10 +2402,38 @@ class Component extends DCLogic {
         else this.notify('Flush DNS', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
       }).catch(() => this.notify('Flush DNS', 'The DNS cache flush request failed.' + retry, 'error', true));
     };
+    V.explorerConfirm = s.explorerConfirm;
+    V.explorerRestarting = s.explorerRestarting;
+    V.explorerConfirmLabel = s.explorerRestarting ? 'Restarting…' : 'Restart Explorer';
+    V.openExplorerRestart = () => this.setState({ explorerConfirm: true });
+    V.cancelExplorerRestart = () => { if (!this.state.explorerRestarting) this.setState({ explorerConfirm: false }); };
+    V.confirmExplorerRestart = () => {
+      if (this.state.explorerRestarting) return;
+      const bridge = window.winforge;
+      const retry = ' Choose Restart Explorer again to retry.';
+      if (!bridge || !bridge.restartExplorer) {
+        this.setState({ explorerConfirm: false });
+        this.notify('Restart Explorer', 'Explorer restart is unavailable because the packaged bridge is missing.' + retry, 'warning', true);
+        return;
+      }
+      this.setState({ explorerRestarting: true });
+      bridge.restartExplorer().then(result => {
+        this.setState({ explorerConfirm: false, explorerRestarting: false });
+        const allowed = ['restarted', 'unsupported', 'timeout', 'failed'];
+        if (!result || result.schemaVersion !== 1 || !allowed.includes(result.status) || typeof result.message !== 'string') {
+          this.notify('Restart Explorer', 'The Explorer restart bridge returned an invalid response.' + retry, 'error', true); return;
+        }
+        if (result.status === 'restarted') this.notify('Restart Explorer', result.message, 'success', true);
+        else this.notify('Restart Explorer', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
+      }).catch(() => {
+        this.setState({ explorerConfirm: false, explorerRestarting: false });
+        this.notify('Restart Explorer', 'The Explorer restart request failed.' + retry, 'error', true);
+      });
+    };
     V.quickActions = [
       { label: 'Empty Recycle Bin (preview)', icon: 'delete_sweep', run: () => this.notify('Cleanup preview', s.lang === 'Cantonese' ? FUNNY_ZH[s.funnyZh] : FUNNY_EN[s.funnyEn], 'info') },
       { label: 'Flush DNS', icon: 'dns', run: flushDns },
-      { label: 'Restart Explorer (preview)', icon: 'restart_alt', run: () => this.notify('Restart Explorer preview', 'Explorer restart was not run.', 'info') },
+      { label: 'Restart Explorer', icon: 'restart_alt', run: V.openExplorerRestart },
       { label: 'Winget upgrade (preview)', icon: 'upgrade', run: () => this.notify('Package Manager preview', 'No package upgrade was queued or run.', 'info') },
       { label: 'New snapshot (preview)', icon: 'history', run: () => this.notify('Local history preview', 'No snapshot was created.', 'info') },
     ];

@@ -8,6 +8,7 @@ The current desktop package is a design preview. Documentation in this category 
 - [External app launch](external-app-launch.md)
 - [Package engine discovery](package-engine-discovery.md)
 - [Flush DNS](flush-dns.md)
+- [Restart Explorer](restart-explorer.md)
 
 ## Not yet claimed
 

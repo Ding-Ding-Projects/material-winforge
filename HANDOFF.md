@@ -60,4 +60,5 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - External-app discovery, actual launch, cancellation, timeout, and duplicate-request behaviour were not exercised in the running artifact.
 - The dashboard read-only summary uses the metrics bridge and no longer claims a DISM result; its notification path was built but not exercised in the running artifact.
 - Package-engine discovery and its Not checked, Available, Not installed, and Unavailable renderer states were built and packaged but not exercised; Preview queue performs no package mutation.
-- Flush DNS is the only real dashboard quick action and uses fixed bounded `ipconfig.exe /flushdns`; it was packaged but not executed, while the other quick actions remain preview-only.
+- Flush DNS is real and uses fixed bounded `ipconfig.exe /flushdns`; it was packaged but not executed.
+- Restart Explorer is now also real behind an explicit interruption warning and fixed bounded process calls; it was packaged but neither the confirmation nor Explorer termination/restart was exercised.

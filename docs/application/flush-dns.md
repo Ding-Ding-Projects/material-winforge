@@ -14,7 +14,7 @@ The operation is Windows-only. Other platforms return `unsupported` without star
 
 ## Other quick actions
 
-**Empty Recycle Bin**, **Restart Explorer**, **Winget upgrade**, and **New snapshot** remain visibly labelled preview actions. They show a factual preview notice and perform no file, shell, package, service, or history mutation.
+**Restart Explorer** is a separate real action behind its own explicit confirmation. **Empty Recycle Bin**, **Winget upgrade**, and **New snapshot** remain visibly labelled preview actions and perform no file, package, service, or history mutation.
 
 ## Privacy and security
 

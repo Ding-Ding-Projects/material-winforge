@@ -5,7 +5,7 @@
 
 const { app, BrowserWindow, ipcMain, shell, nativeTheme, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -17,6 +17,7 @@ let updateCheck = null;
 let updateTimer = null;
 let previousCpuTimes = null;
 let flushDnsActive = false;
+let restartExplorerActive = false;
 const externalAppLaunches = new Map();
 const EXTERNAL_APP_EXECUTABLES = Object.freeze({
   vscode: ['Code.exe', 'code.exe'],
@@ -219,6 +220,63 @@ function flushDns() {
   });
 }
 
+function runFixedProcess(executable, args, timeout) {
+  return new Promise((resolve) => {
+    execFile(executable, args, {
+      windowsHide: true,
+      timeout,
+      maxBuffer: 128 * 1024,
+      encoding: 'utf8',
+      shell: false,
+    }, (error) => {
+      if (!error) { resolve('ok'); return; }
+      if (error.killed || error.code === 'ETIMEDOUT') { resolve('timeout'); return; }
+      resolve('failed');
+    });
+  });
+}
+
+function startExplorerProcess() {
+  return new Promise((resolve) => {
+    let settled = false;
+    let child;
+    const finish = (status) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(status);
+    };
+    const timer = setTimeout(() => finish('timeout'), 5_000);
+    timer.unref();
+    try {
+      child = spawn('explorer.exe', [], { windowsHide: true, shell: false, detached: true, stdio: 'ignore' });
+      child.once('error', () => finish('failed'));
+      child.once('spawn', () => { child.unref(); finish('ok'); });
+    } catch {
+      finish('failed');
+    }
+  });
+}
+
+async function restartExplorer() {
+  if (process.platform !== 'win32') return { schemaVersion: 1, status: 'unsupported', message: 'Explorer restart is supported only on Windows.' };
+  if (restartExplorerActive) return { schemaVersion: 1, status: 'failed', message: 'An Explorer restart is already running. Wait, then retry.' };
+  restartExplorerActive = true;
+  try {
+    const stopped = await runFixedProcess('taskkill.exe', ['/F', '/IM', 'explorer.exe', '/T'], 10_000);
+    if (stopped === 'timeout') return { schemaVersion: 1, status: 'timeout', message: 'Stopping Explorer timed out. Retry is available.' };
+    if (stopped !== 'ok') return { schemaVersion: 1, status: 'failed', message: 'Windows did not stop Explorer. Retry is available.' };
+    const started = await startExplorerProcess();
+    if (started === 'timeout') return { schemaVersion: 1, status: 'timeout', message: 'Starting Explorer timed out. Retry is available.' };
+    if (started !== 'ok') return { schemaVersion: 1, status: 'failed', message: 'Explorer stopped but Windows did not confirm its restart. Retry is available.' };
+    return { schemaVersion: 1, status: 'restarted', message: 'Windows Explorer was stopped and restarted.' };
+  } catch {
+    return { schemaVersion: 1, status: 'failed', message: 'Windows did not complete the Explorer restart. Retry is available.' };
+  } finally {
+    restartExplorerActive = false;
+  }
+}
+
 async function launchExternalApp(id) {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
   if (externalAppLaunches.has(id)) return externalAppResult(id, 'busy', 'A launch check for this app is already running.');
@@ -388,6 +446,7 @@ ipcMain.handle('winforge:mode', () => 'preview');
 ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
 ipcMain.handle('winforge:package-engines', () => readPackageEngines());
 ipcMain.handle('winforge:flush-dns', () => flushDns());
+ipcMain.handle('winforge:restart-explorer', () => restartExplorer());
 ipcMain.handle('winforge:launch-external-app', (_event, id) => launchExternalApp(id));
 ipcMain.handle('winforge:cancel-external-app-launch', (_event, id) => {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
