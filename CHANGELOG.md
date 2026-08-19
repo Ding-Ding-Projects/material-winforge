@@ -41,6 +41,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Added a dedicated bounded project-picker search and adjacent regex builder with selection-preserving local filtering and distinct no-project versus no-match states.
 - Added schema-version 2 snapshots with bounded global/project settings ownership and atomic restore, while retaining schema-version 1 presentation-only compatibility.
 - Added a top-level bounded Settings search and anchored regex builder with section filtering, command-palette routing, and a selection-preserving no-match state.
+- Verified packaged Settings search, no-match copy, regex-builder surface, palette discovery, and the corrected Funny-level section route after fixing one query mismatch.
 - Verified the packaged Global/project Settings flow on two fresh hidden desktops: create, Light override, Global defaults, reset-to-global, and same-profile persistence; snapshot-v2 restore remains unverified.
 - Verified the packaged snapshot-v2 seam: create and journal listing, Light alteration, safety-first confirmation, restore, and return to the recorded project ownership state.
 - Verified packaged read-only integrations: live metrics summary with no-OS-change disclosure and real package-engine discovery with Available, Not installed, and Unavailable states; mutation queues remained Preview-only.
