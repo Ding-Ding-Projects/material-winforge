@@ -90,3 +90,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Desktop/site emoji-preference migration, global/project inheritance, Settings controls, snapshot schema 3, and aria-hidden notification/snackbar/status decoration were built but not exercised in the packaged runtime.
 - Site personal-vocabulary selection, strict parsing, last-valid-cache preservation, reload persistence, five-string replacement, clear, and palette focus were built but not exercised in a browser runtime.
 - Desktop/site changelog navigation, static published catalogue, text/regex/date filtering, no-match, clipboard copy, Markdown export, and commit links were built but not exercised in runtime artifacts.
+- Site Global defaults, eight-field sparse project ownership, max-50 project creation, picker search/regex, active switching, inherited counts, reset, persistence migration, and vocabulary-cache exclusion were built but not exercised in a browser runtime.

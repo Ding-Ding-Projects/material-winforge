@@ -5,6 +5,7 @@ The one-route vinext site is the project’s landing, documentation, download, s
 - [Landing page](landing-page.md)
 - [Local preferences](preferences.md)
 - [Personal vocabulary JSON](personal-vocabulary.md)
+- [Global defaults and project overrides](project-settings-overrides.md)
 - [Changelog viewer](changelog.md)
 - [Search and regex builder](search-and-regex.md)
 

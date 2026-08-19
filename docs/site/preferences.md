@@ -24,6 +24,8 @@ Emoji decoration never changes notification/status text, controls, accessible na
 
 The personal-vocabulary cache shares this versioned record but remains separately bounded and validated. It never stores source file metadata and never rewrites URLs, release facts, checksums, platform names, commands, accessible names, or public records. See [Personal vocabulary JSON](personal-vocabulary.md).
 
+All eight presentation preferences also participate in [Global defaults and project overrides](project-settings-overrides.md). The private vocabulary cache does not.
+
 ## Failure modes
 
 Missing or corrupt stored JSON is discarded and the site returns to shipped defaults. Storage failure must not block page rendering. Reset changes site preferences only and never alters the desktop application.

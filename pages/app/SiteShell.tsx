@@ -7,8 +7,7 @@ import { createPortal } from "react-dom";
 type TabId = "home" | "features" | "docs" | "settings" | "changelog" | "status";
 type LanguageMode = "en" | "yue" | "both";
 type VocabularyCache = { schemaVersion: 1; replacements: Record<string, string> };
-type Preferences = {
-  schemaVersion: 1;
+type SiteSettingValues = {
   language: LanguageMode;
   funnyEnglish: number;
   funnyCantonese: number;
@@ -17,7 +16,14 @@ type Preferences = {
   density: "comfortable" | "compact";
   accent: string;
   showEmojis: boolean;
+};
+type SiteSettingKey = keyof SiteSettingValues;
+type SiteProject = { id: string; name: string; overrides: Partial<SiteSettingValues> };
+type SiteSettingsOwnership = { schemaVersion: 1; global: SiteSettingValues; projects: SiteProject[]; activeProjectId: string | null };
+type Preferences = SiteSettingValues & {
+  schemaVersion: 1;
   personalVocabulary: VocabularyCache | null;
+  settingsOwnership: SiteSettingsOwnership;
 };
 type Manifest = {
   schemaVersion: number;
@@ -44,8 +50,7 @@ type CatalogItem = {
 };
 
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
-const DEFAULTS: Preferences = {
-  schemaVersion: 1,
+const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
   funnyCantonese: 3,
@@ -54,8 +59,14 @@ const DEFAULTS: Preferences = {
   density: "comfortable",
   accent: "#2f7d45",
   showEmojis: true,
-  personalVocabulary: null,
 };
+const DEFAULTS: Preferences = {
+  schemaVersion: 1,
+  ...DEFAULT_SITE_SETTINGS,
+  personalVocabulary: null,
+  settingsOwnership: { schemaVersion: 1, global: DEFAULT_SITE_SETTINGS, projects: [], activeProjectId: null },
+};
+const SITE_SETTING_KEYS: SiteSettingKey[] = ["language", "funnyEnglish", "funnyCantonese", "theme", "dock", "density", "accent", "showEmojis"];
 const TABS: Array<{ id: TabId; icon: string; en: string; yue: string }> = [
   { id: "home", icon: "⌂", en: "Home", yue: "首頁" },
   { id: "features", icon: "◇", en: "Feature map", yue: "功能地圖" },
@@ -161,12 +172,41 @@ function parseVocabularyJson(source: string): VocabularyCache {
   const parsed = readValue(1); skip(); if (at !== source.length) throw new Error("JSON has trailing content.");
   const normalized = normalizeVocabularyCache(parsed); if (!normalized) throw new Error("Expected version 1 with at most 256 bounded string replacements and no extra fields."); return normalized;
 }
+function validSiteSetting(key: SiteSettingKey, value: unknown): boolean {
+  if (key === "language") return ["en", "yue", "both"].includes(String(value));
+  if (key === "theme") return ["system", "light", "dark"].includes(String(value));
+  if (key === "dock") return ["left", "top"].includes(String(value));
+  if (key === "density") return ["comfortable", "compact"].includes(String(value));
+  if (key === "accent") return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+  if (key === "showEmojis") return typeof value === "boolean";
+  return Number.isFinite(value) && Number(value) >= 1 && Number(value) <= 5;
+}
+function normalizeOwnership(value: unknown, legacy: SiteSettingValues): SiteSettingsOwnership {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { schemaVersion: 1, global: { ...legacy }, projects: [], activeProjectId: null };
+  const root = value as Partial<SiteSettingsOwnership>;
+  if (root.schemaVersion !== 1 || !root.global || typeof root.global !== "object" || Array.isArray(root.global) || !Array.isArray(root.projects) || root.projects.length > 50 || Object.keys(root.global).length !== SITE_SETTING_KEYS.length || !SITE_SETTING_KEYS.every((key) => validSiteSetting(key, root.global?.[key]))) return { schemaVersion: 1, global: { ...legacy }, projects: [], activeProjectId: null };
+  const seen = new Set<string>();
+  const projects: SiteProject[] = [];
+  for (const candidate of root.projects) {
+    if (!candidate || typeof candidate !== "object" || !/^project-[a-z0-9-]{6,48}$/.test(candidate.id) || seen.has(candidate.id) || typeof candidate.name !== "string" || !candidate.name.trim() || candidate.name.trim().length > 64 || /[\u0000-\u001f\u007f]/.test(candidate.name) || !candidate.overrides || typeof candidate.overrides !== "object" || Array.isArray(candidate.overrides)) continue;
+    const keys = Object.keys(candidate.overrides) as SiteSettingKey[];
+    if (keys.length > SITE_SETTING_KEYS.length || !keys.every((key) => SITE_SETTING_KEYS.includes(key) && validSiteSetting(key, candidate.overrides[key]))) continue;
+    seen.add(candidate.id); projects.push({ id: candidate.id, name: candidate.name.trim(), overrides: { ...candidate.overrides } });
+  }
+  const activeProjectId = typeof root.activeProjectId === "string" && seen.has(root.activeProjectId) ? root.activeProjectId : null;
+  return { schemaVersion: 1, global: { ...root.global } as SiteSettingValues, projects, activeProjectId };
+}
 function normalizePreferences(value: unknown): Preferences | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Partial<Preferences>;
   const valid = ["en", "yue", "both"].includes(v.language ?? "") && ["system", "light", "dark"].includes(v.theme ?? "") && ["left", "top"].includes(v.dock ?? "") && ["comfortable", "compact"].includes(v.density ?? "") && Number.isFinite(v.funnyEnglish) && Number.isFinite(v.funnyCantonese) && typeof v.accent === "string" && /^#[0-9a-f]{6}$/i.test(v.accent) && (v.schemaVersion === undefined || v.schemaVersion === 1) && (v.showEmojis === undefined || typeof v.showEmojis === "boolean");
   const personalVocabulary = v.personalVocabulary === undefined || v.personalVocabulary === null ? null : normalizeVocabularyCache(v.personalVocabulary);
-  return valid && (v.personalVocabulary === undefined || v.personalVocabulary === null || personalVocabulary) ? { ...DEFAULTS, ...v, schemaVersion: 1, showEmojis: v.showEmojis ?? true, personalVocabulary } as Preferences : null;
+  if (!valid || !(v.personalVocabulary === undefined || v.personalVocabulary === null || personalVocabulary)) return null;
+  const legacy = Object.fromEntries(SITE_SETTING_KEYS.map((key) => [key, v[key] ?? DEFAULT_SITE_SETTINGS[key]])) as SiteSettingValues;
+  const settingsOwnership = normalizeOwnership(v.settingsOwnership, legacy);
+  const active = settingsOwnership.projects.find((project) => project.id === settingsOwnership.activeProjectId);
+  const effective = { ...settingsOwnership.global, ...(active?.overrides ?? {}) };
+  return { ...DEFAULTS, ...v, ...effective, schemaVersion: 1, personalVocabulary, settingsOwnership } as Preferences;
 }
 function validManifest(value: unknown): value is Manifest {
   if (!value || typeof value !== "object") return false;
@@ -203,6 +243,13 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const [changelogTo, setChangelogTo] = useState("");
   const [vocabStatus, setVocabStatus] = useState<"no-file" | "loaded" | "invalid">("no-file");
   const [vocabMessage, setVocabMessage] = useState("");
+  const [projectQuery, setProjectQuery] = useState("");
+  const [projectRegex, setProjectRegex] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectBuilderOpen, setProjectBuilderOpen] = useState(false);
+  const [projectFlags, setProjectFlags] = useState({ i: true, m: false });
+  const [projectSample, setProjectSample] = useState("Global defaults\nExample local project");
+  const [projectBuilderTarget, setProjectBuilderTarget] = useState<Element | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const language = prefs.language;
   const announce = useCallback((message: string) => {
@@ -221,9 +268,14 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); }, [hydrated, prefs]);
   useEffect(() => {
     if (activeTab !== "settings") { setSettingsGridTarget(null); return; }
-    const timer = setTimeout(() => setSettingsGridTarget(document.querySelector("#panel-settings .settings-grid")), 0);
+    const timer = setTimeout(() => { setSettingsGridTarget(document.querySelector("#panel-settings .settings-grid")); setProjectBuilderTarget(document.querySelector("#site-project-settings .project-search")); }, 0);
     return () => clearTimeout(timer);
   }, [activeTab]);
+  useEffect(() => {
+    if (!settingsGridTarget) { setProjectBuilderTarget(null); return; }
+    const timer = setTimeout(() => setProjectBuilderTarget(document.querySelector("#site-project-settings .project-search")), 0);
+    return () => clearTimeout(timer);
+  }, [settingsGridTarget]);
   useEffect(() => {
     document.documentElement.dataset.theme = prefs.theme;
     document.documentElement.style.colorScheme = prefs.theme === "system" ? "light dark" : prefs.theme;
@@ -244,7 +296,15 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     setActiveTab(tab); history.replaceState(null, "", `#${tab}`);
     if (focus) setTimeout(() => document.getElementById(focus)?.focus(), 40);
   }, []);
-  const update = <K extends keyof Preferences>(key: K, value: Preferences[K], note: string) => { setPrefs((p) => ({ ...p, [key]: value })); announce(note); };
+  const update = <K extends keyof Preferences>(key: K, value: Preferences[K], note: string) => { setPrefs((p) => {
+    if (!SITE_SETTING_KEYS.includes(key as SiteSettingKey)) return { ...p, [key]: value };
+    const settingKey = key as SiteSettingKey; const ownership = { ...p.settingsOwnership, global: { ...p.settingsOwnership.global }, projects: p.settingsOwnership.projects.map((project) => ({ ...project, overrides: { ...project.overrides } })) };
+    const active = ownership.projects.find((project) => project.id === ownership.activeProjectId);
+    if (active) { if (value === ownership.global[settingKey]) delete active.overrides[settingKey]; else (active.overrides as Record<SiteSettingKey, unknown>)[settingKey] = value; }
+    else (ownership.global as Record<SiteSettingKey, unknown>)[settingKey] = value;
+    const effective = { ...ownership.global, ...(active?.overrides ?? {}) };
+    return { ...p, ...effective, settingsOwnership: ownership };
+  }); announce(note); };
   const personalText = (original: string) => prefs.personalVocabulary?.replacements[original] ?? original;
   const clearVocabulary = () => { setPrefs((p) => ({ ...p, personalVocabulary: null })); setVocabStatus("no-file"); setVocabMessage(""); announce("Vocabulary cleared locally."); };
   const loadVocabularyFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -272,6 +332,17 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const heroEn = ["Explore the Material 3 direction and use only a release link backed by published metadata.", "A practical tour of Material 3, with downloads kept on an evidence-only leash.", "Meet the interface, tune the site, and let the release manifest do the serious paperwork.", "Tour the polished controls; the installer wakes only when a real release brings receipts.", "Admire the shiny controls and leave the installer asleep until a real build clocks in."];
   const heroYue = ["探索 Material 3 介面方向，並只使用有已發佈資料支持嘅下載連結。", "睇清 Material 3 設計方向，下載連結就交俾真實發佈資料把關。", "試吓介面同網站設定，嚴肅文件就交俾發佈清單處理。", "介面任睇任試；真發佈帶齊證據返嚟，安裝按鈕先起身返工。", "先睇靚仔介面兼調教分頁；真安裝包未返工，下載掣就乖乖瞓覺。"];
   const heroCopy = dual(heroEn[Math.max(1, Math.min(5, prefs.funnyEnglish)) - 1], heroYue[Math.max(1, Math.min(5, prefs.funnyCantonese)) - 1], language);
+  const ownership = prefs.settingsOwnership;
+  const activeSettingsProject = ownership.projects.find((project) => project.id === ownership.activeProjectId);
+  let projectPattern: RegExp | null = null; let projectPatternError = "";
+  if (projectRegex && projectQuery) try { projectPattern = new RegExp(projectQuery, `${projectFlags.i ? "i" : ""}${projectFlags.m ? "m" : ""}`); } catch (error) { projectPatternError = error instanceof Error ? error.message : "Invalid regular expression"; }
+  let projectMatches: RegExpMatchArray[] = [];
+  if (projectRegex && projectQuery && projectPattern) try { projectMatches = Array.from(projectSample.matchAll(new RegExp(projectQuery, `${projectFlags.i ? "i" : ""}${projectFlags.m ? "m" : ""}g`))).slice(0, 50); } catch { projectMatches = []; }
+  const projectChoices = [{ id: null, name: dual("Global defaults", "全域預設", language) }, ...ownership.projects].filter((project) => { const text = `${project.name} ${project.id ?? "global-defaults"}`; return !projectQuery || (projectRegex ? !!projectPattern?.test(text) : text.toLocaleLowerCase().includes(projectQuery.toLocaleLowerCase())); });
+  const selectSettingsProject = (id: string | null) => setPrefs((p) => { const next = { ...p.settingsOwnership, activeProjectId: id }; const active = next.projects.find((project) => project.id === id); return { ...p, ...next.global, ...(active?.overrides ?? {}), settingsOwnership: next }; });
+  const createSettingsProject = () => { const name = projectName.trim(); if (!name || name.length > 64 || ownership.projects.length >= 50) { announce(dual("Project name must be 1–64 characters and the limit is 50.", "Project 名稱要 1–64 個字元，上限係 50 個。", language)); return; } let id = ""; do { id = `project-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`; } while (ownership.projects.some((project) => project.id === id)); if (!/^project-[a-z0-9-]{6,48}$/.test(id)) return; setPrefs((p) => ({ ...p, ...p.settingsOwnership.global, settingsOwnership: { ...p.settingsOwnership, projects: [...p.settingsOwnership.projects, { id, name, overrides: {} }], activeProjectId: id } })); setProjectName(""); announce(dual("Local project created with all eight values inherited.", "本機 project 已建立，八個值全部繼承。", language)); };
+  const resetProjectOverrides = () => { if (!activeSettingsProject) return; setPrefs((p) => { const projects = p.settingsOwnership.projects.map((project) => project.id === activeSettingsProject.id ? { ...project, overrides: {} } : project); return { ...p, ...p.settingsOwnership.global, settingsOwnership: { ...p.settingsOwnership, projects } }; }); announce(dual("Project reset to Global defaults.", "Project 已重設做全域預設。", language)); };
+  const overrideCount = activeSettingsProject ? Object.keys(activeSettingsProject.overrides).length : 0;
   const commands = [...TABS.map((tab) => ({ id: tab.id, label: dual(tab.en, tab.yue, language), detail: dual("Open site destination", "開啟網站目的地", language), action: () => selectTab(tab.id, `panel-${tab.id}`) })), { id: "search", label: dual("Focus site search", "跳去網站搜尋", language), detail: dual("Search features and articles", "搜尋功能同文章", language), action: () => selectTab("features", "site-search") }, { id: "emoji-preference", label: dual("Show emojis in dialogs and message boxes", "喺對話框同訊息框顯示 emoji", language), detail: dual("Open the persisted decoration preference", "開啟已保存嘅裝飾偏好", language), action: () => selectTab("settings", "emoji-preference") }, { id: "vocabulary-upload", label: dual("Upload personal vocabulary", "上載個人詞彙", language), detail: dual("Choose or replace the local JSON file", "揀選或取代本機 JSON 檔案", language), action: () => { selectTab("settings", "site-vocabulary-file"); setTimeout(() => document.getElementById("site-vocabulary-file")?.click(), 60); } }, { id: "vocabulary-status", label: dual("Personal vocabulary status", "個人詞彙狀態", language), detail: dual("Open the loaded, invalid, or no-file state", "開啟已載入、無效或未有檔案狀態", language), action: () => selectTab("settings", "site-vocabulary-status") }, { id: "vocabulary-clear", label: dual("Clear personal vocabulary", "清除個人詞彙", language), detail: dual("Purge the local cache and restore shipped wording", "清除本機快取並回復原裝文字", language), action: () => { selectTab("settings", "site-vocabulary-status"); clearVocabulary(); } }, { id: "reset", label: dual("Reset site preferences", "重設網站偏好", language), detail: dual("Restore documented defaults", "回復文件列明嘅預設值", language), action: () => { setPrefs(DEFAULTS); setVocabStatus("no-file"); setVocabMessage(""); announce("Site preferences reset."); } }];
   const filteredCommands = commands.filter((c) => `${c.label} ${c.detail}`.toLocaleLowerCase().includes(paletteQuery.toLocaleLowerCase()));
   let changelogPattern: RegExp | null = null;
@@ -307,7 +378,9 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         {activeTab === "settings" && <Panel id="settings"><PageHeading eyebrow={dual("Stored on this device", "只留喺呢部裝置", language)} title={dual("Site settings", "網站設定", language)} body={dual("These controls customize this landing page only. They never change the installed app or Windows.", "呢啲控制只改呢個落地頁，唔會更改已安裝應用程式或者 Windows。", language)} /><div className="settings-grid"><SettingCard title={dual("Language mode", "語言模式", language)} description={dual("Choose the language used by this site.", "揀呢個網站用咩語言。", language)} provenance={dual("Stored locally after your first change.", "第一次改動之後留喺本機。", language)}><Segments label="Language mode" value={prefs.language} options={[["en", "English"], ["yue", "廣東話"], ["both", "English · 廣東話"]]} onChange={(v) => update("language", v as LanguageMode, "Language mode updated.")} /></SettingCard><SettingCard title={dual("English funny level", "英文玩味程度", language)} description={dual("Styles English copy from serious to playful without changing facts.", "英文文案由認真到玩味，但唔會改事實。", language)} provenance={`Current value: ${prefs.funnyEnglish} / 5`}><Range label="English funny level" value={prefs.funnyEnglish} onChange={(v) => update("funnyEnglish", v, `English funny level set to ${v}.`)} /></SettingCard><SettingCard title={dual("Cantonese funny level", "廣東話玩味程度", language)} description={dual("Styles Cantonese copy independently from English.", "廣東話文案可以同英文分開調校。", language)} provenance={`Current value: ${prefs.funnyCantonese} / 5`}><Range label="Cantonese funny level" value={prefs.funnyCantonese} onChange={(v) => update("funnyCantonese", v, `Cantonese funny level set to ${v}.`)} /></SettingCard><SettingCard title={dual("Theme", "主題", language)} description={dual("Follow the device or choose light or dark.", "跟裝置或者揀光亮／深色。", language)} provenance={`Current value: ${prefs.theme}`}><Segments label="Theme" value={prefs.theme} options={[["system", dual("System", "跟系統", language)], ["light", dual("Light", "光亮", language)], ["dark", dual("Dark", "深色", language)]]} onChange={(v) => update("theme", v as Preferences["theme"], "Theme updated.")} /></SettingCard><SettingCard title={dual("Tab position", "分頁位置", language)} description={dual("Dock tabs left or move them to the top.", "分頁列可以放左邊或者頂部。", language)} provenance={`Current value: ${prefs.dock}`}><Segments label="Tab position" value={prefs.dock} options={[["left", dual("Left", "左邊", language)], ["top", dual("Top", "頂部", language)]]} onChange={(v) => update("dock", v as Preferences["dock"], "Tab position updated.")} /></SettingCard><SettingCard title={dual("Density", "密度", language)} description={dual("Adjust spacing without hiding information.", "調整間距，但唔會刪走資料。", language)} provenance={`Current value: ${prefs.density}`}><Segments label="Density" value={prefs.density} options={[["comfortable", dual("Comfortable", "舒適", language)], ["compact", dual("Compact", "緊密", language)]]} onChange={(v) => update("density", v as Preferences["density"], "Density updated.")} /></SettingCard><SettingCard title={dual("Accent color", "重點色", language)} description={dual("Choose the emphasis color for controls and focus.", "揀控制同焦點提示嘅重點色。", language)} provenance={`Current value: ${prefs.accent}`}><label className="color-control"><input type="color" value={prefs.accent} onChange={(e) => update("accent", e.target.value, "Accent color updated.")} aria-label="Accent color" /><code>{prefs.accent}</code></label></SettingCard></div><div className="reset-card"><div><h2>{dual("Reset local preferences", "重設本機偏好", language)}</h2><p>{dual("Restore every documented default in one action.", "一撳回復所有文件列明嘅預設值。", language)}</p></div><button className="outlined-button" type="button" onClick={() => { setPrefs(DEFAULTS); announce("Site preferences reset."); }}>{dual("Reset settings", "重設設定", language)}</button></div></Panel>}
         {activeTab === "status" && <Panel id="status"><PageHeading eyebrow={dual("Evidence, not predictions", "證據唔係預測", language)} title={dual("Publication status", "發佈狀態", language)} body={dual("This surface reports only what the versioned manifest can support.", "呢個畫面只會報版本化清單支持到嘅資料。", language)} /><div className="status-grid"><StatusCard state="info" label={dual("Site role", "網站角色", language)} value={dual("Landing page and documentation preview", "落地頁同文件預覽", language)} detail={dual("No operating-system control runs here.", "呢度冇執行系統控制。", language)} /><StatusCard state={published ? "success" : manifestState === "failed" ? "error" : "waiting"} label={dual("Installer", "安裝程式", language)} value={published ? `${manifest?.version} · ${manifest?.platform}` : manifestState === "loading" ? dual("Reading manifest", "讀緊清單", language) : dual("Not published", "未發佈", language)} detail={published ? `${manifest?.assetName} · ${formatBytes(manifest?.size ?? null)}` : dual("The download action remains disabled.", "下載操作保持停用。", language)} /><StatusCard state="waiting" label={dual("Runtime proof", "執行證據", language)} value={dual("Not claimed by this site", "網站冇聲稱有", language)} detail={dual("A source preview is not installation evidence.", "原始碼預覽唔等於安裝證據。", language)} /></div><div className="manifest-card"><div className="manifest-heading"><div><span className="eyebrow">release-manifest.json</span><h2>{dual("Release record", "發佈記錄", language)}</h2></div><span className={`manifest-state ${published ? "success" : "waiting"}`}>{published ? "published" : manifestState}</span></div><dl><Row label="Schema" value={manifest?.schemaVersion?.toString() ?? "1"} /><Row label="Version" value={manifest?.version ?? "Unavailable"} /><Row label="Tag" value={manifest?.tag ?? "Unavailable"} /><Row label="Commit" value={manifest?.commit ?? "Unavailable"} /><Row label="Platform" value={manifest?.platform ?? "Windows x64"} /><Row label="Asset" value={manifest?.assetName ?? "Unavailable"} /><Row label="SHA-256" value={manifest?.sha256 ?? "Unavailable"} mono /><Row label="Size" value={formatBytes(manifest?.size ?? null)} /><Row label="Published" value={manifest?.publishedAt ?? "Unavailable"} /></dl><div className="unsigned-note"><span aria-hidden="true">!</span><p>{dual("Windows release artifacts are unsigned and may show an unknown-publisher or SmartScreen warning. This site does not claim signature verification.", "Windows 發佈檔案未經簽署，可能會顯示未知發佈者或者 SmartScreen 警告；網站唔會聲稱驗證過簽署。", language)}</p></div></div></Panel>}
         {activeTab === "changelog" && <Panel id="changelog"><PageHeading eyebrow={dual("Published facts", "已發佈事實", language)} title={dual("Changelog", "更新記錄", language)} body={dual("Five real WinForge releases with exact dates and commit links, bundled for offline use.", "五個真實 WinForge 發佈版本，連精確日期同 commit 連結，已內置供離線使用。", language)} /><div className="search-region"><div className="search-row"><label className="search-field" htmlFor="changelog-search"><span aria-hidden="true">⌕</span><input id="changelog-search" value={changelogQuery} onChange={(e) => setChangelogQuery(e.target.value.slice(0, 128))} placeholder={dual("Search changelog", "搜尋更新記錄", language)} /></label><button className={`builder-button ${changelogRegex ? "active" : ""}`} type="button" onClick={() => setChangelogRegex((value) => !value)} aria-pressed={changelogRegex}>{dual("Regex builder", "正規表示式工具", language)}</button></div>{changelogRegex && <div className="regex-builder" role="region" aria-label="Changelog regex builder"><strong>JavaScript RegExp · i</strong><p>{changelogPatternError || dual("The changelog search field is the regex pattern. Disable this builder to return to plain text.", "更新記錄搜尋欄就係 regex pattern；關閉工具就返純文字。", language)}</p></div>}</div><div className="changelog-filters"><label>{dual("From date", "開始日期", language)}<input type="date" value={changelogFrom} onChange={(e) => setChangelogFrom(e.target.value)} /></label><label>{dual("To date", "結束日期", language)}<input type="date" value={changelogTo} onChange={(e) => setChangelogTo(e.target.value)} /></label><button className="outlined-button" type="button" disabled={!filteredChangelog.length} onClick={copyChangelog}>{dual("Copy filtered view", "複製篩選結果", language)}</button><button className="filled-button" type="button" disabled={!filteredChangelog.length} onClick={exportChangelog}>{dual("Export Markdown", "匯出 Markdown", language)}</button></div>{!filteredChangelog.length ? <div className="empty-state" role="status">{dual("No published release matches the current text and ISO date range.", "冇已發佈版本符合目前文字同 ISO 日期範圍。", language)}</div> : <div className="changelog-list">{filteredChangelog.map((entry) => <article className="setting-card" key={entry.version}><div><small>{entry.date} · {entry.category}</small><h2>{entry.version}</h2><p>{entry.summary}</p><a href={`https://github.com/Ding-Ding-Projects/material-winforge/commit/${entry.sha}`}>{entry.sha.slice(0, 12)}</a></div></article>)}</div>}</Panel>}
+        {settingsGridTarget && createPortal(<div id="site-project-settings" tabIndex={-1}><SettingCard title={dual("Global defaults and project overrides", "全域預設同 project 覆寫", language)} description={dual("Every site presentation preference resolves from Global defaults plus sparse overrides for the active local project.", "所有網站顯示偏好都由全域預設加 active 本機 project 嘅稀疏覆寫計出。", language)} provenance={activeSettingsProject ? `${overrideCount} overrides · ${SITE_SETTING_KEYS.length - overrideCount} inherited` : dual("Editing Global defaults", "編輯全域預設", language)}><div className="project-settings-controls"><div className="project-search"><input value={projectQuery} maxLength={128} onChange={(event) => setProjectQuery(event.target.value)} aria-label="Search local projects" placeholder={dual("Search projects", "搜尋 projects", language)} /><button type="button" className={projectRegex ? "active" : ""} onClick={() => setProjectRegex((value) => !value)} aria-pressed={projectRegex}>{dual("Regex builder", "正規表示式工具", language)}</button></div>{projectRegex && <small>{projectPatternError || "JavaScript RegExp · i"}</small>}<div className="project-choice-list" role="listbox" aria-label="Active local project">{projectChoices.map((project) => <button type="button" key={project.id ?? "global"} aria-selected={ownership.activeProjectId === project.id} onClick={() => selectSettingsProject(project.id)}>{project.name}</button>)}</div>{!ownership.projects.length && <p>{dual("No local projects exist. No sample project is seeded.", "未有本機 project，亦冇預設假資料。", language)}</p>}{ownership.projects.length > 0 && projectChoices.length === 0 && <p>{dual("No project matches this filter. The active project is unchanged.", "冇 project 符合篩選；active project 冇改。", language)}</p>}<div className="project-create"><input value={projectName} maxLength={64} onChange={(event) => setProjectName(event.target.value)} aria-label="New local project name" placeholder={dual("New local project name", "新本機 project 名稱", language)} /><button type="button" onClick={createSettingsProject}>{dual("Create project", "建立 project", language)}</button></div>{activeSettingsProject && <button className="outlined-button" type="button" onClick={resetProjectOverrides}>{dual("Reset project to Global", "重設 project 到全域", language)}</button>}<p>{dual("The private vocabulary cache is local visitor data and is never copied into project overrides.", "私人詞彙快取只係本機訪客資料，永遠唔會複製入 project 覆寫。", language)}</p></div></SettingCard></div>, settingsGridTarget)}
         {settingsGridTarget && createPortal(<><div id="emoji-preference" tabIndex={-1}><SettingCard title={dual("Show emojis in dialogs and message boxes", "喺對話框同訊息框顯示 emoji", language)} description={dual("Adds non-semantic decoration to site notifications and status cards. Facts and control labels stay unchanged.", "只會喺網站通知同狀態卡加非語意裝飾；事實同控制標籤保持不變。", language)} provenance={dual(`Current value: ${prefs.showEmojis ? "On" : "Off"}`, `目前值：${prefs.showEmojis ? "開" : "關"}`, language)}><Segments label="Show emojis in dialogs and message boxes" value={prefs.showEmojis ? "on" : "off"} options={[["on", dual("On", "開", language)], ["off", dual("Off", "關", language)]]} onChange={(v) => update("showEmojis", v === "on", dual("Emoji decoration preference updated.", "Emoji 裝飾偏好已更新。", language))} /></SettingCard></div><div id="site-vocabulary-status" tabIndex={-1}><SettingCard title={personalText("Personal vocabulary")} description={dual("Load a bounded local JSON file. Only the documented Settings and toast labels are eligible for exact replacement.", "載入有限度本機 JSON 檔案；只會精確取代文件列明嘅設定同 toast 標籤。", language)} provenance={vocabStatus === "invalid" ? vocabMessage : prefs.personalVocabulary ? `Loaded locally · ${Object.keys(prefs.personalVocabulary.replacements).length} replacements` : dual("No local vocabulary file is loaded.", "未載入本機詞彙檔案。", language)}><div className="vocabulary-controls"><label className="tonal-button">{personalText(prefs.personalVocabulary ? "Replace dictionary" : "Upload dictionary")}<input id="site-vocabulary-file" type="file" accept="application/json,.json" onChange={loadVocabularyFile} aria-label="Choose a local personal vocabulary JSON file" /></label><button className="outlined-button" type="button" onClick={clearVocabulary} disabled={!prefs.personalVocabulary} aria-label="Clear personal vocabulary">{personalText("Clear dictionary")}</button></div></SettingCard></div></>, settingsGridTarget)}
+        {projectBuilderTarget && createPortal(<div className="builder-anchor"><button type="button" className={projectBuilderOpen ? "active" : ""} onClick={() => setProjectBuilderOpen((value) => !value)} aria-expanded={projectBuilderOpen} aria-controls="regex-builder">{dual("Regex builder", "正規表示式工具", language)}</button>{projectBuilderOpen && <RegexBuilder query={projectQuery} setQuery={setProjectQuery} regexMode={projectRegex} setRegexMode={setProjectRegex} flags={projectFlags} setFlags={setProjectFlags} error={projectPatternError} sample={projectSample} setSample={setProjectSample} matches={projectMatches} announce={announce} close={() => setProjectBuilderOpen(false)} />}</div>, projectBuilderTarget)}
       </div>
       <footer><span>WinForge · Material 3 Preview</span><span>{dual("Site preferences stay in this browser.", "網站偏好留喺呢個瀏覽器。", language)}</span><a href="https://github.com/Ding-Ding-Projects/material-winforge">GitHub</a></footer>
       {paletteOpen && <div className="dialog-scrim" role="presentation" onMouseDown={(e) => { if (e.currentTarget === e.target) setPaletteOpen(false); }}><section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="palette-title"><header><div><span className="eyebrow">Ctrl+Shift+F</span><h2 id="palette-title">{dual("Command palette", "指令選單", language)}</h2></div><button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close command palette">×</button></header><label className="palette-search"><span aria-hidden="true">⌕</span><input autoFocus value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder={dual("Search destinations and settings", "搜尋目的地同設定", language)} /></label><div className="command-list">{filteredCommands.map((c) => <button key={c.id} type="button" onClick={() => { c.action(); setPaletteOpen(false); }}><span><strong>{c.label}</strong><small>{c.detail}</small></span><span aria-hidden="true">↵</span></button>)}{!filteredCommands.length && <p className="palette-empty">{dual("No commands match.", "冇相符指令。", language)}</p>}</div></section></div>}

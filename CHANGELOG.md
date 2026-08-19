@@ -46,6 +46,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Added a persisted Show-emojis preference to desktop global/project ownership and site Preferences, with aria-hidden decoration limited to notifications, snackbars, and site status surfaces.
 - Added the strict local personal-vocabulary JSON cache to the site Settings grid, with semantic load/replace/clear controls, last-valid-cache preservation, palette destinations, and five exact site-authored strings.
 - Added factual desktop and site changelog viewers for published `v1.0.31`–`v1.0.35`, with exact commit links, bounded text/regex/date filtering, local copy, and Markdown export.
+- Added site Global defaults and max-50 user-created local project overlays across all eight existing presentation preferences, with sparse inheritance, picker search/regex, switching, and reset.
 - Verified packaged Settings search, no-match copy, regex-builder surface, palette discovery, and the corrected Funny-level section route after fixing one query mismatch.
 - Verified the packaged Global/project Settings flow on two fresh hidden desktops: create, Light override, Global defaults, reset-to-global, and same-profile persistence; snapshot-v2 restore remains unverified.
 - Verified the packaged snapshot-v2 seam: create and journal listing, Light alteration, safety-first confirmation, restore, and return to the recorded project ownership state.
