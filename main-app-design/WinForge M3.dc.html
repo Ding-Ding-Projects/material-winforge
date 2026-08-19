@@ -804,6 +804,12 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             </section>
           </div>
         </div>
+        <section style="margin-top:16px;padding:20px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px"><div><h2 style="margin:0;font-size:16px;font-weight:500">Local snapshot history</h2><p style="margin:4px 0 0;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ snapshotStatusText }}</p></div><button onClick="{{ refreshSnapshots }}" disabled="{{ snapshotsLoading }}" style="height:36px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-weight:500">Refresh</button></div>
+          <div style="display:flex;align-items:center;gap:6px;height:40px;padding:0 4px 0 12px;margin-bottom:10px;border-radius:999px;background:var(--md-sys-color-surface-container-high)"><span class="ms" aria-hidden="true" style="font-size:18px">search</span><input value="{{ snapshotQuery }}" onInput="{{ setSnapshotQuery }}" placeholder="Search snapshot metadata" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbSnapshots }}" title="Advanced regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:16px">regular_expression</span></button></div>
+          <sc-if value="{{ snapshotsEmpty }}" hint-placeholder-val="{{ true }}"><div style="padding:18px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)">{{ snapshotsEmptyText }}</div></sc-if>
+          <div style="display:flex;flex-direction:column;gap:8px"><sc-for list="{{ snapshotItems }}" as="item" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)"><span class="ms" aria-hidden="true">history</span><div style="flex:1;min-width:0"><div style="font-weight:500">{{ item.createdAt }}</div><div style="margin-top:3px;font-family:'Roboto Mono',monospace;font-size:11.5px;color:var(--md-sys-color-on-surface-variant)">{{ item.meta }}</div></div><button onClick="{{ item.restore }}" style="height:36px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-weight:500">Restore…</button></div></sc-for></div>
+        </section>
       </div>
       </sc-if>
 
@@ -1238,6 +1244,10 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         </div>
       </div>
     </div>
+  </sc-if>
+
+  <sc-if value="{{ snapshotRestoreConfirm }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cancelSnapshotRestore }}" style="position:fixed;inset:0;z-index:94;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:24px"><div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="snapshot-restore-title" style="width:min(560px,94vw);padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3)"><h2 id="snapshot-restore-title" style="margin:0 0 8px;font-size:22px;font-weight:500">Restore this local snapshot?</h2><p style="margin:0;color:var(--md-sys-color-on-surface-variant);line-height:1.5">Snapshot from <strong>{{ snapshotRestoreLabel }}</strong> will replace the current presentation theme, language, tone levels, route, tabs, and tweak switches. A fresh safety snapshot of the current state must succeed first.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px"><button onClick="{{ cancelSnapshotRestore }}" disabled="{{ snapshotRestoring }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Cancel</button><button onClick="{{ confirmSnapshotRestore }}" disabled="{{ snapshotRestoring }}" style="height:40px;padding:0 20px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">{{ snapshotRestoreButton }}</button></div></div></div>
   </sc-if>
 
   <sc-if value="{{ recycleConfirm }}" hint-placeholder-val="{{ false }}">
@@ -1846,6 +1856,7 @@ class Component extends DCLogic {
     this.externalAppStates = {};
     this.packageEngineStates = {};
     this.recycleSubmitActive = false;
+    this.snapshotQuery = '';
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -1857,6 +1868,7 @@ class Component extends DCLogic {
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
       recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
+      snapshots: [], snapshotsLoading: false, snapshotListStatus: 'stale', snapshotInvalidCount: 0, snapshotTruncated: false, snapshotRestoreConfirm: false, snapshotRestoreId: null, snapshotRestoring: false,
       wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null,
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
@@ -1871,6 +1883,25 @@ class Component extends DCLogic {
   }
 
   load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  snapshotPayload() {
+    const s = this.state;
+    const safeId = (value, maximum) => String(value || '').replace(/[^a-zA-Z0-9:._-]+/g, '-').slice(0, maximum);
+    const routeState = route => { const view = safeId(route && route.view, 64) || 'dashboard'; const id = safeId(route && (route.id || route.cat), 128); return { view, id: id || null }; };
+    return { schemaVersion: 1, theme: ['dark', 'light'].includes(s.theme) ? s.theme : 'dark', lang: ['English', 'Cantonese', 'Bilingual'].includes(s.lang) ? s.lang : 'English', funnyEn: Math.max(1, Math.min(5, Math.round(Number(s.funnyEn) || 1))), funnyZh: Math.max(1, Math.min(5, Math.round(Number(s.funnyZh) || 1))), route: routeState(s.route), tabs: this.tabs.slice(0, 64).map(tab => ({ id: safeId(tab.id, 128) || 'tab', label: String(tab.label || 'Tab').slice(0, 160), route: routeState(tab.route) })), tweaks: Object.entries(this.tweaks).filter(([, value]) => typeof value === 'boolean').slice(0, 1500).map(([id, value]) => ({ id: safeId(id, 160) || 'tweak', value })) };
+  }
+  refreshSnapshots() {
+    const bridge = window.winforge;
+    if (!bridge || !bridge.listSnapshots) { this.setState({ snapshots: [], snapshotsLoading: false, snapshotListStatus: 'unavailable' }); return; }
+    this.setState({ snapshotsLoading: true, snapshotListStatus: 'loading' });
+    bridge.listSnapshots().then(result => {
+      const valid = result && result.schemaVersion === 1 && ['listed', 'unsupported', 'failed'].includes(result.status) && Array.isArray(result.snapshots) && result.snapshots.length <= 50;
+      if (!valid) throw new Error('invalid');
+      const seen = new Set();
+      const snapshots = result.snapshots.filter(item => item && typeof item.id === 'string' && /^snapshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{16}\.json$/.test(item.id) && !seen.has(item.id) && typeof item.createdAt === 'string' && Number.isFinite(Date.parse(item.createdAt)) && Number.isInteger(item.bytes) && item.bytes > 0 && item.bytes <= 307200 && ['dark', 'light'].includes(item.theme) && ['English', 'Cantonese', 'Bilingual'].includes(item.lang) && typeof item.routeView === 'string' && item.routeView.length <= 64 && (seen.add(item.id) || true));
+      if (snapshots.length !== result.snapshots.length) throw new Error('invalid');
+      this.setState({ snapshots, snapshotsLoading: false, snapshotListStatus: result.status, snapshotInvalidCount: Number.isInteger(result.invalidCount) ? Math.max(0, Math.min(10000, result.invalidCount)) : 0, snapshotTruncated: result.truncated === true });
+    }).catch(() => this.setState({ snapshots: [], snapshotsLoading: false, snapshotListStatus: 'invalid' }));
+  }
   persist() {
     try {
       localStorage.setItem(KEY, JSON.stringify({
@@ -1912,12 +1943,13 @@ class Component extends DCLogic {
       }).catch(() => this.setState({ sys: unavailable }));
     };
     this.pollSystemMetrics();
+    this.refreshSnapshots();
     this.sysTimer = setInterval(this.pollSystemMetrics, 4000);
     this.saveTimer = setInterval(() => this.persist(), 4000);
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
-      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false, wingetReview: this.state.wingetRunning ? this.state.wingetReview : false, recycleConfirm: this.state.recycleRunning ? this.state.recycleConfirm : false, recycleKeyOne: this.state.recycleRunning ? this.state.recycleKeyOne : false, recycleKeyTwo: this.state.recycleRunning ? this.state.recycleKeyTwo : false, recycleSlider: this.state.recycleRunning ? this.state.recycleSlider : 0, recycleComplete: this.state.recycleRunning ? this.state.recycleComplete : false });
+      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false, wingetReview: this.state.wingetRunning ? this.state.wingetReview : false, recycleConfirm: this.state.recycleRunning ? this.state.recycleConfirm : false, recycleKeyOne: this.state.recycleRunning ? this.state.recycleKeyOne : false, recycleKeyTwo: this.state.recycleRunning ? this.state.recycleKeyTwo : false, recycleSlider: this.state.recycleRunning ? this.state.recycleSlider : 0, recycleComplete: this.state.recycleRunning ? this.state.recycleComplete : false, snapshotRestoreConfirm: this.state.snapshotRestoring ? this.state.snapshotRestoreConfirm : false, snapshotRestoreId: this.state.snapshotRestoring ? this.state.snapshotRestoreId : null });
     };
     window.addEventListener('keydown', this.onKey);
     if (window.winforge && window.winforge.updateState) {
@@ -2037,6 +2069,7 @@ class Component extends DCLogic {
       rps: { label: 'RPS functions', get: () => this.rpsQuery || '', set: v => { this.rpsQuery = v; this.bump(); } },
       loads: { label: 'Reactor loads', get: () => this.loadQuery || '', set: v => { this.loadQuery = v; this.bump(); } },
       skills: { label: 'Memory skills', get: () => this.skillQuery || '', set: v => { this.skillQuery = v; this.bump(); } },
+      snapshots: { label: 'Local snapshot history', get: () => this.snapshotQuery || '', set: v => { this.snapshotQuery = v; this.bump(); } },
       extapps: { label: 'External apps', get: () => this.extQuery || '', set: v => { this.extQuery = v; this.bump(); } },
       dev: { label: 'Developer workflows', get: () => this.devQuery || '', set: v => { this.devQuery = v; this.bump(); } },
       log: { label: 'Control-room log', get: () => this.logQuery || '', set: v => { this.logQuery = v; this.bump(); } },
@@ -2233,7 +2266,7 @@ class Component extends DCLogic {
     V.rbPalette = mk('palette'); V.rbRows = mk('rows'); V.rbAllApps = mk('allapps');
     V.rbCats = mk('cats'); V.rbPackages = mk('packages'); V.rbDimSum = mk('dimsum');
     V.rbNotifs = mk('notifs'); V.rbRps = mk('rps'); V.rbLoads = mk('loads');
-    V.rbSkills = mk('skills'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
+    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
     V.rbShown = !!rb.target && this.isShipped('feat.regex');
     V.rbLabel = rb.label;
     const rbField = fields[rb.target] || { get: () => '', set: () => {} };
@@ -2295,6 +2328,7 @@ class Component extends DCLogic {
     V.rpsQuery = this.rpsQuery || ''; V.setRpsQuery = e => { this.rpsQuery = e.target.value; this.bump(); };
     V.loadQuery = this.loadQuery || ''; V.setLoadQuery = e => { this.loadQuery = e.target.value; this.bump(); };
     V.skillQuery = this.skillQuery || ''; V.setSkillQuery = e => { this.skillQuery = e.target.value; this.bump(); };
+    V.snapshotQuery = this.snapshotQuery || ''; V.setSnapshotQuery = e => { this.snapshotQuery = e.target.value; this.bump(); };
     V.extQuery = this.extQuery || ''; V.setExtQuery = e => { this.extQuery = e.target.value; this.bump(); };
     V.devQuery = this.devQuery || ''; V.setDevQuery = e => { this.devQuery = e.target.value; this.bump(); };
     V.logQuery = this.logQuery || ''; V.setLogQuery = e => { this.logQuery = e.target.value; this.bump(); };
@@ -2558,28 +2592,12 @@ class Component extends DCLogic {
       const bridge = window.winforge;
       const retry = ' Choose New local snapshot again to retry.';
       if (!bridge || !bridge.createSnapshot) { this.notify('Local snapshot', 'Local snapshot creation is unavailable because the packaged bridge is missing.' + retry, 'warning', true); return; }
-      const safeId = (value, maximum) => String(value || '').replace(/[^a-zA-Z0-9:._-]+/g, '-').slice(0, maximum);
-      const routeState = route => {
-        const view = safeId(route && route.view, 64) || 'dashboard';
-        const routeId = safeId(route && (route.id || route.cat), 128);
-        return { view, id: routeId || null };
-      };
-      const payload = {
-        schemaVersion: 1,
-        theme: ['dark', 'light'].includes(s.theme) ? s.theme : 'dark',
-        lang: ['English', 'Cantonese', 'Bilingual'].includes(s.lang) ? s.lang : 'English',
-        funnyEn: Math.max(1, Math.min(5, Math.round(Number(s.funnyEn) || 1))),
-        funnyZh: Math.max(1, Math.min(5, Math.round(Number(s.funnyZh) || 1))),
-        route: routeState(s.route),
-        tabs: this.tabs.slice(0, 64).map(tab => ({ id: safeId(tab.id, 128) || 'tab', label: String(tab.label || 'Tab').slice(0, 160), route: routeState(tab.route) })),
-        tweaks: Object.entries(this.tweaks).filter(([, value]) => typeof value === 'boolean').slice(0, 1500).map(([id, value]) => ({ id: safeId(id, 160) || 'tweak', value })),
-      };
-      bridge.createSnapshot(payload).then(result => {
+      bridge.createSnapshot(this.snapshotPayload()).then(result => {
         const allowed = ['created', 'unsupported', 'timeout', 'failed'];
         if (!result || result.schemaVersion !== 1 || !allowed.includes(result.status) || typeof result.message !== 'string') {
           this.notify('Local snapshot', 'The snapshot bridge returned an invalid response.' + retry, 'error', true); return;
         }
-        if (result.status === 'created') this.notify('Local snapshot', result.message, 'success', true);
+        if (result.status === 'created') { this.notify('Local snapshot', result.message, 'success', true); this.refreshSnapshots(); }
         else this.notify('Local snapshot', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
       }).catch(() => this.notify('Local snapshot', 'The local snapshot request failed.' + retry, 'error', true));
     };
@@ -2998,6 +3016,44 @@ class Component extends DCLogic {
       { label: 'Actions', value: 'metrics, DNS, Explorer, Recycle Bin, snapshots + reviewed Winget are live; others preview-only' },
       { label: 'Persistence', value: 'localStorage preferences + private bounded local JSON snapshots' },
     ];
+    const snapshotStatus = s.snapshotListStatus;
+    V.snapshotsLoading = s.snapshotsLoading;
+    V.snapshotStatusText = snapshotStatus === 'loading' ? 'Reading the private local snapshot directory…' : snapshotStatus === 'listed' ? ('Newest valid snapshots · up to 50' + (s.snapshotInvalidCount ? ' · ' + s.snapshotInvalidCount + ' invalid file' + (s.snapshotInvalidCount === 1 ? '' : 's') + ' omitted' : '') + (s.snapshotTruncated ? ' · older valid snapshots omitted' : '')) : snapshotStatus === 'stale' ? 'Not checked yet.' : snapshotStatus === 'unsupported' ? 'Snapshot history is unavailable on this platform.' : snapshotStatus === 'invalid' ? 'The snapshot list response was invalid. Refresh to retry.' : 'Snapshot history could not be read. Refresh to retry.';
+    V.refreshSnapshots = () => this.refreshSnapshots();
+    const matchingSnapshots = (s.snapshots || []).filter(item => this.match(this.snapshotQuery, [item.createdAt, item.theme, item.lang, item.routeView, item.bytes].join(' ')));
+    V.snapshotItems = matchingSnapshots.map(item => ({ createdAt: item.createdAt, meta: item.theme + ' · ' + item.lang + ' · ' + item.routeView + ' · ' + item.bytes + ' bytes', restore: () => this.setState({ snapshotRestoreConfirm: true, snapshotRestoreId: item.id }) }));
+    V.snapshotsEmpty = !matchingSnapshots.length;
+    V.snapshotsEmptyText = snapshotStatus === 'listed' ? ((s.snapshots || []).length ? 'No snapshot metadata matches this search.' : 'No valid local snapshots exist yet. Use New local snapshot to create one.') : V.snapshotStatusText;
+    V.snapshotRestoreConfirm = s.snapshotRestoreConfirm;
+    V.snapshotRestoring = s.snapshotRestoring;
+    const selectedSnapshot = (s.snapshots || []).find(item => item.id === s.snapshotRestoreId);
+    V.snapshotRestoreLabel = selectedSnapshot ? selectedSnapshot.createdAt : 'an unavailable snapshot';
+    V.snapshotRestoreButton = s.snapshotRestoring ? 'Creating safety snapshot…' : 'Create safety snapshot and restore';
+    V.cancelSnapshotRestore = () => { if (!this.state.snapshotRestoring) this.setState({ snapshotRestoreConfirm: false, snapshotRestoreId: null }); };
+    V.confirmSnapshotRestore = () => {
+      if (this.state.snapshotRestoring || !selectedSnapshot) return;
+      const bridge = window.winforge;
+      const retry = ' Refresh snapshot history and retry.';
+      if (!bridge || !bridge.createSnapshot || !bridge.restoreSnapshot) { this.notify('Restore snapshot', 'Snapshot restore is unavailable because the packaged bridge is missing.' + retry, 'warning', true); return; }
+      this.setState({ snapshotRestoring: true });
+      bridge.createSnapshot(this.snapshotPayload()).then(backup => {
+        if (!backup || backup.schemaVersion !== 1 || backup.status !== 'created') throw new Error('backup');
+        return bridge.restoreSnapshot(selectedSnapshot.id);
+      }).then(result => {
+        const state = result && result.state;
+        const routeValid = route => route && typeof route.view === 'string' && /^[a-z0-9-]{1,64}$/.test(route.view) && (route.id === null || (typeof route.id === 'string' && /^[a-zA-Z0-9:._-]{1,128}$/.test(route.id)));
+        const valid = result && result.schemaVersion === 1 && result.status === 'restored' && state && state.schemaVersion === 1 && ['dark', 'light'].includes(state.theme) && ['English', 'Cantonese', 'Bilingual'].includes(state.lang) && Number.isInteger(state.funnyEn) && state.funnyEn >= 1 && state.funnyEn <= 5 && Number.isInteger(state.funnyZh) && state.funnyZh >= 1 && state.funnyZh <= 5 && routeValid(state.route) && Array.isArray(state.tabs) && state.tabs.length <= 64 && state.tabs.every(tab => tab && /^[a-zA-Z0-9:._-]{1,128}$/.test(tab.id) && typeof tab.label === 'string' && tab.label.length >= 1 && tab.label.length <= 160 && routeValid(tab.route)) && Array.isArray(state.tweaks) && state.tweaks.length <= 1500 && state.tweaks.every(entry => entry && /^[a-zA-Z0-9._-]{1,160}$/.test(entry.id) && typeof entry.value === 'boolean');
+        if (!valid) throw new Error('restore');
+        const routeForUi = route => route.id ? { view: route.view, id: route.id, cat: route.id } : { view: route.view };
+        this.tabs = state.tabs.map(tab => ({ id: tab.id, label: tab.label, icon: 'tab', route: routeForUi(tab.route) }));
+        this.tweaks = Object.fromEntries(state.tweaks.map(entry => [entry.id, entry.value]));
+        this.setState({ theme: state.theme, lang: state.lang, funnyEn: state.funnyEn, funnyZh: state.funnyZh, route: routeForUi(state.route), snapshotRestoring: false, snapshotRestoreConfirm: false, snapshotRestoreId: null }, () => { this.persist(); this.refreshSnapshots(); });
+        this.notify('Restore snapshot', 'The snapshot was restored after a fresh safety snapshot was created.', 'success', true);
+      }).catch(error => {
+        this.setState({ snapshotRestoring: false });
+        this.notify('Restore snapshot', (error && error.message === 'backup' ? 'The safety snapshot did not succeed, so no restore was attempted.' : 'The snapshot could not be validated or restored.') + retry, 'error', true);
+      });
+    };
     V.vocabLine = 'Preview only · no live dictionary or publication scan is connected.';
     V.uploadVocab = () => this.notify('Personal vocabulary', 'Preview only · no local file was loaded', 'info');
     V.checkVocab = () => this.notify('Publication scan', 'Preview only · no publication scan was run', 'warning');

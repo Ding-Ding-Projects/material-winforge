@@ -58,6 +58,8 @@ const WINGET_UPGRADE_ALLOWLIST = Object.freeze({
   'Microsoft.PowerShell': 'PowerShell',
   'GitHub.cli': 'GitHub CLI',
 });
+const SNAPSHOT_BASENAME = /^snapshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{16}\.json$/;
+const SNAPSHOT_MAX_BYTES = 300 * 1024;
 let updateState = {
   state: 'idle',
   currentVersion: app.getVersion(),
@@ -384,6 +386,66 @@ async function createLocalSnapshot(payload) {
   }
 }
 
+async function readSnapshotRecord(directory, id) {
+  if (typeof id !== 'string' || !SNAPSHOT_BASENAME.test(id) || id.includes('..') || /[\\/]/.test(id)) return null;
+  const target = path.join(directory, id);
+  const stats = await fs.promises.stat(target);
+  if (!stats.isFile() || stats.size < 2 || stats.size > SNAPSHOT_MAX_BYTES) return null;
+  const raw = await fs.promises.readFile(target, { encoding: 'utf8' });
+  if (Buffer.byteLength(raw, 'utf8') !== stats.size) return null;
+  let record;
+  try { record = JSON.parse(raw); } catch { return null; }
+  if (!hasExactKeys(record, ['schemaVersion', 'createdAt', 'state']) || record.schemaVersion !== 1 || typeof record.createdAt !== 'string' || record.createdAt.length > 40) return null;
+  const created = new Date(record.createdAt);
+  if (!Number.isFinite(created.getTime()) || created.toISOString() !== record.createdAt) return null;
+  const encoded = validateSnapshotPayload(record.state);
+  if (!encoded) return null;
+  return { id, createdAt: record.createdAt, bytes: stats.size, state: JSON.parse(encoded) };
+}
+
+async function listLocalSnapshots() {
+  const directory = path.join(app.getPath('userData'), 'snapshots');
+  try {
+    let names;
+    try { names = await fs.promises.readdir(directory); }
+    catch (error) {
+      if (error && error.code === 'ENOENT') return { schemaVersion: 1, status: 'listed', snapshots: [], invalidCount: 0, truncated: false };
+      throw error;
+    }
+    const candidates = names.filter((name) => SNAPSHOT_BASENAME.test(name)).sort().reverse();
+    const snapshots = [];
+    let invalidCount = Math.min(10_000, names.length - candidates.length);
+    let validCount = 0;
+    for (const id of candidates) {
+      try {
+        const record = await readSnapshotRecord(directory, id);
+        if (!record) { invalidCount += 1; continue; }
+        validCount += 1;
+        if (snapshots.length < 50) snapshots.push({ id: record.id, createdAt: record.createdAt, bytes: record.bytes, theme: record.state.theme, lang: record.state.lang, routeView: record.state.route.view });
+      } catch { invalidCount += 1; }
+    }
+    return { schemaVersion: 1, status: 'listed', snapshots, invalidCount: Math.min(10_000, invalidCount), truncated: validCount > snapshots.length };
+  } catch (error) {
+    if (error && ['ENOSYS', 'ENOTSUP'].includes(error.code)) return { schemaVersion: 1, status: 'unsupported', snapshots: [], invalidCount: 0, truncated: false };
+    return { schemaVersion: 1, status: 'failed', snapshots: [], invalidCount: 0, truncated: false };
+  }
+}
+
+async function restoreLocalSnapshot(id) {
+  if (process.platform !== 'win32') return { schemaVersion: 1, status: 'unsupported', message: 'Local snapshot restore is supported only on Windows.' };
+  if (typeof id !== 'string' || !SNAPSHOT_BASENAME.test(id) || id.includes('..') || /[\\/]/.test(id)) return { schemaVersion: 1, status: 'failed', message: 'The selected snapshot identifier is invalid.' };
+  try {
+    const directory = path.join(app.getPath('userData'), 'snapshots');
+    const record = await readSnapshotRecord(directory, id);
+    if (!record) return { schemaVersion: 1, status: 'failed', message: 'The selected snapshot is invalid or no longer readable.' };
+    return { schemaVersion: 1, status: 'restored', message: 'The local snapshot was validated and returned for restore.', state: record.state };
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return { schemaVersion: 1, status: 'not-found', message: 'The selected snapshot was not found. Refresh the list and retry.' };
+    if (error && ['ENOSYS', 'ENOTSUP'].includes(error.code)) return { schemaVersion: 1, status: 'unsupported', message: 'Local snapshot restore is unavailable on this platform.' };
+    return { schemaVersion: 1, status: 'failed', message: 'The local snapshot could not be restored. Retry is available.' };
+  }
+}
+
 function publishWingetProgress(progress) {
   if (win && !win.isDestroyed()) win.webContents.send('winforge:winget-upgrade-progress', { schemaVersion: 1, ...progress });
 }
@@ -621,6 +683,8 @@ ipcMain.handle('winforge:flush-dns', () => flushDns());
 ipcMain.handle('winforge:restart-explorer', () => restartExplorer());
 ipcMain.handle('winforge:empty-recycle-bin', () => emptyRecycleBin());
 ipcMain.handle('winforge:create-snapshot', (_event, payload) => createLocalSnapshot(payload));
+ipcMain.handle('winforge:list-snapshots', () => listLocalSnapshots());
+ipcMain.handle('winforge:restore-snapshot', (_event, id) => restoreLocalSnapshot(id));
 ipcMain.handle('winforge:winget-upgrade', (_event, ids) => upgradeWingetPackages(ids));
 ipcMain.handle('winforge:cancel-winget-upgrade', () => {
   if (!wingetUpgradeActive) return { schemaVersion: 1, status: 'failed', message: 'No Winget upgrade operation is running.' };

@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('winforge', {
   restartExplorer: () => ipcRenderer.invoke('winforge:restart-explorer'),
   emptyRecycleBin: () => ipcRenderer.invoke('winforge:empty-recycle-bin'),
   createSnapshot: payload => ipcRenderer.invoke('winforge:create-snapshot', payload),
+  listSnapshots: () => ipcRenderer.invoke('winforge:list-snapshots'),
+  restoreSnapshot: id => ipcRenderer.invoke('winforge:restore-snapshot', id),
   wingetUpgrade: ids => ipcRenderer.invoke('winforge:winget-upgrade', ids),
   cancelWingetUpgrade: () => ipcRenderer.invoke('winforge:cancel-winget-upgrade'),
   onWingetUpgradeProgress: fn => ipcRenderer.on('winforge:winget-upgrade-progress', (_event, progress) => fn(progress)),
