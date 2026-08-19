@@ -141,7 +141,7 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .dock-top .tab-strip { position: sticky; top: var(--header-height); border-bottom: 1px solid var(--outline-variant); }
 .dock-bottom .tab-strip { position: sticky; bottom: 0; border-top: 1px solid var(--outline-variant); }
 .tab-entry { position: relative; display: flex; flex: 0 0 auto; align-items: center; min-width: 0; }
-.tab-entry > [role="tab"] { position: relative; display: flex; flex: 1 1 auto; align-items: center; gap: 10px; min-width: 0; min-height: 52px; padding: 10px 112px 10px 16px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; }
+.tab-entry > [role="tab"] { position: relative; display: flex; flex: 1 1 auto; align-items: center; gap: 10px; min-width: 0; min-height: 52px; padding: 10px 140px 10px 16px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; }
 .dock-top .tab-entry > [role="tab"], .dock-bottom .tab-entry > [role="tab"] { min-height: 46px; }
 .tab-entry > [role="tab"]:hover { background: var(--surface-container-high); }
 .tab-entry > [role="tab"].active { color: var(--on-primary-container); background: var(--primary-container); font-weight: 650; }
@@ -149,7 +149,7 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .tab-pin-toggle { position: absolute; z-index: 1; right: 5px; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--on-surface-variant); cursor: pointer; font-size: 1.15rem; }
 .tab-pin-toggle:hover, .tab-pin-toggle:focus-visible { background: var(--surface-container-highest); }
 .tab-reorder-controls { position: absolute; z-index: 1; right: 41px; display: flex; gap: 2px; }
-.tab-reorder-controls button { display: grid; place-items: center; width: 32px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--on-surface-variant); cursor: pointer; font-weight: 780; }
+.tab-reorder-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--on-surface-variant); cursor: pointer; font-weight: 780; }
 .tab-reorder-controls button:hover, .tab-reorder-controls button:focus-visible { background: var(--surface-container-highest); }
 .tab-reorder-controls button:disabled { opacity: .35; cursor: not-allowed; }
 .tab-icon { display: grid; place-items: center; width: 24px; height: 24px; font-size: 1.12rem; }
@@ -168,11 +168,14 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .tab-overflow-search .builder-anchor > button { min-height: 48px; padding: 0 12px; border: 1px solid var(--outline); border-radius: 14px; background: var(--surface); cursor: pointer; }
 .tab-overflow-meta { color: var(--on-surface-variant); font-size: .78rem; }
 .tab-overflow-list { display: grid; gap: 6px; margin-top: 12px; }
-.tab-overflow-list > article { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.tab-overflow-list > article { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; }
 .tab-overflow-list > article > button:first-child { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 9px 12px; border: 0; border-radius: 14px; background: transparent; color: inherit; cursor: pointer; text-align: left; }
 .tab-overflow-list > article > button:first-child:hover, .tab-overflow-list > article > button:first-child[aria-current="page"] { background: var(--primary-container); color: var(--on-primary-container); }
 .tab-overflow-list > article > button:first-child > span:last-child { display: grid; gap: 2px; }
 .overflow-pin-toggle { min-width: 70px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--outline); border-radius: 13px; background: var(--surface); color: inherit; cursor: pointer; }
+.overflow-reorder-controls { display: flex; gap: 4px; }
+.overflow-reorder-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--outline); border-radius: 13px; background: var(--surface); color: inherit; cursor: pointer; font-weight: 780; }
+.overflow-reorder-controls button:disabled { opacity: .35; cursor: not-allowed; }
 .tab-overflow-list small { color: var(--on-surface-variant); }
 .tab-overflow-empty { padding: 20px 12px; color: var(--on-surface-variant); }
 
@@ -445,7 +448,7 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
   .dock-left .tab-collection, .dock-right .tab-collection, .dock-top .tab-collection, .dock-bottom .tab-collection, .dock-left .tab-items, .dock-right .tab-items, .dock-top .tab-items, .dock-bottom .tab-items, .dock-left .pinned-tab-items, .dock-right .pinned-tab-items, .dock-top .pinned-tab-items, .dock-bottom .pinned-tab-items { flex-direction: row; }
   .tab-collection { flex: 1 1 auto; }
   .pinned-tab-items { max-width: 55%; max-height: none; padding: 0 8px 0 0; border-right: 1px solid var(--outline-variant); border-bottom: 0; }
-  .tab-entry > [role="tab"] { min-height: 46px; padding: 8px 108px 8px 13px; }
+  .tab-entry > [role="tab"] { min-height: 46px; padding: 8px 136px 8px 13px; }
   .tab-entry > [role="tab"] .tab-label, .tab-entry > [role="tab"] .tab-state-label { display: none; }
   .tab-entry > [role="tab"].active .tab-label { display: inline; }
   .tab-overflow-trigger span:last-child { display: none; }
