@@ -268,7 +268,8 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             </section>
 
             <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
-              <h2 style="margin:0 0 14px;font-size:16px;font-weight:500">Quick actions</h2>
+              <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Quick actions</h2>
+              <p style="margin:0 0 14px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Only Flush DNS runs a real operating-system command. Every other action below is preview-only.</p>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
                 <sc-for list="{{ quickActions }}" as="q" hint-placeholder-count="6">
                   <button onClick="{{ q.run }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 10px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-small);background:transparent;color:var(--md-sys-color-on-surface);font-size:13px" style-hover="background:var(--md-sys-color-surface-container-high)">
@@ -1883,8 +1884,8 @@ class Component extends DCLogic {
     if (this.rlogLines.length > 60) this.rlogLines.pop();
     if (kind === 'err') this.notify('Reactor', msg, 'error');
   }
-  notify(title, body, sev) {
-    const safeBody = 'Preview sample — ' + body + ' No operating-system, file, service, account, network, or hardware change was made.';
+  notify(title, body, sev, realAction) {
+    const safeBody = realAction ? body : 'Preview sample — ' + body + ' No operating-system, file, service, account, network, or hardware change was made.';
     this.notifs.unshift({ title, body: safeBody, sev: sev || 'info', time: this.stamp() });
     if (this.notifs.length > 200) this.notifs.pop();
     const s = { msg: safeBody, sev: sev || 'info' };
@@ -2370,12 +2371,25 @@ class Component extends DCLogic {
       { label: 'RCS', value: rx.press.toFixed(2) + ' MPa' },
       { label: 'REACTIVITY', value: rx.rho.total.toFixed(0) + ' pcm' },
     ];
+    const flushDns = () => {
+      const bridge = window.winforge;
+      const retry = ' Choose Flush DNS again to retry.';
+      if (!bridge || !bridge.flushDns) { this.notify('Flush DNS', 'DNS cache flushing is unavailable because the packaged bridge is missing.' + retry, 'warning', true); return; }
+      bridge.flushDns().then(result => {
+        const allowed = ['flushed', 'unsupported', 'timeout', 'failed'];
+        if (!result || result.schemaVersion !== 1 || !allowed.includes(result.status) || typeof result.message !== 'string') {
+          this.notify('Flush DNS', 'The DNS flush bridge returned an invalid response.' + retry, 'error', true); return;
+        }
+        if (result.status === 'flushed') this.notify('Flush DNS', result.message, 'success', true);
+        else this.notify('Flush DNS', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
+      }).catch(() => this.notify('Flush DNS', 'The DNS cache flush request failed.' + retry, 'error', true));
+    };
     V.quickActions = [
-      { label: 'Empty Recycle Bin', icon: 'delete_sweep', run: () => this.notify('Cleanup', s.lang === 'Cantonese' ? FUNNY_ZH[s.funnyZh] : FUNNY_EN[s.funnyEn], 'success') },
-      { label: 'Flush DNS', icon: 'dns', run: () => this.notify('Flush DNS', 'ipconfig /flushdns · resolver cache cleared', 'success') },
-      { label: 'Restart Explorer', icon: 'restart_alt', run: () => this.notify('Restart Explorer', 'explorer.exe restarted · shell reloaded', 'success') },
-      { label: 'Winget upgrade', icon: 'upgrade', run: () => this.notify('Package Manager', '7 upgrades queued for review', 'info') },
-      { label: 'New snapshot', icon: 'history', run: () => this.notify('Local history', 'Workspace snapshotted into adjacent Git history', 'success') },
+      { label: 'Empty Recycle Bin (preview)', icon: 'delete_sweep', run: () => this.notify('Cleanup preview', s.lang === 'Cantonese' ? FUNNY_ZH[s.funnyZh] : FUNNY_EN[s.funnyEn], 'info') },
+      { label: 'Flush DNS', icon: 'dns', run: flushDns },
+      { label: 'Restart Explorer (preview)', icon: 'restart_alt', run: () => this.notify('Restart Explorer preview', 'Explorer restart was not run.', 'info') },
+      { label: 'Winget upgrade (preview)', icon: 'upgrade', run: () => this.notify('Package Manager preview', 'No package upgrade was queued or run.', 'info') },
+      { label: 'New snapshot (preview)', icon: 'history', run: () => this.notify('Local history preview', 'No snapshot was created.', 'info') },
     ];
     V.syncLine = 'Bundled sample data · no external service or account is connected';
     V.runSync = () => this.notify('Preview data', 'Sample values refreshed in memory', 'info');

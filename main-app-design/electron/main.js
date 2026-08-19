@@ -16,6 +16,7 @@ let win = null;
 let updateCheck = null;
 let updateTimer = null;
 let previousCpuTimes = null;
+let flushDnsActive = false;
 const externalAppLaunches = new Map();
 const EXTERNAL_APP_EXECUTABLES = Object.freeze({
   vscode: ['Code.exe', 'code.exe'],
@@ -198,6 +199,26 @@ async function readPackageEngines() {
   return { schemaVersion: 1, engines };
 }
 
+function flushDns() {
+  if (process.platform !== 'win32') return Promise.resolve({ schemaVersion: 1, status: 'unsupported', message: 'DNS cache flushing is supported only on Windows.' });
+  if (flushDnsActive) return Promise.resolve({ schemaVersion: 1, status: 'failed', message: 'A DNS cache flush is already running. Wait, then retry.' });
+  flushDnsActive = true;
+  return new Promise((resolve) => {
+    execFile('ipconfig.exe', ['/flushdns'], {
+      windowsHide: true,
+      timeout: 10_000,
+      maxBuffer: 128 * 1024,
+      encoding: 'utf8',
+      shell: false,
+    }, (error) => {
+      flushDnsActive = false;
+      if (!error) { resolve({ schemaVersion: 1, status: 'flushed', message: 'The Windows DNS resolver cache was flushed.' }); return; }
+      if (error.killed || error.code === 'ETIMEDOUT') { resolve({ schemaVersion: 1, status: 'timeout', message: 'DNS cache flushing timed out. Retry is available.' }); return; }
+      resolve({ schemaVersion: 1, status: 'failed', message: 'Windows did not complete the DNS cache flush. Retry is available.' });
+    });
+  });
+}
+
 async function launchExternalApp(id) {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
   if (externalAppLaunches.has(id)) return externalAppResult(id, 'busy', 'A launch check for this app is already running.');
@@ -366,6 +387,7 @@ ipcMain.handle('winforge:version', () => app.getVersion());
 ipcMain.handle('winforge:mode', () => 'preview');
 ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
 ipcMain.handle('winforge:package-engines', () => readPackageEngines());
+ipcMain.handle('winforge:flush-dns', () => flushDns());
 ipcMain.handle('winforge:launch-external-app', (_event, id) => launchExternalApp(id));
 ipcMain.handle('winforge:cancel-external-app-launch', (_event, id) => {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');

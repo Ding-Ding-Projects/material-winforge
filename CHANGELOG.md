@@ -27,6 +27,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Fixed-ID installed-app discovery and launching through bounded no-shell `where.exe` calls and `shell.openPath`, with truthful missing, timeout, cancellation, duplicate, and failure states while install chains remain preview-only.
 - Replaced the dashboard's fabricated DISM success notice with a validated read-only metrics summary that explicitly reports no component-store scan or operating-system mutation.
 - Replaced static package-engine availability claims with fixed-candidate, bounded no-shell discovery and made queue execution an explicit no-mutation preview.
+- Wired the dashboard Flush DNS action to fixed `ipconfig.exe /flushdns` execution with bounded no-shell IPC results, while visibly retaining every other quick action as preview-only.
 
 ### Verification boundary
 
