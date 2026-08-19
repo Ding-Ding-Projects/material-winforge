@@ -643,6 +643,32 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         </section>
         </sc-if>
 
+        <sc-if value="{{ showSettingsSchedule }}" hint-placeholder-val="{{ true }}">
+        <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Scheduled settings</h2>
+          <p style="margin:0 0 10px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">Rules apply temporarily in <strong>{{ scheduleTimezone }}</strong> using the local clock. Later matching rules win by priority, then stable update order. Base global/project values return when a window ends.</p>
+          <div role="status" style="margin-bottom:14px;padding:10px 12px;border-radius:10px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)">{{ scheduleEffectiveLine }}</div>
+          <div style="display:flex;align-items:center;gap:6px;height:40px;padding:0 4px 0 12px;margin-bottom:12px;border-radius:999px;background:var(--md-sys-color-surface-container-high)"><span class="ms" aria-hidden="true" style="font-size:18px">search</span><input value="{{ scheduleQuery }}" onInput="{{ setScheduleQuery }}" placeholder="Filter scheduled rules" aria-label="Filter scheduled rules" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbSettings }}" title="Advanced regex builder" aria-label="Open scheduled-settings regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:16px">regular_expression</span></button></div>
+          <sc-if value="{{ scheduleNoMatch }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding:12px;margin-bottom:12px;border:1px dashed var(--md-sys-color-outline);border-radius:10px;color:var(--md-sys-color-on-surface-variant)">No scheduled rule matches this search.</div></sc-if>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px"><sc-for list="{{ scheduleItems }}" as="rule" hint-placeholder-count="2"><div style="padding:12px;border:1px solid var(--md-sys-color-outline-variant);border-radius:12px;background:var(--md-sys-color-surface-container)"><div style="display:flex;justify-content:space-between;gap:12px"><strong>{{ rule.label }}</strong><button onClick="{{ rule.toggle }}" style="height:30px;padding:0 12px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">{{ rule.state }}</button></div><div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:5px">{{ rule.window }} · {{ rule.source }} · priority {{ rule.priority }}</div><div style="font-size:12px;margin-top:5px">{{ rule.values }}</div></div></sc-for></div>
+          <div style="padding-top:16px;border-top:1px solid var(--md-sys-color-outline-variant)">
+            <h3 style="margin:0 0 10px;font-size:14px;font-weight:500">Add a local schedule rule</h3>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+              <input value="{{ scheduleDraftLabel }}" onInput="{{ setScheduleDraft('scheduleDraftLabel') }}" maxlength="80" placeholder="Rule label" aria-label="Schedule rule label" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit">
+              <select value="{{ scheduleDraftSource }}" onChange="{{ setScheduleDraftSource }}" aria-label="Schedule source" style="height:38px;padding:0 8px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"><option value="local">Local values</option><option value="https-api">HTTPS API (not configured)</option><option value="home-assistant">Home Assistant (not configured)</option></select>
+              <label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">Start date<input type="date" value="{{ scheduleDraftStartDate }}" onInput="{{ setScheduleDraft('scheduleDraftStartDate') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label>
+              <label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">End date<input type="date" value="{{ scheduleDraftEndDate }}" onInput="{{ setScheduleDraft('scheduleDraftEndDate') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label>
+              <label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">Start time<input type="time" value="{{ scheduleDraftStartTime }}" onInput="{{ setScheduleDraft('scheduleDraftStartTime') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label>
+              <label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">End time<input type="time" value="{{ scheduleDraftEndTime }}" onInput="{{ setScheduleDraft('scheduleDraftEndTime') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0" role="group" aria-label="Schedule weekdays"><sc-for list="{{ scheduleDraftWeekdays }}" as="day" hint-placeholder-count="7"><button onClick="{{ day.toggle }}" aria-pressed="{{ day.checked }}" style="height:30px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:{{ day.checked ? 'var(--md-sys-color-primary)' : 'transparent' }};color:{{ day.checked ? 'var(--md-sys-color-on-primary)' : 'inherit' }}">{{ day.day }}</button></sc-for></div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><select value="{{ scheduleDraftTheme }}" onChange="{{ setScheduleDraft('scheduleDraftTheme') }}" aria-label="Scheduled theme value" style="height:36px"><option value="">Theme unchanged</option><option value="dark">Dark</option><option value="light">Light</option></select><select value="{{ scheduleDraftLang }}" onChange="{{ setScheduleDraft('scheduleDraftLang') }}" aria-label="Scheduled language value" style="height:36px"><option value="">Language unchanged</option><option value="English">English</option><option value="Cantonese">Cantonese</option><option value="Bilingual">Bilingual</option></select><select value="{{ scheduleDraftFunnyEn }}" onChange="{{ setScheduleDraft('scheduleDraftFunnyEn') }}" aria-label="Scheduled English funny level" style="height:36px"><option value="">English tone unchanged</option><option value="1">English level 1</option><option value="2">English level 2</option><option value="3">English level 3</option><option value="4">English level 4</option><option value="5">English level 5</option></select><select value="{{ scheduleDraftFunnyZh }}" onChange="{{ setScheduleDraft('scheduleDraftFunnyZh') }}" aria-label="Scheduled Cantonese funny level" style="height:36px"><option value="">Cantonese tone unchanged</option><option value="1">Cantonese level 1</option><option value="2">Cantonese level 2</option><option value="3">Cantonese level 3</option><option value="4">Cantonese level 4</option><option value="5">Cantonese level 5</option></select></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><select value="{{ scheduleDraftShowEmojis }}" onChange="{{ setScheduleDraft('scheduleDraftShowEmojis') }}" aria-label="Scheduled message emoji value" style="height:36px"><option value="">Message emojis unchanged</option><option value="on">Message emojis on</option><option value="off">Message emojis off</option></select><label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">Priority (0–100)<input type="number" min="0" max="100" value="{{ scheduleDraftPriority }}" onInput="{{ setScheduleDraftPriority }}" aria-label="Schedule priority" style="display:block;width:100%;height:36px;margin-top:3px"></label></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px"><span style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">{{ scheduleSourceLine }}</span><button onClick="{{ createSchedule }}" style="height:38px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Save schedule rule</button></div>
+          </div>
+        </section>
+        </sc-if>
+
         <sc-if value="{{ showSettingsLocal }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
           <h2 style="margin:0 0 16px;font-size:16px;font-weight:500">Local state</h2>
@@ -1722,6 +1748,10 @@ const RAIL = [
 const PKG_VIEWS = ['Discover', 'Updates', 'Installed', 'Bundles', 'Sources', 'Ignored', 'Setup', 'Settings', 'Operations'];
 const APP_SETTING_KEYS_V1 = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
 const APP_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS_V1, 'showEmojis']);
+const SCHEDULE_SCHEMA_VERSION = 1;
+const SCHEDULE_WEEKDAYS = Object.freeze(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+const SCHEDULE_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS]);
+const SCHEDULE_SOURCES = Object.freeze(['local', 'https-api', 'home-assistant']);
 const CHANGELOG_ENTRIES = Object.freeze([
   { version: 'v1.0.35', date: '2026-08-19', category: 'Release', summary: 'Add local personal vocabulary to the site', sha: '0221bcf0d1ef46378a080c2ca98b3f5b2f5740b6' },
   { version: 'v1.0.34', date: '2026-08-19', category: 'Release', summary: 'Align project settings completeness inventory', sha: 'af2fb6d24fb265a49125c4a398b8d3719e5b4492' },
@@ -1928,6 +1958,8 @@ class Component extends DCLogic {
     this.settingsGlobal = { ...fallbackGlobal, ...Object.fromEntries(APP_SETTING_KEYS.filter(key => validSetting(key, storedGlobal[key])).map(key => [key, storedGlobal[key]])) };
     const seenProjects = new Set();
     this.settingsProjects = (L && Array.isArray(L.settingsProjects) ? L.settingsProjects : []).slice(0, 50).filter(project => project && typeof project.id === 'string' && /^project-[a-z0-9-]{6,48}$/.test(project.id) && !seenProjects.has(project.id) && typeof project.name === 'string' && project.name.trim().length >= 1 && project.name.trim().length <= 64 && project.overrides && typeof project.overrides === 'object' && !Array.isArray(project.overrides) && Object.keys(project.overrides).every(key => APP_SETTING_KEYS.includes(key) && validSetting(key, project.overrides[key])) && (seenProjects.add(project.id) || true)).map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
+    this.schedules = this.validateSchedules(L && L.schedules);
+    this.scheduleQuery = '';
     this.activeProjectId = L && typeof L.activeProjectId === 'string' && this.settingsProjects.some(project => project.id === L.activeProjectId) ? L.activeProjectId : null;
     const activeSettingsProject = this.settingsProjects.find(project => project.id === this.activeProjectId);
     const effectiveSettings = { ...this.settingsGlobal, ...(activeSettingsProject ? activeSettingsProject.overrides : {}) };
@@ -1942,6 +1974,7 @@ class Component extends DCLogic {
       funnyZh: effectiveSettings.funnyZh,
       showEmojis: effectiveSettings.showEmojis,
       projectNameInput: '',
+      scheduleDraftLabel: '', scheduleDraftStartDate: '', scheduleDraftEndDate: '', scheduleDraftStartTime: '09:00', scheduleDraftEndTime: '17:00', scheduleDraftWeekdays: [...SCHEDULE_WEEKDAYS], scheduleDraftPriority: 0, scheduleDraftSource: 'local', scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '',
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
       recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
@@ -1962,6 +1995,47 @@ class Component extends DCLogic {
   }
 
   load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  validateSchedules(payload) {
+    if (!Array.isArray(payload)) return [];
+    const seen = new Set();
+    const validTime = value => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+    const validDate = value => value === '' || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + 'T00:00:00')));
+    const validValue = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
+    return payload.slice(0, 50).filter(rule => {
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule) || Object.keys(rule).some(key => !['id', 'label', 'enabled', 'startDate', 'endDate', 'startTime', 'endTime', 'weekdays', 'priority', 'source', 'values', 'updatedAt'].includes(key))) return false;
+      if (typeof rule.id !== 'string' || !/^schedule-[a-z0-9-]{6,48}$/.test(rule.id) || seen.has(rule.id)) return false;
+      if (typeof rule.label !== 'string' || rule.label.trim().length < 1 || rule.label.length > 80 || typeof rule.enabled !== 'boolean') return false;
+      if (!validDate(rule.startDate || '') || !validDate(rule.endDate || '') || (rule.startDate && rule.endDate && rule.endDate < rule.startDate) || !validTime(rule.startTime || '') || !validTime(rule.endTime || '')) return false;
+      if (!Array.isArray(rule.weekdays) || rule.weekdays.length < 1 || rule.weekdays.length > 7 || rule.weekdays.some(day => !SCHEDULE_WEEKDAYS.includes(day)) || new Set(rule.weekdays).size !== rule.weekdays.length) return false;
+      if (!Number.isInteger(rule.priority) || rule.priority < 0 || rule.priority > 100) return false;
+      if (!SCHEDULE_SOURCES.includes(rule.source || 'local') || !rule.values || typeof rule.values !== 'object' || Array.isArray(rule.values)) return false;
+      if (Object.keys(rule.values).some(key => !SCHEDULE_SETTING_KEYS.includes(key) || !validValue(key, rule.values[key]))) return false;
+      seen.add(rule.id); return true;
+    }).map(rule => ({ id: rule.id, label: rule.label.trim(), enabled: rule.enabled, startDate: rule.startDate || '', endDate: rule.endDate || '', startTime: rule.startTime || '00:00', endTime: rule.endTime || '23:59', weekdays: [...rule.weekdays], priority: rule.priority, source: rule.source || 'local', values: { ...rule.values }, updatedAt: typeof rule.updatedAt === 'string' ? rule.updatedAt : '' }));
+  }
+  scheduleMatches(rule, now = new Date()) {
+    if (!rule.enabled || (rule.source && rule.source !== 'local')) return false;
+    const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+    if (rule.startDate && date < rule.startDate || rule.endDate && date > rule.endDate) return false;
+    const weekday = SCHEDULE_WEEKDAYS[(now.getDay() + 6) % 7];
+    if (!rule.weekdays.includes(weekday)) return false;
+    const minute = now.getHours() * 60 + now.getMinutes();
+    const start = Number(rule.startTime.slice(0, 2)) * 60 + Number(rule.startTime.slice(3));
+    const end = Number(rule.endTime.slice(0, 2)) * 60 + Number(rule.endTime.slice(3));
+    return start <= end ? minute >= start && minute <= end : minute >= start || minute <= end;
+  }
+  scheduledSettings(now = new Date()) {
+    const base = { ...this.settingsGlobal, ...(this.settingsProjects.find(project => project.id === this.activeProjectId)?.overrides || {}) };
+    const matches = this.schedules.filter(rule => this.scheduleMatches(rule, now)).sort((a, b) => b.priority - a.priority || String(a.updatedAt).localeCompare(String(b.updatedAt)) || a.id.localeCompare(b.id));
+    const effective = matches.reduce((values, rule) => ({ ...values, ...rule.values }), base);
+    return { base, effective, matches };
+  }
+  refreshScheduledSettings() {
+    const { effective } = this.scheduledSettings();
+    const current = this.state;
+    const changed = SCHEDULE_SETTING_KEYS.some(key => current[key] !== effective[key]);
+    if (changed) this.setState({ ...Object.fromEntries(SCHEDULE_SETTING_KEYS.map(key => [key, effective[key]])) });
+  }
   validateVocabularyPayload(payload) {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== 2 || payload.schemaVersion !== 1 || !payload.replacements || typeof payload.replacements !== 'object' || Array.isArray(payload.replacements)) return null;
     if (!Object.keys(payload).every(key => key === 'schemaVersion' || key === 'replacements')) return null;
@@ -2063,6 +2137,7 @@ class Component extends DCLogic {
         theme: this.state.theme, lang: this.state.lang, funnyEn: this.state.funnyEn,
         funnyZh: this.state.funnyZh, showEmojis: this.state.showEmojis, route: this.state.route,
         settingsGlobal: this.settingsGlobal, settingsProjects: this.settingsProjects, activeProjectId: this.activeProjectId,
+        schedules: this.schedules.slice(0, 50),
         personalVocabulary: this.personalVocabulary,
         reactor: this.rx.snapshot(), rlog: this.rlogLines.slice(0, 60), ship: this.ship || this.savedShip,
       }));
@@ -2099,10 +2174,12 @@ class Component extends DCLogic {
       }).catch(() => this.setState({ sys: unavailable }));
     };
     this.pollSystemMetrics();
+    this.refreshScheduledSettings();
     this.refreshSnapshots();
     this.refreshJournal();
     this.sysTimer = setInterval(this.pollSystemMetrics, 4000);
     this.saveTimer = setInterval(() => this.persist(), 4000);
+    this.scheduleTimer = setInterval(() => this.refreshScheduledSettings(), 15000);
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
@@ -2150,7 +2227,7 @@ class Component extends DCLogic {
     this.forceUpdate();
   }
   componentWillUnmount() {
-    clearInterval(this.simTimer); clearInterval(this.sysTimer); clearInterval(this.saveTimer);
+    clearInterval(this.simTimer); clearInterval(this.sysTimer); clearInterval(this.saveTimer); clearInterval(this.scheduleTimer);
     window.removeEventListener('keydown', this.onKey);
     this.persist();
   }
@@ -3007,8 +3084,9 @@ class Component extends DCLogic {
     V.showSettingsProjects = this.match(settingsSearch, 'global defaults project overrides active project picker inherited values reset project create local project');
     V.showSettingsAppearance = this.match(settingsSearch, 'appearance theme dark light language mode English Cantonese bilingual emoji dialogs message boxes current ' + s.theme + ' ' + s.lang + ' ' + s.showEmojis);
     V.showSettingsFunny = this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
+    V.showSettingsSchedule = this.match(settingsSearch, 'scheduled settings schedule calendar date time weekday timezone local api home assistant temporary override precedence external source credential');
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
-    V.settingsNoMatch = !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsLocal;
+    V.settingsNoMatch = !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsSchedule && !V.showSettingsLocal;
     const activeProject = this.settingsProjects.find(project => project.id === this.activeProjectId) || null;
     const applyScope = () => {
       const values = { ...this.settingsGlobal, ...(activeProject ? activeProject.overrides : {}) };
@@ -3068,6 +3146,37 @@ class Component extends DCLogic {
       { label: 'English funny level', value: s.funnyEn, preview: FUNNY_EN[s.funnyEn], change: e => writeSetting('funnyEn', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
       { label: '粵語 funny level', value: s.funnyZh, preview: FUNNY_ZH[s.funnyZh], change: e => writeSetting('funnyZh', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
     ];
+    const scheduleEffective = this.scheduledSettings();
+    V.scheduleQuery = this.scheduleQuery;
+    V.setScheduleQuery = e => { this.scheduleQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
+    V.scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
+    V.scheduleDraftLabel = s.scheduleDraftLabel; V.scheduleDraftStartDate = s.scheduleDraftStartDate; V.scheduleDraftEndDate = s.scheduleDraftEndDate; V.scheduleDraftStartTime = s.scheduleDraftStartTime; V.scheduleDraftEndTime = s.scheduleDraftEndTime; V.scheduleDraftSource = s.scheduleDraftSource; V.scheduleDraftTheme = s.scheduleDraftTheme; V.scheduleDraftLang = s.scheduleDraftLang; V.scheduleDraftFunnyEn = s.scheduleDraftFunnyEn; V.scheduleDraftFunnyZh = s.scheduleDraftFunnyZh; V.scheduleDraftPriority = s.scheduleDraftPriority; V.scheduleDraftShowEmojis = s.scheduleDraftShowEmojis;
+    V.scheduleSourceLine = 'Local source is active. HTTPS API and Home Assistant are listed for the contract boundary but remain unconfigured here; no token or network request is stored by this preview.';
+    V.scheduleEffectiveLine = scheduleEffective.matches.length ? ('Temporary override active: ' + scheduleEffective.matches.map(rule => rule.label).join(', ') + '. Base values return when the matching window ends.') : 'No rule is active now; the current project/global values are the base values.';
+    const scheduleMatchesQuery = rule => this.match(this.scheduleQuery, [rule.label, rule.source, rule.startDate, rule.endDate, rule.startTime, rule.endTime, rule.weekdays.join(' '), Object.keys(rule.values).join(' ')].join(' '));
+    V.scheduleItems = this.schedules.filter(scheduleMatchesQuery).map(rule => ({ label: rule.label, window: (rule.startDate || 'Any date') + ' → ' + (rule.endDate || 'Any date') + ' · ' + rule.startTime + '–' + rule.endTime + ' · ' + rule.weekdays.join(', '), source: rule.source === 'local' ? 'Local' : rule.source === 'https-api' ? 'HTTPS API (not configured)' : 'Home Assistant (not configured)', state: rule.enabled ? (this.scheduleMatches(rule) ? 'Active now' : 'Enabled') : 'Disabled', priority: rule.priority, values: Object.entries(rule.values).map(([key, value]) => key + '=' + value).join(' · '), toggle: () => { rule.enabled = !rule.enabled; this.persist(); this.refreshScheduledSettings(); this.bump(); } }));
+    V.scheduleNoMatch = this.schedules.length > 0 && V.scheduleItems.length === 0;
+    V.scheduleDraftWeekdays = SCHEDULE_WEEKDAYS.map(day => ({ day, checked: s.scheduleDraftWeekdays.includes(day), toggle: () => { const next = s.scheduleDraftWeekdays.includes(day) ? s.scheduleDraftWeekdays.filter(item => item !== day) : [...s.scheduleDraftWeekdays, day]; this.setState({ scheduleDraftWeekdays: next }); } }));
+    V.setScheduleDraft = key => e => this.setState({ [key]: String(e.target.value || '').slice(0, key === 'scheduleDraftLabel' ? 80 : 32) });
+    V.setScheduleDraftPriority = e => this.setState({ scheduleDraftPriority: Math.max(0, Math.min(100, Number(e.target.value) || 0)) });
+    V.setScheduleDraftSource = e => this.setState({ scheduleDraftSource: SCHEDULE_SOURCES.includes(e.target.value) ? e.target.value : 'local' });
+    V.createSchedule = () => {
+      const d = this.state;
+      const label = d.scheduleDraftLabel.trim();
+      if (!label || !d.scheduleDraftStartTime || !d.scheduleDraftEndTime || !d.scheduleDraftWeekdays.length) { this.notify('Scheduled settings', 'Add a label, valid local times, and at least one weekday.', 'warning', true); return; }
+      if (this.schedules.length >= 50) { this.notify('Scheduled settings', 'The local schedule limit is 50 rules.', 'warning', true); return; }
+      const values = {};
+      if (d.scheduleDraftTheme) values.theme = d.scheduleDraftTheme;
+      if (d.scheduleDraftLang) values.lang = d.scheduleDraftLang;
+      if (d.scheduleDraftFunnyEn) values.funnyEn = Math.max(1, Math.min(5, Number(d.scheduleDraftFunnyEn)));
+      if (d.scheduleDraftFunnyZh) values.funnyZh = Math.max(1, Math.min(5, Number(d.scheduleDraftFunnyZh)));
+      if (d.scheduleDraftShowEmojis) values.showEmojis = d.scheduleDraftShowEmojis === 'on';
+      if (!Object.keys(values).length) { this.notify('Scheduled settings', 'Choose at least one temporary setting value.', 'warning', true); return; }
+      const id = 'schedule-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+      const rule = { id, label, enabled: true, startDate: d.scheduleDraftStartDate, endDate: d.scheduleDraftEndDate, startTime: d.scheduleDraftStartTime, endTime: d.scheduleDraftEndTime, weekdays: [...d.scheduleDraftWeekdays], priority: d.scheduleDraftPriority, source: d.scheduleDraftSource, values, updatedAt: new Date().toISOString() };
+      if (!this.validateSchedules([rule]).length) { this.notify('Scheduled settings', 'The rule could not be validated and was not saved.', 'error', true); return; }
+      this.schedules.push(rule); this.setState({ scheduleDraftLabel: '', scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '' }, () => { this.persist(); this.refreshScheduledSettings(); this.bump(); });
+    };
     // package manager
     V.isPackages = r.view === 'packages';
     if (!this.pkg) this.pkg = { view: 'Discover', query: '', engines: { winget: true, scoop: true, choco: false, pip: true, npm: true, dotnet: true, psgallery: false, psresource: false, cargo: true, bun: false, vcpkg: false }, queue: [] };

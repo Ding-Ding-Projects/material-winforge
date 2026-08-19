@@ -15,6 +15,12 @@ The release workflow now responds to pushes on `main` and manual dispatch only. 
 
 This repository bootstraps **WinForge · Material 3 Preview**: an Electron desktop design preview plus a one-route vinext landing and documentation site. The site is deliberately honest that it is not the installed application and does not change Windows settings.
 
+## Scheduled settings slice
+
+- The desktop Settings design now carries a bounded version-1 local scheduler. It stores up to 50 validated rules for the existing five app-wide settings, uses native local date/time fields and weekday chips, names the resolved timezone, applies deterministic priority to matching rules, and restores Global/project base values when a temporary window ends.
+- `local` is the only active source. HTTPS API and Home Assistant choices are visible but explicitly unconfigured; no URL, token, network request, or credential is accepted or persisted. Schedule records remain outside the existing snapshot payload so snapshot restore cannot silently mutate scheduling.
+- Documentation and the completeness inventory are updated in `docs/application/scheduled-settings.md`. Tests, lint, packaged runtime interaction, accessibility review, and screenshots are unverified for this slice.
+
 ## Implemented source
 
 - Pages now includes a browser-local Narrator Settings card: opt-in speech synthesis, English/Cantonese/bilingual mode, runtime voice enumeration with stable voice IDs, automatic fallback for missing voices, bounded rate/pitch controls, a four-item serialized queue, and explicit unavailable/waiting states. See [`docs/site/narration.md`](docs/site/narration.md).
