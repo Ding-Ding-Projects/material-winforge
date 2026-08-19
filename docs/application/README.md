@@ -1,6 +1,6 @@
 # Application documentation
 
-The current desktop package is a design preview. Documentation in this category distinguishes intended interaction from independently verified runtime behavior.
+The current desktop package is a design preview with a bounded set of real privileged integrations. Documentation in this category distinguishes sample controls, implemented behavior, and independently verified runtime evidence.
 
 - [Preview boundary](preview-boundary.md)
 - [Unsigned automatic updates](unsigned-automatic-updates.md)
@@ -15,7 +15,7 @@ The current desktop package is a design preview. Documentation in this category 
 
 ## Not yet claimed
 
-- Real Windows configuration mutation
+- Independent runtime verification of the bounded Windows actions
 - Packaged runtime interaction
 - Installer execution and end-to-end update behavior
 - Built-artifact accessibility or visual verification

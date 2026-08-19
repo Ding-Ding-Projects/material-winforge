@@ -25,6 +25,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Read-only system metrics from the privileged main process, with bounded no-input IPC output and explicit unavailable states instead of random CPU, memory, disk, network, and uptime values.
 - Fixed-ID external-app discovery and launching through a no-shell main-process bridge; renderer paths and executable names are never accepted, and install chains remain preview-only.
 - Empty Recycle Bin now requires two independent impact acknowledgements and a full authorization slider before a fixed, no-input Windows command can run; only bounded status and safe copy return to the renderer.
+- The persistent top banner now distinguishes bounded live integrations from sample and preview-only controls, while stating that build and packaging do not establish runtime verification.
 
 ## Verification state
 
@@ -50,7 +51,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 ## Known limitations
 
-- Desktop controls are preview interactions until their real operating-system integrations are implemented and verified.
+- Most desktop controls remain preview interactions. The banner and feature documentation enumerate the bounded integrations that are implemented while keeping their runtime evidence explicitly unverified.
 - The default manifest is intentionally unavailable, so the installer button is disabled.
 - The site uses browser storage rather than an operating-system credential store; it contains presentation preferences only.
 - No real built-artifact captures are present yet.
@@ -66,3 +67,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - New local snapshot now writes bounded append-only JSON atomically under private app data; it is not yet Git-backed history and creation/restore were not exercised.
 - Reviewed Winget upgrades now support only `Git.Git`, `Microsoft.PowerShell`, and `GitHub.cli`; review, execution, progress, cancellation, timeout, and partial queue handling were packaged but not exercised.
 - Empty Recycle Bin is a real destructive action behind its own super-confirmation surface; the action, cancellation paths, permanent deletion, and completion state were deliberately not exercised.
+- Packaged runtime inspection found the prior top banner still claiming every action was sample-only. The copy was repaired in source and packaged, but the repaired banner was not reopened or visually inspected in the running artifact.
