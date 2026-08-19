@@ -11,6 +11,7 @@ The Settings tab changes the site immediately and stores the selected presentati
 - Left or top tab docking
 - Local accent color
 - Show emojis in dialogs and message boxes, applied only as aria-hidden decoration in site notifications and status cards
+- A strict local personal-vocabulary JSON cache with semantic load/replace/clear controls
 - One-action reset to shipped defaults
 
 Tone controls style voice, not facts. Preview boundaries, release state, version data, platform names, checksums, and warning facts remain exact.
@@ -20,6 +21,8 @@ Tone controls style voice, not facts. Preview boundaries, release state, version
 Preferences use the versioned browser-storage key `winforge-material-preview-preferences-v1` and an internal `schemaVersion: 1` record. The shipped defaults are English, English tone 2, Cantonese tone 3, system theme, comfortable density, left tabs, accent `#2f7d45`, and decorative message emoji enabled. Legacy records without the boolean migrate to enabled.
 
 Emoji decoration never changes notification/status text, controls, accessible names, release facts, checksums, platform names, or warnings. English, Cantonese, and bilingual Settings copy names the same preference.
+
+The personal-vocabulary cache shares this versioned record but remains separately bounded and validated. It never stores source file metadata and never rewrites URLs, release facts, checksums, platform names, commands, accessible names, or public records. See [Personal vocabulary JSON](personal-vocabulary.md).
 
 ## Failure modes
 
