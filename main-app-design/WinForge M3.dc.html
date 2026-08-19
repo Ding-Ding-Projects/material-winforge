@@ -129,6 +129,20 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
     <span>Every meter, status, action, package, service, file, account, and hardware value is sample data. Controls do not change Windows, files, services, accounts, networks, or hardware.</span>
   </div>
 
+  <div role="status" aria-live="polite" style="min-height:48px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:7px 14px 7px 18px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:12.5px;line-height:1.35">
+    <span class="ms" aria-hidden="true" style="font-size:20px;flex-shrink:0">system_update</span>
+    <div style="flex:1;min-width:0">
+      <strong>{{ updateTitle }}</strong>
+      <span style="margin-left:8px">{{ updateMessage }}</span>
+      <sc-if value="{{ updateHasProgress }}" hint-placeholder-val="{{ false }}"><span style="margin-left:8px;font-family:'Roboto Mono',monospace">{{ updateProgress }}</span></sc-if>
+    </div>
+    <sc-if value="{{ updateCanCheck }}" hint-placeholder-val="{{ true }}"><button onClick="{{ checkUpdate }}" style="height:34px;padding:0 14px;border:1px solid currentColor;border-radius:999px;background:transparent;color:inherit;font-weight:500">{{ updateCheckLabel }}</button></sc-if>
+    <sc-if value="{{ updateCanCancel }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cancelUpdate }}" style="height:34px;padding:0 14px;border:1px solid currentColor;border-radius:999px;background:transparent;color:inherit;font-weight:500">{{ updateCancelLabel }}</button></sc-if>
+    <sc-if value="{{ updateCanOpenNotes }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openUpdateNotes }}" style="height:34px;padding:0 14px;border:none;border-radius:999px;background:transparent;color:inherit;font-weight:500">{{ updateNotesLabel }}</button></sc-if>
+    <sc-if value="{{ updateCanInstall }}" hint-placeholder-val="{{ false }}"><button onClick="{{ installUpdate }}" style="height:34px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">{{ updateInstallLabel }}</button></sc-if>
+    <sc-if value="{{ updateCanLater }}" hint-placeholder-val="{{ false }}"><button onClick="{{ laterUpdate }}" style="height:34px;padding:0 14px;border:none;border-radius:999px;background:transparent;color:inherit;font-weight:500">{{ updateLaterLabel }}</button></sc-if>
+  </div>
+
   <sc-if value="{{ shipTabs }}" hint-placeholder-val="{{ true }}">
   <div style="height:38px;flex-shrink:0;display:flex;align-items:flex-end;gap:2px;padding:0 8px;background:var(--md-sys-color-surface-container-low);border-bottom:1px solid var(--md-sys-color-outline-variant);overflow-x:auto">
     <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="2">
@@ -1750,6 +1764,7 @@ class Component extends DCLogic {
     this.rx = new Reactor(L && L.reactor);
     this.rlogLines = (L && L.rlog) || [{ t: this.stamp(), msg: 'Reactor held in MODE 5 cold shutdown · operator startup required', color: 'meta' }];
     this.snacks = [];
+    this.updateInfo = { state: 'idle', currentVersion: '1.0.0', version: null, releaseNotesUrl: null, progress: null, message: 'Updates have not been checked yet.', unsigned: true };
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -1801,6 +1816,10 @@ class Component extends DCLogic {
       else if (e.key === 'Escape') this.setState({ paletteOpen: false });
     };
     window.addEventListener('keydown', this.onKey);
+    if (window.winforge && window.winforge.updateState) {
+      window.winforge.updateState().then(info => { this.updateInfo = info || this.updateInfo; this.bump(); });
+      window.winforge.onUpdateState(info => { this.updateInfo = info || this.updateInfo; this.bump(); });
+    }
     if (window.winforge && window.winforge.onDeepLink) {
       window.winforge.onDeepLink(page => {
         const route = this.routeForPage(page);
@@ -2048,6 +2067,32 @@ class Component extends DCLogic {
     V.winMinimise = () => { if (win) win.minimise(); else this.notify('Window', 'Minimise is handled by the Electron main process', 'info'); };
     V.winMaximise = () => { if (win) win.maximise(); else this.notify('Window', 'Maximise / restore is handled by the Electron main process', 'info'); };
     V.winClose = () => { this.persist(); if (win) win.close(); else this.notify('Window', 'Close is handled by the Electron main process', 'info'); };
+    const U = this.updateInfo || {};
+    const zh = s.lang === 'Cantonese';
+    const both = s.lang === 'Bilingual';
+    const label = (en, yue) => zh ? yue : (both ? en + ' · ' + yue : en);
+    V.updateTitle = label('Unsigned updates', '無簽署更新');
+    V.updateMessage = U.message || label('Updates have not been checked yet.', '尚未檢查更新。');
+    V.updateHasProgress = Number.isFinite(U.progress);
+    V.updateProgress = Number.isFinite(U.progress) ? Math.round(U.progress) + '%' : '';
+    V.updateCanCheck = !['checking', 'downloading', 'installing'].includes(U.state);
+    V.updateCanCancel = ['checking', 'available', 'downloading'].includes(U.state);
+    V.updateCanOpenNotes = !!U.releaseNotesUrl;
+    V.updateCanInstall = ['ready', 'later'].includes(U.state);
+    V.updateCanLater = ['ready', 'later'].includes(U.state);
+    V.updateCheckLabel = label('Check for updates', '檢查更新');
+    V.updateCancelLabel = label('Cancel', '取消');
+    V.updateNotesLabel = label('Release notes', '發行說明');
+    V.updateInstallLabel = label('Restart to install update', '重新啟動並安裝更新');
+    V.updateLaterLabel = label('Later', '稍後');
+    V.checkUpdate = () => win && win.checkForUpdates ? win.checkForUpdates() : this.notify('Updates', 'Update checks require the installed application', 'warning');
+    V.cancelUpdate = () => win && win.cancelUpdate ? win.cancelUpdate() : null;
+    V.laterUpdate = () => win && win.deferUpdate ? win.deferUpdate() : null;
+    V.installUpdate = () => {
+      this.persist();
+      if (win && win.installUpdate) win.installUpdate({ unsavedWork: false });
+    };
+    V.openUpdateNotes = () => { if (U.releaseNotesUrl) window.open(U.releaseNotesUrl, '_blank', 'noopener'); };
 
     // ── shared regex builder + every search field ───────────────────────────
     const rb = this.rbInit();

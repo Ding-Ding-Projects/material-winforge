@@ -10,6 +10,9 @@
     "node": "22.23.2"
   },
   "main": "electron/main.js",
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  },
   "scripts": {
     "stage:vendor": "node scripts/stage-vendor.mjs",
     "generate:assets": "node scripts/generate-assets.mjs",
@@ -40,6 +43,14 @@
     "productName": "WinForge Material 3 Preview",
     "artifactName": "WinForge-Material-3-Preview-Setup-${version}.${ext}",
     "forceCodeSigning": false,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Ding-Ding-Projects",
+        "repo": "material-winforge",
+        "releaseType": "release"
+      }
+    ],
     "directories": {
       "output": "dist"
     },

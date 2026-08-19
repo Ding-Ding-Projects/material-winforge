@@ -14,6 +14,9 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Versioned release-manifest contract that keeps installer actions disabled until a real published asset is identified.
 - Deterministic social-card generation from the upstream WinForge SVG brand source.
 - Categorized documentation, wiki source, roadmap, handoff, contribution, security, and licensing records.
+- Startup, six-hour background, and manual checks for unsigned Squirrel updates through the privileged main process.
+- Persistent localized update states and actions covering available, downloading, ready, offline, invalid metadata, corrupt package, cancellation, deferred restart, unsaved-work pause, failure, and rollback guidance.
+- Side-effecting release workflow without cancellation concurrency.
 
 ### Verification boundary
 

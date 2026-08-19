@@ -17,6 +17,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Deterministic byte-identical root and served social images from the upstream brand SVG.
 - Categorized feature documentation and wiki source.
 - Hand-written universal-feature and checked-in design-reference parity inventories that mark missing source and evidence fail-closed.
+- Privileged unsigned Squirrel update checks on startup, every six hours, and manually, with a persistent localized renderer banner and explicit restart/defer actions.
 
 ## Verification state
 
@@ -48,3 +49,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - No real built-artifact captures are present yet.
 - Node 24.19.0 reproducibly completed vinext output and then aborted during process shutdown on Windows. The site build is pinned to Node 22.23.2, which exited normally for both targets.
 - Universal completeness and design-parity rows remain incomplete because the ultra-speed pass intentionally ran no tests, built-artifact interactions, negative regressions, visual audits, or captures.
+- The update source and package route are present, but offline, invalid metadata, corrupt package, cancellation, deferred restart, unsaved work, installation, and rollback guidance have not been exercised against a published feed.

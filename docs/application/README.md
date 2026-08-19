@@ -3,12 +3,13 @@
 The current desktop package is a design preview. Documentation in this category distinguishes intended interaction from independently verified runtime behavior.
 
 - [Preview boundary](preview-boundary.md)
+- [Unsigned automatic updates](unsigned-automatic-updates.md)
 
 ## Not yet claimed
 
 - Real Windows configuration mutation
 - Packaged runtime interaction
-- Installer execution and update behavior
+- Installer execution and end-to-end update behavior
 - Built-artifact accessibility or visual verification
 - Real application captures
 
