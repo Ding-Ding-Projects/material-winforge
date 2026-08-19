@@ -764,7 +764,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       <div style="padding:20px 32px 48px;max-width:1080px;animation:wf-in .32s var(--emph) both">
         <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px">
           <div>
-            <h1 style="margin:0;font-size:32px;font-weight:400">Preview Data</h1>
+            <h1 style="margin:0;font-size:32px;font-weight:400">{{ previewDataTitle }}</h1>
             <p style="margin:6px 0 0;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Sample datasets and local-only interface preferences used by this preview.</p>
           </div>
           <button onClick="{{ runSync }}" style="display:flex;align-items:center;gap:8px;height:40px;padding:0 24px 0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:14px;font-weight:500;flex-shrink:0" style-hover="filter:brightness(1.08)">
@@ -812,13 +812,14 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
               </div>
             </section>
             <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
-              <h2 style="margin:0 0 8px;font-size:16px;font-weight:500">Personal vocabulary</h2>
-              <p style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ vocabLine }}</p>
-              <div style="display:flex;gap:8px">
-                <button onClick="{{ uploadVocab }}" style="display:flex;align-items:center;gap:8px;height:36px;padding:0 18px 0 14px;border:none;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-size:13px;font-weight:500" style-hover="filter:brightness(1.12)">
-                  <span class="ms" style="font-size:17px">upload_file</span>Upload dictionary
-                </button>
-                <button onClick="{{ checkVocab }}" style="height:36px;padding:0 18px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-on-surface);font-size:13px;font-weight:500" style-hover="background:var(--md-sys-color-surface-container-high)">Run leak guard</button>
+              <h2 style="margin:0 0 8px;font-size:16px;font-weight:500">{{ personalVocabularyTitle }}</h2>
+              <p id="personal-vocabulary-status" role="status" aria-live="polite" tabindex="-1" style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ vocabLine }}</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label style="display:flex;align-items:center;gap:8px;height:36px;padding:0 18px 0 14px;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-size:13px;font-weight:500;cursor:pointer">
+                  <span class="ms" aria-hidden="true" style="font-size:17px">upload_file</span>{{ vocabUploadLabel }}
+                  <input id="personal-vocabulary-file" type="file" accept="application/json,.json" onChange="{{ loadVocabFile }}" aria-label="Choose a local personal vocabulary JSON file" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">
+                </label>
+                <button onClick="{{ clearVocab }}" disabled="{{ vocabClearDisabled }}" style="height:36px;padding:0 18px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:13px;font-weight:500" style-hover="background:var(--md-sys-color-surface-container-high)">{{ vocabClearLabel }}</button>
               </div>
             </section>
           </div>
@@ -1895,6 +1896,7 @@ class Component extends DCLogic {
     this.activeProjectId = L && typeof L.activeProjectId === 'string' && this.settingsProjects.some(project => project.id === L.activeProjectId) ? L.activeProjectId : null;
     const activeSettingsProject = this.settingsProjects.find(project => project.id === this.activeProjectId);
     const effectiveSettings = { ...this.settingsGlobal, ...(activeSettingsProject ? activeSettingsProject.overrides : {}) };
+    this.personalVocabulary = this.validateVocabularyPayload(L && L.personalVocabulary);
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -1909,6 +1911,7 @@ class Component extends DCLogic {
       recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
       snapshots: [], snapshotsLoading: false, snapshotListStatus: 'stale', snapshotJournalStatus: 'unknown', snapshotInvalidCount: 0, snapshotTruncated: false, snapshotRestoreConfirm: false, snapshotRestoreId: null, snapshotRestoring: false,
       journalEntries: [], journalLoading: false, journalListStatus: 'stale', journalInvalidCount: 0, journalTruncated: false,
+      vocabStatus: this.personalVocabulary ? 'loaded' : 'no-file', vocabMessage: '',
       wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null,
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
@@ -1923,6 +1926,68 @@ class Component extends DCLogic {
   }
 
   load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  validateVocabularyPayload(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== 2 || payload.schemaVersion !== 1 || !payload.replacements || typeof payload.replacements !== 'object' || Array.isArray(payload.replacements)) return null;
+    if (!Object.keys(payload).every(key => key === 'schemaVersion' || key === 'replacements')) return null;
+    const entries = Object.entries(payload.replacements);
+    if (entries.length > 256) return null;
+    const safe = Object.create(null);
+    for (const [key, value] of entries) {
+      if (!key || key.length > 128 || typeof value !== 'string' || !value || value.length > 256 || ['__proto__', 'prototype', 'constructor'].includes(key) || /[\u0000-\u001f\u007f]/.test(key + value)) return null;
+      safe[key] = value;
+    }
+    const normalized = { schemaVersion: 1, replacements: { ...safe } };
+    try { if (new TextEncoder().encode(JSON.stringify(normalized)).length > 64 * 1024) return null; } catch { return null; }
+    return normalized;
+  }
+  parseVocabularyJson(source) {
+    if (typeof source !== 'string' || new TextEncoder().encode(source).length > 64 * 1024) throw new Error('File must be 64 KiB or smaller.');
+    let at = 0;
+    const skip = () => { while (/\s/.test(source[at] || '')) at += 1; };
+    const string = () => {
+      const start = at++;
+      while (at < source.length) {
+        if (source[at] === '\\') { at += 2; continue; }
+        if (source[at] === '"') { at += 1; return JSON.parse(source.slice(start, at)); }
+        if (source.charCodeAt(at) < 0x20) throw new Error('JSON contains an invalid control character.');
+        at += 1;
+      }
+      throw new Error('JSON string is not terminated.');
+    };
+    const value = depth => {
+      if (depth > 4) throw new Error('JSON nesting is too deep.');
+      skip();
+      if (source[at] === '"') return string();
+      if (source[at] === '{') {
+        at += 1; skip(); const out = Object.create(null); const keys = new Set();
+        if (source[at] === '}') { at += 1; return out; }
+        while (at < source.length) {
+          skip(); if (source[at] !== '"') throw new Error('Object keys must be strings.');
+          const key = string(); if (keys.has(key)) throw new Error('JSON contains a duplicate key.'); keys.add(key);
+          skip(); if (source[at++] !== ':') throw new Error('JSON object is missing a colon.');
+          out[key] = value(depth + 1); skip();
+          const separator = source[at++]; if (separator === '}') return out; if (separator !== ',') throw new Error('JSON object is malformed.');
+        }
+        throw new Error('JSON object is not terminated.');
+      }
+      if (source[at] === '[') {
+        at += 1; skip(); const out = []; if (source[at] === ']') { at += 1; return out; }
+        while (at < source.length) { out.push(value(depth + 1)); skip(); const separator = source[at++]; if (separator === ']') return out; if (separator !== ',') throw new Error('JSON array is malformed.'); }
+        throw new Error('JSON array is not terminated.');
+      }
+      const rest = source.slice(at);
+      const token = /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(rest)?.[0];
+      if (!token) throw new Error('JSON value is malformed.'); at += token.length; return JSON.parse(token);
+    };
+    const parsed = value(1); skip(); if (at !== source.length) throw new Error('JSON has trailing content.');
+    const normalized = this.validateVocabularyPayload(parsed); if (!normalized) throw new Error('Expected version 1 with at most 256 bounded string replacements and no extra fields.');
+    return normalized;
+  }
+  personalText(original) { return this.personalVocabulary?.replacements?.[original] ?? original; }
+  clearPersonalVocabulary() {
+    this.personalVocabulary = null;
+    this.setState({ vocabStatus: 'no-file', vocabMessage: 'No local vocabulary file is loaded.' }, () => this.persist());
+  }
   snapshotPayload() {
     const s = this.state;
     const safeId = (value, maximum) => String(value || '').replace(/[^a-zA-Z0-9:._-]+/g, '-').slice(0, maximum);
@@ -1962,6 +2027,7 @@ class Component extends DCLogic {
         theme: this.state.theme, lang: this.state.lang, funnyEn: this.state.funnyEn,
         funnyZh: this.state.funnyZh, route: this.state.route,
         settingsGlobal: this.settingsGlobal, settingsProjects: this.settingsProjects, activeProjectId: this.activeProjectId,
+        personalVocabulary: this.personalVocabulary,
         reactor: this.rx.snapshot(), rlog: this.rlogLines.slice(0, 60), ship: this.ship || this.savedShip,
       }));
     } catch (e) {}
@@ -2482,6 +2548,12 @@ class Component extends DCLogic {
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
       for (const command of settingsCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'settings', route: { view: 'settings' }, label: 'Settings', settingsQuery: command.query });
+      const vocabularyCommands = [
+        { title: 'Upload personal vocabulary', sub: 'Choose or replace the local JSON file', action: 'upload' },
+        { title: 'Personal vocabulary status', sub: 'Open the local loaded, invalid or no-file state', action: 'status' },
+        { title: 'Clear personal vocabulary', sub: 'Purge the validated local cache and restore shipped wording', action: 'clear' },
+      ];
+      for (const command of vocabularyCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'translate', route: { view: 'memory' }, label: 'Preview Data', vocabAction: command.action });
       if (q) {
         for (const c of this.D.categories || []) {
           for (const f of c.features) {
@@ -2499,6 +2571,11 @@ class Component extends DCLogic {
         this.go(h.route, h.label, h.icon);
         if (h.feature) this.setState({ rowFilter: h.feature.en });
         if (Object.hasOwn(h, 'settingsQuery')) { this.settingsQuery = h.settingsQuery; this.bump(); }
+        if (h.vocabAction) setTimeout(() => {
+          if (h.vocabAction === 'upload') document.getElementById('personal-vocabulary-file')?.click();
+          else if (h.vocabAction === 'status') document.getElementById('personal-vocabulary-status')?.focus();
+          else if (h.vocabAction === 'clear') this.clearPersonalVocabulary();
+        }, 0);
       },
     }));
 
@@ -3202,9 +3279,29 @@ class Component extends DCLogic {
         this.notify('Restore snapshot', (error && error.message === 'backup' ? 'The safety snapshot did not succeed, so no restore was attempted.' : 'The snapshot could not be validated or restored.') + retry, 'error', true);
       });
     };
-    V.vocabLine = 'Preview only · no live dictionary or publication scan is connected.';
-    V.uploadVocab = () => this.notify('Personal vocabulary', 'Preview only · no local file was loaded', 'info');
-    V.checkVocab = () => this.notify('Publication scan', 'Preview only · no publication scan was run', 'warning');
+    V.previewDataTitle = this.personalText('Preview Data');
+    V.personalVocabularyTitle = this.personalText('Personal vocabulary');
+    V.vocabUploadLabel = this.personalText(this.personalVocabulary ? 'Replace dictionary' : 'Upload dictionary');
+    V.vocabClearLabel = this.personalText('Clear dictionary');
+    V.vocabClearDisabled = !this.personalVocabulary;
+    const vocabCount = this.personalVocabulary ? Object.keys(this.personalVocabulary.replacements).length : 0;
+    V.vocabLine = s.vocabStatus === 'invalid' ? s.vocabMessage : this.personalVocabulary ? ('Loaded locally · ' + vocabCount + ' replacement' + (vocabCount === 1 ? '' : 's') + ' · only the documented Preview Data labels/actions are eligible.') : 'No local vocabulary file is loaded. Shipped wording is unchanged.';
+    V.loadVocabFile = event => {
+      const input = event.target;
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > 64 * 1024) { this.setState({ vocabStatus: 'invalid', vocabMessage: 'Invalid vocabulary file: file must be 64 KiB or smaller. The last valid local cache is unchanged.' }); input.value = ''; return; }
+      file.text().then(source => {
+        const normalized = this.parseVocabularyJson(source);
+        this.personalVocabulary = normalized;
+        this.setState({ vocabStatus: 'loaded', vocabMessage: '' }, () => this.persist());
+        this.notify('Personal vocabulary', 'Validated local vocabulary loaded. No network request was made.', 'success', true);
+      }).catch(error => {
+        this.setState({ vocabStatus: 'invalid', vocabMessage: 'Invalid vocabulary file: ' + (error instanceof Error ? error.message : 'validation failed') + ' The last valid local cache is unchanged.' });
+        this.notify('Personal vocabulary', 'The selected JSON was rejected. The last valid local cache is unchanged.', 'error', true);
+      }).finally(() => { input.value = ''; });
+    };
+    V.clearVocab = () => { this.clearPersonalVocabulary(); this.notify('Personal vocabulary', 'Validated local vocabulary cleared. Shipped wording was restored.', 'success', true); };
 
     // ── all apps · every registered module ───────────────────────────────────
     V.isAllApps = r.view === 'allapps';

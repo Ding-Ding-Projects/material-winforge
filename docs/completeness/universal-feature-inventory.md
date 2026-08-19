@@ -27,7 +27,7 @@ The active ultra-speed pass prohibited tests and captures. Accordingly, **no row
 | Rich command-palette controls and exact teleport | Not proven | Partial navigation only | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Non-blocking notifications and reviewable history | Partial toast source | Snackbar present; history missing | Missing | Partial | Unverified | Unverified | Missing | Incomplete |
 | Destructive-action super confirmation | Not proven | No destructive site action; universal equivalent missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
-| Local personal-vocabulary JSON upload | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
+| Local personal-vocabulary JSON upload | Partial: strict local version-1 picker/cache plus five exact Preview Data strings | Missing | `docs/application/personal-vocabulary.md` | Loader states English only; private replacements local | Unverified | Unverified | Missing | Incomplete |
 | Every-element toy locks and Support Tickets | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Unlock ladder | Not proven | No authentication; canonical equivalent not implemented | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Built-in authenticator and local QR registration | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |

@@ -42,6 +42,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Added schema-version 2 snapshots with bounded global/project settings ownership and atomic restore, while retaining schema-version 1 presentation-only compatibility.
 - Added a top-level bounded Settings search and anchored regex builder with section filtering, command-palette routing, and a selection-preserving no-match state.
 - Formalized the desktop global/project preference allowlist as theme, language, and both tone levels; documented why persisted session, content, operational, and unimplemented appearance fields are excluded.
+- Added a local-only version-1 personal-vocabulary JSON picker with strict bounded validation, duplicate-key rejection, persistent replace/clear states, command-palette routing, and five explicitly wired Preview Data strings.
 - Verified packaged Settings search, no-match copy, regex-builder surface, palette discovery, and the corrected Funny-level section route after fixing one query mismatch.
 - Verified the packaged Global/project Settings flow on two fresh hidden desktops: create, Light override, Global defaults, reset-to-global, and same-profile persistence; snapshot-v2 restore remains unverified.
 - Verified the packaged snapshot-v2 seam: create and journal listing, Light alteration, safety-first confirmation, restore, and return to the recorded project ownership state.
