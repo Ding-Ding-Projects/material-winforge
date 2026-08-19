@@ -6,6 +6,8 @@ const photoRepository = 'Ding-Ding-Projects/dim-sum-photos';
 const catalogUrl = 'https://raw.githubusercontent.com/Ding-Ding-Projects/dim-sum-photos/main/catalog/index.json';
 const MAX_CATALOG_BYTES = 32 * 1024 * 1024;
 const COMMAND_TIMEOUT_MS = 30_000;
+const CATALOG_ATTEMPT_TIMEOUT_MS = 10_000;
+const CATALOG_RETRY_DELAYS_MS = [0, 500, 1_500];
 
 const parseJson = (text, label) => {
   const source = String(text || '').trim();
@@ -21,9 +23,9 @@ const ghJson = (args, label) => parseJson(execFileSync('gh', args, {
   stdio: ['ignore', 'pipe', 'pipe']
 }), label);
 
-async function fetchBoundedJson(url, label) {
+async function fetchBoundedJson(url, label, timeoutMs = COMMAND_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), COMMAND_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   timer.unref();
   try {
     const response = await fetch(url, {
@@ -55,7 +57,41 @@ async function fetchBoundedJson(url, label) {
   }
 }
 
-const catalog = await fetchBoundedJson(catalogUrl, 'Public dim-sum catalog');
+const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function fetchCatalog() {
+  const failures = [];
+  for (let index = 0; index < CATALOG_RETRY_DELAYS_MS.length; index += 1) {
+    if (CATALOG_RETRY_DELAYS_MS[index]) await delay(CATALOG_RETRY_DELAYS_MS[index]);
+    try {
+      return await fetchBoundedJson(catalogUrl, `Public dim-sum catalog attempt ${index + 1}`, CATALOG_ATTEMPT_TIMEOUT_MS);
+    } catch (error) {
+      failures.push(String(error && (error.message || error) || 'unknown failure'));
+    }
+  }
+
+  let raw;
+  try {
+    raw = execFileSync('gh', [
+      'api',
+      '-H', 'Accept: application/vnd.github.raw+json',
+      `repos/${photoRepository}/contents/catalog/index.json`
+    ], {
+      encoding: null,
+      maxBuffer: MAX_CATALOG_BYTES + 1,
+      timeout: COMMAND_TIMEOUT_MS,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+  } catch (error) {
+    const reason = error && error.killed ? 'timed out' : `exited ${error && error.status !== undefined ? error.status : 'with an error'}`;
+    throw new Error(`Public dim-sum catalog failed after ${failures.length} bounded HTTPS attempts, and authenticated gh api fallback ${reason}.`);
+  }
+  if (!Buffer.isBuffer(raw) || raw.length === 0) throw new Error('Authenticated gh api catalog fallback returned an empty response.');
+  if (raw.length > MAX_CATALOG_BYTES) throw new Error(`Authenticated gh api catalog fallback exceeds the ${MAX_CATALOG_BYTES}-byte limit.`);
+  return parseJson(raw.toString('utf8'), 'Authenticated gh api catalog fallback');
+}
+
+const catalog = await fetchCatalog();
 if (!Array.isArray(catalog.dishes) || catalog.dishes.length === 0) throw new Error('Public dim-sum catalog contains no dishes.');
 const releases = ghJson(['release', 'list', '-R', photoRepository, '--limit', '100', '--json', 'tagName,isDraft'], 'Public catalog release inventory')
   .filter((release) => !release.isDraft && /^catalog-v1/i.test(release.tagName));
