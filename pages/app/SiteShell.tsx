@@ -41,6 +41,20 @@ type NarrationSettings = {
   rate: number;
   pitch: number;
 };
+type ScheduleRule = {
+  schemaVersion: 1;
+  id: string;
+  label: string;
+  enabled: boolean;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  weekdays: number[];
+  source: "local";
+  settings: Partial<SiteSettingValues>;
+};
+type ScheduleState = { schemaVersion: 1; rules: ScheduleRule[] };
 type TabGroupsState = { schemaVersion: 2; groups: TabGroup[] };
 type LanguageMode = "en" | "yue" | "both";
 type VocabularyCache = {
@@ -141,10 +155,12 @@ const STORAGE_KEY = "winforge-material-preview-preferences-v1";
 const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
 const SETTINGS_HISTORY_KEY = "winforge-material-preview-settings-history-v1";
 const NARRATION_KEY = "winforge-material-preview-narration-v1";
+const SCHEDULE_KEY = "winforge-material-preview-schedules-v1";
 const PREFERENCES_MAX_BYTES = 512 * 1024;
 const NOTIFICATION_MAX_BYTES = 128 * 1024;
 const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
 const NARRATION_MAX_BYTES = 16 * 1024;
+const SCHEDULE_MAX_BYTES = 64 * 1024;
 const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
@@ -693,6 +709,7 @@ const DEFAULT_NARRATION: NarrationSettings = {
   rate: 1,
   pitch: 1,
 };
+const DEFAULT_SCHEDULE: ScheduleState = { schemaVersion: 1, rules: [] };
 function normalizeNarration(value: unknown): NarrationSettings | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const root = value as Record<string, unknown>;
@@ -723,6 +740,77 @@ function normalizeNarration(value: unknown): NarrationSettings | null {
     rate: Math.round(Number(root.rate) * 10) / 10,
     pitch: Math.round(Number(root.pitch) * 10) / 10,
   };
+}
+function normalizeSchedule(value: unknown): ScheduleState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Record<string, unknown>;
+  if (root.schemaVersion !== 1 || !Array.isArray(root.rules) || root.rules.length > 12)
+    return null;
+  const rules: ScheduleRule[] = [];
+  const ids = new Set<string>();
+  for (const item of root.rules) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const rule = item as Record<string, unknown>;
+    if (
+      rule.schemaVersion !== 1 ||
+      typeof rule.id !== "string" ||
+      !/^schedule-[a-z0-9-]{1,48}$/.test(rule.id) ||
+      ids.has(rule.id) ||
+      typeof rule.label !== "string" ||
+      rule.label.trim().length < 1 ||
+      rule.label.length > 64 ||
+      typeof rule.enabled !== "boolean" ||
+      typeof rule.startDate !== "string" ||
+      typeof rule.endDate !== "string" ||
+      typeof rule.startTime !== "string" ||
+      typeof rule.endTime !== "string" ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(rule.startTime) ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(rule.endTime) ||
+      !["", /^\d{4}-\d{2}-\d{2}$/].some((test) =>
+        typeof test === "string" ? rule.startDate === test : test.test(rule.startDate),
+      ) ||
+      !["", /^\d{4}-\d{2}-\d{2}$/].some((test) =>
+        typeof test === "string" ? rule.endDate === test : test.test(rule.endDate),
+      ) ||
+      rule.source !== "local" ||
+      !rule.settings ||
+      typeof rule.settings !== "object" ||
+      Array.isArray(rule.settings)
+    ) return null;
+    if (rule.startDate && rule.endDate && rule.startDate > rule.endDate) return null;
+    if (
+      !Array.isArray(rule.weekdays) ||
+      rule.weekdays.length < 1 ||
+      rule.weekdays.length > 7 ||
+      new Set(rule.weekdays).size !== rule.weekdays.length ||
+      !rule.weekdays.every((day) => Number.isInteger(day) && Number(day) >= 0 && Number(day) <= 6)
+    ) return null;
+    const settings: Partial<SiteSettingValues> = {};
+    for (const [key, settingValue] of Object.entries(rule.settings as Record<string, unknown>)) {
+      if (!SITE_SETTING_KEYS.includes(key as SiteSettingKey) || !validSiteSetting(key as SiteSettingKey, settingValue))
+        return null;
+      (settings as Record<string, unknown>)[key] =
+        key === "accent" && typeof settingValue === "string"
+          ? settingValue.toLowerCase()
+          : settingValue;
+    }
+    if (!Object.keys(settings).length) return null;
+    ids.add(rule.id);
+    rules.push({
+      schemaVersion: 1,
+      id: rule.id,
+      label: rule.label.trim(),
+      enabled: rule.enabled,
+      startDate: rule.startDate,
+      endDate: rule.endDate,
+      startTime: rule.startTime,
+      endTime: rule.endTime,
+      weekdays: [...rule.weekdays].sort((a, b) => a - b) as number[],
+      source: "local",
+      settings,
+    });
+  }
+  return { schemaVersion: 1, rules };
 }
 function validGroupName(value: unknown): string | null {
   if (
@@ -1156,6 +1244,24 @@ function formatBytes(value: number | null) {
   }
   return `${amount.toFixed(unit ? 1 : 0)} ${units[unit]}`;
 }
+function scheduleRuleMatches(rule: ScheduleRule, now: Date): boolean {
+  if (!rule.enabled) return false;
+  const date = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
+  if (rule.startDate && date < rule.startDate) return false;
+  if (rule.endDate && date > rule.endDate) return false;
+  const weekday = now.getDay();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const [startHour, startMinute] = rule.startTime.split(":").map(Number);
+  const [endHour, endMinute] = rule.endTime.split(":").map(Number);
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+  if (start <= end) return rule.weekdays.includes(weekday) && minutes >= start && minutes <= end;
+  if (minutes >= start) return rule.weekdays.includes(weekday);
+  if (minutes <= end) return rule.weekdays.includes((weekday + 6) % 7);
+  return false;
+}
 
 export default function SiteShell({
   assetBase,
@@ -1167,6 +1273,13 @@ export default function SiteShell({
   const bootManifest = validManifest(initialManifest) ? initialManifest : null;
   const [prefs, setPrefs] = useState(DEFAULTS);
   const [narration, setNarration] = useState<NarrationSettings>(DEFAULT_NARRATION);
+  const [schedule, setSchedule] = useState<ScheduleState>(DEFAULT_SCHEDULE);
+  const [scheduleTick, setScheduleTick] = useState(0);
+  const scheduleBaseSettings = useRef<{
+    values: SiteSettingValues;
+    ownership: SiteSettingsOwnership;
+  } | null>(null);
+  const appliedScheduleId = useRef<string | null>(null);
   const [speechVoices, setSpeechVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [narrationStatus, setNarrationStatus] = useState<"available" | "unavailable">("available");
   const speechQueue = useRef<Array<{ text: string; language: "en" | "yue" }>>([]);
@@ -1521,6 +1634,17 @@ export default function SiteShell({
       } catch {
         removeLocalRecord(NARRATION_KEY);
       }
+    const scheduleRecord = readLocalRecord(SCHEDULE_KEY, SCHEDULE_MAX_BYTES);
+    if (!scheduleRecord.available) setPersistenceAvailable(false);
+    if (scheduleRecord.oversized) removeLocalRecord(SCHEDULE_KEY);
+    if (scheduleRecord.raw)
+      try {
+        const parsed = normalizeSchedule(JSON.parse(scheduleRecord.raw));
+        if (parsed) setSchedule(parsed);
+        else removeLocalRecord(SCHEDULE_KEY);
+      } catch {
+        removeLocalRecord(SCHEDULE_KEY);
+      }
     setHydrated(true);
   }, []);
   useEffect(() => {
@@ -1529,6 +1653,9 @@ export default function SiteShell({
   useEffect(() => {
     if (hydrated && !writeLocalRecord(NARRATION_KEY, narration, NARRATION_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, narration]);
+  useEffect(() => {
+    if (hydrated && !writeLocalRecord(SCHEDULE_KEY, schedule, SCHEDULE_MAX_BYTES)) setPersistenceAvailable(false);
+  }, [hydrated, schedule]);
   useEffect(() => {
     const media = matchMedia("(max-width: 760px)");
     const sync = () => setNarrowTabs(media.matches);
