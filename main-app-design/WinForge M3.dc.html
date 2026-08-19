@@ -1777,7 +1777,13 @@ class Component extends DCLogic {
       paletteOpen: false, paletteQuery: '',
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
-      sys: { cpu: 14, ram: 43, disk: 61, net: 8, upSec: 273120 },
+      sys: {
+        cpu: { available: false, usedPercent: null },
+        memory: { available: false, usedPercent: null },
+        disk: { available: false, usedPercent: null },
+        network: { available: false, connected: false, interfaceCount: 0 },
+        uptimeSeconds: null,
+      },
     };
   }
 
@@ -1804,11 +1810,26 @@ class Component extends DCLogic {
       this.rx.step(wall * this.speed, (m, k) => this.rlog(m, k));
       this.setState(s => ({ tick: s.tick + 1 }));
     }, 100);
-    this.sysTimer = setInterval(() => {
-      const w = (v, d, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v + (Math.random() - 0.5) * d)));
-      const s = this.state.sys;
-      this.setState({ sys: { cpu: w(s.cpu, 9, 3, 94), ram: w(s.ram, 3, 28, 90), disk: s.disk, net: w(s.net, 12, 0, 130), upSec: s.upSec + 4 } });
-    }, 1500);
+    this.pollSystemMetrics = () => {
+      const unavailable = {
+        cpu: { available: false, usedPercent: null }, memory: { available: false, usedPercent: null },
+        disk: { available: false, usedPercent: null }, network: { available: false, connected: false, interfaceCount: 0 }, uptimeSeconds: null,
+      };
+      if (!window.winforge || !window.winforge.systemMetrics) { this.setState({ sys: unavailable }); return; }
+      window.winforge.systemMetrics().then(metrics => {
+        const validPercent = part => part && part.available === true && Number.isFinite(part.usedPercent) && part.usedPercent >= 0 && part.usedPercent <= 100;
+        const network = metrics && metrics.network;
+        this.setState({ sys: {
+          cpu: validPercent(metrics && metrics.cpu) ? metrics.cpu : unavailable.cpu,
+          memory: validPercent(metrics && metrics.memory) ? metrics.memory : unavailable.memory,
+          disk: validPercent(metrics && metrics.disk) ? metrics.disk : unavailable.disk,
+          network: network && network.available === true && typeof network.connected === 'boolean' && Number.isInteger(network.interfaceCount) && network.interfaceCount >= 0 && network.interfaceCount <= 256 ? network : unavailable.network,
+          uptimeSeconds: metrics && Number.isFinite(metrics.uptimeSeconds) && metrics.uptimeSeconds >= 0 ? metrics.uptimeSeconds : null,
+        } });
+      }).catch(() => this.setState({ sys: unavailable }));
+    };
+    this.pollSystemMetrics();
+    this.sysTimer = setInterval(this.pollSystemMetrics, 4000);
     this.saveTimer = setInterval(() => this.persist(), 4000);
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
@@ -2289,13 +2310,16 @@ class Component extends DCLogic {
       { value: applied, label: 'TWEAKS APPLIED', color: applied ? green : onSurf },
       { value: mode.n, label: 'REACTOR TS MODE', color: rx.melted ? err : (rx.scrammed ? amber : onSurf) },
     ];
-    const up = s.sys.upSec;
-    V.uptime = Math.floor(up / 86400) + 'd ' + String(Math.floor(up % 86400 / 3600)).padStart(2, '0') + ':' + String(Math.floor(up % 3600 / 60)).padStart(2, '0');
+    const up = s.sys.uptimeSeconds;
+    V.uptime = Number.isFinite(up) ? Math.floor(up / 86400) + 'd ' + String(Math.floor(up % 86400 / 3600)).padStart(2, '0') + ':' + String(Math.floor(up % 3600 / 60)).padStart(2, '0') : 'Unavailable';
+    const pct = metric => metric && metric.available ? metric.usedPercent : 0;
+    const readPct = metric => metric && metric.available ? metric.usedPercent.toFixed(1) + ' % used' : 'Unavailable';
+    const network = s.sys.network || { available: false, connected: false, interfaceCount: 0 };
     V.sysMeters = [
-      { label: 'CPU', icon: 'memory', read: s.sys.cpu + ' %', pct: s.sys.cpu, color: s.sys.cpu > 80 ? err : prim },
-      { label: 'Memory', icon: 'developer_board', read: s.sys.ram + ' % of 32 GB', pct: s.sys.ram, color: prim },
-      { label: 'System disk', icon: 'storage', read: s.sys.disk + ' % of 1 TB', pct: s.sys.disk, color: s.sys.disk > 85 ? amber : prim },
-      { label: 'Network', icon: 'network_check', read: s.sys.net + ' Mbps', pct: Math.min(100, s.sys.net), color: green },
+      { label: 'CPU', icon: 'memory', read: readPct(s.sys.cpu), pct: pct(s.sys.cpu), color: pct(s.sys.cpu) > 80 ? err : prim },
+      { label: 'Memory', icon: 'developer_board', read: readPct(s.sys.memory), pct: pct(s.sys.memory), color: prim },
+      { label: 'App-data disk', icon: 'storage', read: readPct(s.sys.disk), pct: pct(s.sys.disk), color: pct(s.sys.disk) > 85 ? amber : prim },
+      { label: 'Network', icon: 'network_check', read: !network.available ? 'Unavailable' : (network.connected ? 'Connected · ' + network.interfaceCount + ' interface' + (network.interfaceCount === 1 ? '' : 's') : 'Not connected'), pct: network.connected ? 100 : 0, color: network.connected ? green : onVar },
     ];
     V.recentModules = [
       { title: 'Nuclear Reactor', sub: 'PWR control room · ' + mode.en, icon: 'electric_bolt', go: V.goReactor },

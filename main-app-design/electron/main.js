@@ -5,6 +5,8 @@
 
 const { app, BrowserWindow, ipcMain, shell, nativeTheme, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const RENDERER = path.join(__dirname, '..', 'WinForge M3.dc.html');
@@ -12,6 +14,7 @@ const ICON = path.join(__dirname, '..', 'assets', 'app.ico');
 let win = null;
 let updateCheck = null;
 let updateTimer = null;
+let previousCpuTimes = null;
 let updateState = {
   state: 'idle',
   currentVersion: app.getVersion(),
@@ -25,6 +28,91 @@ let updateState = {
 function publishUpdateState(patch) {
   updateState = { ...updateState, ...patch };
   if (win && !win.isDestroyed()) win.webContents.send('winforge:update-state', updateState);
+}
+
+function finiteNumber(value, minimum, maximum) {
+  return Number.isFinite(value) ? Math.max(minimum, Math.min(maximum, value)) : null;
+}
+
+function cpuTimes() {
+  let idle = 0;
+  let total = 0;
+  for (const cpu of os.cpus()) {
+    const times = cpu && cpu.times;
+    if (!times) continue;
+    const values = [times.user, times.nice, times.sys, times.idle, times.irq];
+    if (!values.every(Number.isFinite)) continue;
+    idle += times.idle;
+    total += values.reduce((sum, value) => sum + value, 0);
+  }
+  return total > 0 ? { idle, total } : null;
+}
+
+function readSystemMetrics() {
+  const result = {
+    schemaVersion: 1,
+    sampledAt: new Date().toISOString(),
+    cpu: { available: false, usedPercent: null },
+    memory: { available: false, usedPercent: null },
+    disk: { available: false, usedPercent: null },
+    network: { available: false, connected: false, interfaceCount: 0 },
+    uptimeSeconds: null,
+  };
+
+  try {
+    const current = cpuTimes();
+    if (current && previousCpuTimes) {
+      const totalDelta = current.total - previousCpuTimes.total;
+      const idleDelta = current.idle - previousCpuTimes.idle;
+      const usedPercent = totalDelta > 0 ? finiteNumber(((totalDelta - idleDelta) / totalDelta) * 100, 0, 100) : null;
+      if (usedPercent !== null) result.cpu = { available: true, usedPercent: Math.round(usedPercent * 10) / 10 };
+    }
+    previousCpuTimes = current;
+  } catch {
+    previousCpuTimes = null;
+  }
+
+  try {
+    const total = finiteNumber(os.totalmem(), 1, Number.MAX_SAFE_INTEGER);
+    const free = finiteNumber(os.freemem(), 0, Number.MAX_SAFE_INTEGER);
+    if (total !== null && free !== null) {
+      const usedPercent = finiteNumber(((total - Math.min(total, free)) / total) * 100, 0, 100);
+      if (usedPercent !== null) result.memory = { available: true, usedPercent: Math.round(usedPercent * 10) / 10 };
+    }
+  } catch {}
+
+  try {
+    if (typeof fs.statfsSync === 'function') {
+      const stats = fs.statfsSync(app.getPath('userData'));
+      const blockSize = finiteNumber(Number(stats.bsize), 1, Number.MAX_SAFE_INTEGER);
+      const blocks = finiteNumber(Number(stats.blocks), 1, Number.MAX_SAFE_INTEGER);
+      const freeBlocks = finiteNumber(Number(stats.bavail), 0, Number.MAX_SAFE_INTEGER);
+      if (blockSize !== null && blocks !== null && freeBlocks !== null) {
+        const totalBytes = blockSize * blocks;
+        const freeBytes = blockSize * Math.min(blocks, freeBlocks);
+        const usedPercent = finiteNumber(((totalBytes - freeBytes) / totalBytes) * 100, 0, 100);
+        if (Number.isSafeInteger(totalBytes) && usedPercent !== null) result.disk = { available: true, usedPercent: Math.round(usedPercent * 10) / 10 };
+      }
+    }
+  } catch {}
+
+  try {
+    const interfaces = os.networkInterfaces();
+    let interfaceCount = 0;
+    let connected = false;
+    for (const addresses of Object.values(interfaces || {})) {
+      if (!Array.isArray(addresses) || !addresses.some((address) => address && !address.internal)) continue;
+      interfaceCount += 1;
+      connected = true;
+    }
+    result.network = { available: true, connected, interfaceCount: Math.min(256, interfaceCount) };
+  } catch {}
+
+  try {
+    const uptime = finiteNumber(os.uptime(), 0, 10 * 365 * 24 * 60 * 60);
+    result.uptimeSeconds = uptime === null ? null : Math.round(uptime);
+  } catch {}
+  return result;
 }
 
 function classifyUpdateError(error) {
@@ -169,6 +257,7 @@ ipcMain.on('winforge:maximise', () => {
 ipcMain.on('winforge:close', () => win && win.close());
 ipcMain.handle('winforge:version', () => app.getVersion());
 ipcMain.handle('winforge:mode', () => 'preview');
+ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
 ipcMain.handle('winforge:update-state', () => updateState);
 ipcMain.handle('winforge:update-check', () => checkForUpdates('manual'));
 ipcMain.handle('winforge:update-cancel', () => {

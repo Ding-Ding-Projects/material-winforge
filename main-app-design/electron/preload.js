@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('winforge', {
   close: () => ipcRenderer.send('winforge:close'),
   version: () => ipcRenderer.invoke('winforge:version'),
   mode: () => ipcRenderer.invoke('winforge:mode'),
+  systemMetrics: () => ipcRenderer.invoke('winforge:system-metrics'),
   updateState: () => ipcRenderer.invoke('winforge:update-state'),
   checkForUpdates: () => ipcRenderer.invoke('winforge:update-check'),
   cancelUpdate: () => ipcRenderer.invoke('winforge:update-cancel'),

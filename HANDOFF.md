@@ -22,6 +22,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Categorized feature documentation and wiki source.
 - Hand-written universal-feature and checked-in design-reference parity inventories that mark missing source and evidence fail-closed.
 - Privileged unsigned Squirrel update checks on startup, every six hours, and manually, with a persistent localized renderer banner and explicit restart/defer actions.
+- Read-only system metrics from the privileged main process, with bounded no-input IPC output and explicit unavailable states instead of random CPU, memory, disk, network, and uptime values.
 
 ## Verification state
 
@@ -54,3 +55,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Node 24.19.0 reproducibly completed vinext output and then aborted during process shutdown on Windows. The site build is pinned to Node 22.23.2, which exited normally for both targets.
 - Universal completeness and design-parity rows remain incomplete because the ultra-speed pass intentionally ran no tests, built-artifact interactions, negative regressions, visual audits, or captures.
 - The update source and package route are present, but offline, invalid metadata, corrupt package, cancellation, deferred restart, unsaved work, installation, and rollback guidance have not been exercised against a published feed.
+- The system-metrics bridge was built and packaged but not exercised in the running artifact; its live values and dashboard rendering remain unverified.
