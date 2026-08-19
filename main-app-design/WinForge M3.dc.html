@@ -566,7 +566,9 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Global defaults and project overrides</h2>
           <p style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ projectScopeLine }}</p>
+          <div style="display:flex;align-items:center;gap:6px;height:40px;padding:0 4px 0 12px;margin-bottom:10px;border-radius:999px;background:var(--md-sys-color-surface-container-high)"><span class="ms" aria-hidden="true" style="font-size:18px">search</span><input value="{{ projectQuery }}" onInput="{{ setProjectQuery }}" placeholder="Filter global defaults and local projects" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbProjects }}" title="Advanced regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:16px">regular_expression</span></button></div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px" role="listbox" aria-label="Active project picker"><sc-for list="{{ projectChoices }}" as="p" hint-placeholder-count="3"><button onClick="{{ p.select }}" aria-selected="{{ p.active }}" style="height:36px;padding:0 16px;border:1px solid {{ p.border }};border-radius:999px;background:{{ p.bg }};color:{{ p.fg }};font-weight:500">{{ p.label }}</button></sc-for></div>
+          <sc-if value="{{ projectChoicesEmpty }}" hint-placeholder-val="{{ false }}"><div style="margin-bottom:14px;padding:12px 14px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)">No project choice matches this filter. The active selection is unchanged.</div></sc-if>
           <sc-if value="{{ projectsEmpty }}" hint-placeholder-val="{{ true }}"><div style="margin-bottom:14px;padding:12px 14px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)">No local projects exist. Create one to store sparse overrides; no sample projects are seeded.</div></sc-if>
           <div style="display:flex;gap:8px"><input value="{{ projectNameInput }}" onInput="{{ setProjectNameInput }}" maxlength="64" placeholder="New local project name" aria-label="New local project name" style="flex:1;min-width:0;height:40px;padding:0 14px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-small);background:var(--md-sys-color-surface-container-high);color:inherit"><button onClick="{{ createProject }}" disabled="{{ projectCreateDisabled }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Create project</button></div>
           <sc-if value="{{ hasActiveProject }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--md-sys-color-outline-variant)"><span style="font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ inheritanceLine }}</span><button onClick="{{ resetProjectOverrides }}" style="height:36px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-weight:500">Reset project to global</button></div></sc-if>
@@ -1874,6 +1876,7 @@ class Component extends DCLogic {
     this.recycleSubmitActive = false;
     this.snapshotQuery = '';
     this.journalQuery = '';
+    this.projectQuery = '';
     const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
     const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3 };
     this.settingsGlobal = L && L.settingsGlobal && ['theme', 'lang', 'funnyEn', 'funnyZh'].every(key => validSetting(key, L.settingsGlobal[key])) ? { theme: L.settingsGlobal.theme, lang: L.settingsGlobal.lang, funnyEn: L.settingsGlobal.funnyEn, funnyZh: L.settingsGlobal.funnyZh } : fallbackGlobal;
@@ -2113,6 +2116,7 @@ class Component extends DCLogic {
       skills: { label: 'Memory skills', get: () => this.skillQuery || '', set: v => { this.skillQuery = v; this.bump(); } },
       snapshots: { label: 'Local snapshot history', get: () => this.snapshotQuery || '', set: v => { this.snapshotQuery = v; this.bump(); } },
       journal: { label: 'Snapshot revision journal', get: () => this.journalQuery || '', set: v => { this.journalQuery = v; this.bump(); } },
+      projects: { label: 'Active project picker', get: () => this.projectQuery || '', set: v => { this.projectQuery = v; this.bump(); } },
       extapps: { label: 'External apps', get: () => this.extQuery || '', set: v => { this.extQuery = v; this.bump(); } },
       dev: { label: 'Developer workflows', get: () => this.devQuery || '', set: v => { this.devQuery = v; this.bump(); } },
       log: { label: 'Control-room log', get: () => this.logQuery || '', set: v => { this.logQuery = v; this.bump(); } },
@@ -2309,7 +2313,7 @@ class Component extends DCLogic {
     V.rbPalette = mk('palette'); V.rbRows = mk('rows'); V.rbAllApps = mk('allapps');
     V.rbCats = mk('cats'); V.rbPackages = mk('packages'); V.rbDimSum = mk('dimsum');
     V.rbNotifs = mk('notifs'); V.rbRps = mk('rps'); V.rbLoads = mk('loads');
-    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
+    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbProjects = mk('projects'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
     V.rbShown = !!rb.target && this.isShipped('feat.regex');
     V.rbLabel = rb.label;
     const rbField = fields[rb.target] || { get: () => '', set: () => {} };
@@ -2373,6 +2377,7 @@ class Component extends DCLogic {
     V.skillQuery = this.skillQuery || ''; V.setSkillQuery = e => { this.skillQuery = e.target.value; this.bump(); };
     V.snapshotQuery = this.snapshotQuery || ''; V.setSnapshotQuery = e => { this.snapshotQuery = e.target.value; this.bump(); };
     V.journalQuery = this.journalQuery || ''; V.setJournalQuery = e => { this.journalQuery = e.target.value; this.bump(); };
+    V.projectQuery = this.projectQuery || ''; V.setProjectQuery = e => { this.projectQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
     V.extQuery = this.extQuery || ''; V.setExtQuery = e => { this.extQuery = e.target.value; this.bump(); };
     V.devQuery = this.devQuery || ''; V.setDevQuery = e => { this.devQuery = e.target.value; this.bump(); };
     V.logQuery = this.logQuery || ''; V.setLogQuery = e => { this.logQuery = e.target.value; this.bump(); };
@@ -2851,10 +2856,12 @@ class Component extends DCLogic {
       } else this.settingsGlobal[key] = value;
       this.setState({ [key]: value }, () => this.persist());
     };
-    V.projectChoices = [{ id: null, name: 'Global defaults' }, ...this.settingsProjects].map(project => {
+    const filteredProjectChoices = [{ id: null, name: 'Global defaults' }, ...this.settingsProjects].filter(project => this.match(this.projectQuery, project.name + ' ' + (project.id || 'global-defaults')));
+    V.projectChoices = filteredProjectChoices.map(project => {
       const active = project.id === this.activeProjectId;
       return { label: project.name, active, select: () => { this.activeProjectId = project.id; const selected = this.settingsProjects.find(item => item.id === project.id); const values = { ...this.settingsGlobal, ...(selected ? selected.overrides : {}) }; this.setState(values, () => this.persist()); }, bg: active ? prim : 'transparent', fg: active ? 'var(--md-sys-color-on-primary)' : onVar, border: active ? prim : 'var(--md-sys-color-outline)' };
     });
+    V.projectChoicesEmpty = filteredProjectChoices.length === 0;
     V.projectsEmpty = this.settingsProjects.length === 0;
     V.hasActiveProject = !!activeProject;
     const overrideCount = activeProject ? Object.keys(activeProject.overrides).length : 0;

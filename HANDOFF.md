@@ -31,6 +31,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Snapshot creation now appends redacted metadata to a private local Git journal when an existing `git.exe` is discoverable. The journal refuses configured remotes, never uses network commands, and degrades visibly without blocking snapshots when Git is absent or journaling fails.
 - Preview Data now exposes a separate read-only journal list with its own search and regex builder. The no-input bridge returns at most 50 validated commit SHAs, timestamps, bounded subjects, and snapshot identifiers; it exposes no restore action, paths, diffs, or raw state.
 - Settings now supports validated local global defaults plus up to 50 user-created, path-free project records with sparse theme, language, and tone overrides, live effective values, inheritance counts, and reset-to-global.
+- The active-project picker has its own bounded plain-text search and anchored regex builder; filtering Global defaults and local projects never changes the active selection, and no-match copy stays distinct from the empty-project state.
 
 ## Verification state
 

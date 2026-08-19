@@ -38,6 +38,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Added an optional append-only private Git revision journal for redacted snapshot metadata, using only discovered local `git.exe`, fixed no-shell commands, remote refusal, and explicit unavailable or failed states.
 - Added a read-only, no-input snapshot-journal history bridge and dedicated searchable list for up to 50 validated local commit summaries, with no restore action because the journal contains metadata only.
 - Added local global defaults and user-created project settings with sparse overrides for theme, language, and both tone levels, including inheritance counts, live application, and project reset.
+- Added a dedicated bounded project-picker search and adjacent regex builder with selection-preserving local filtering and distinct no-project versus no-match states.
 
 ### Verification boundary
 

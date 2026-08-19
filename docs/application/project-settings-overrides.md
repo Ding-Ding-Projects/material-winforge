@@ -4,7 +4,7 @@
 
 Settings stores global defaults for theme, language, English tone, and Cantonese tone. A user may create up to 50 local project records with names from 1 to 64 characters. No sample project is seeded. The active-project picker always includes **Global defaults** and lists only projects the user created.
 
-Each project stores sparse overrides. A value equal to its global default is removed from the project record and inherited instead. The surface reports the exact override and inherited counts, applies the effective values immediately, and offers **Reset project to global** to remove all four overrides. Switching back to global defaults edits the values inherited by every project that has no corresponding override.
+Each project stores sparse overrides. A value equal to its global default is removed from the project record and inherited instead. The active-project picker has its own bounded plain-text search and adjacent anchored regex builder; filtering matches the Global defaults choice plus user-created names and generated IDs without changing the current selection. A no-match result is distinct from the no-project state. The surface reports the exact override and inherited counts, applies the effective values immediately, and offers **Reset project to global** to remove all four overrides. Switching back to global defaults edits the values inherited by every project that has no corresponding override.
 
 ## Storage and validation
 
