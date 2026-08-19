@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added Pages app-logo customization with three existing-brand presets, bounded byte-verified local PNG/JPEG loading, persistent live site rendering, truthful failure states, and command-palette destinations.
+
 - Protected the Pages Settings reset and its command-palette route with one blocking, localized two-acknowledgement and full-slider confirmation that preserves personal vocabulary and records completion in Settings history.
 
 - Added command-palette search parity on the Pages site: literal search remains the default, while an adjacent full regex builder owns explicit mode, flags, samples, matches, and invalid-pattern feedback.

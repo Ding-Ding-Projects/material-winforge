@@ -4,6 +4,7 @@
 - [Settings history](settings-history.md) — bounded Global/project revisions, filtering, export, and confirmed restore.
 - [Command palette search](command-palette.md) — `Ctrl+Shift+F`, literal-first discovery, and an anchored full regex builder.
 - [Destructive Settings reset](destructive-confirmation.md) — shared two-key and full-slider confirmation for local reset.
+- [App-logo customization](app-logo.md) — shipped brand treatments and a bounded private local image picker.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 

@@ -264,6 +264,18 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .vocabulary-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .vocabulary-controls label { cursor: pointer; }
 .vocabulary-controls input[type="file"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.app-logo { object-fit: contain; border-radius: 22%; }
+.app-logo.preset-tile { padding: 8%; background: var(--primary-container); box-shadow: inset 0 0 0 1px var(--outline-variant); }
+.app-logo.preset-mono { filter: grayscale(1) contrast(1.15); }
+.logo-settings-controls { display: grid; gap: 14px; }
+.logo-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.logo-presets button { display: grid; place-items: center; gap: 7px; min-height: 92px; padding: 10px; border: 1px solid var(--outline-variant); border-radius: 18px; background: var(--surface-container); color: inherit; cursor: pointer; text-transform: capitalize; }
+.logo-presets button[aria-checked="true"] { border-color: var(--primary); background: var(--primary-container); color: var(--on-primary-container); }
+.logo-presets img { width: 44px; height: 44px; }
+.logo-file-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.logo-file-actions input[type="file"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.logo-status { margin: 0; color: var(--on-surface-variant); }
+.logo-status.invalid { color: var(--error); }
 .changelog-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 14px 0 18px; }
 .changelog-filters label { display: grid; gap: 5px; font-size: .78rem; color: var(--on-surface-variant); }
 .changelog-filters input { min-height: 42px; padding: 0 10px; border: 1px solid var(--outline); border-radius: 9px; background: var(--surface); color: var(--on-surface); }
@@ -417,6 +429,7 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
   .settings-history-search, .settings-history-filters { align-items: stretch; flex-direction: column; }
   .settings-history-center > footer { align-items: stretch; flex-direction: column; }
   .settings-history-list article { align-items: stretch; flex-direction: column; }
+  .logo-presets { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 430px) {
