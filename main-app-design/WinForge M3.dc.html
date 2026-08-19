@@ -810,6 +810,13 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
           <sc-if value="{{ snapshotsEmpty }}" hint-placeholder-val="{{ true }}"><div style="padding:18px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)">{{ snapshotsEmptyText }}</div></sc-if>
           <div style="display:flex;flex-direction:column;gap:8px"><sc-for list="{{ snapshotItems }}" as="item" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)"><span class="ms" aria-hidden="true">history</span><div style="flex:1;min-width:0"><div style="font-weight:500">{{ item.createdAt }}</div><div style="margin-top:3px;font-family:'Roboto Mono',monospace;font-size:11.5px;color:var(--md-sys-color-on-surface-variant)">{{ item.meta }}</div></div><button onClick="{{ item.restore }}" style="height:36px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-weight:500">Restore…</button></div></sc-for></div>
         </section>
+        <section style="margin-top:16px;padding:20px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px"><div><h2 style="margin:0;font-size:16px;font-weight:500">Snapshot revision journal</h2><p style="margin:4px 0 0;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ journalListStatusText }}</p></div><button onClick="{{ refreshJournal }}" disabled="{{ journalLoading }}" style="height:36px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-weight:500">Refresh journal</button></div>
+          <div style="display:flex;align-items:center;gap:6px;height:40px;padding:0 4px 0 12px;margin-bottom:10px;border-radius:999px;background:var(--md-sys-color-surface-container-high)"><span class="ms" aria-hidden="true" style="font-size:18px">search</span><input value="{{ journalQuery }}" onInput="{{ setJournalQuery }}" placeholder="Search journal commit metadata" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbJournal }}" title="Advanced regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:16px">regular_expression</span></button></div>
+          <sc-if value="{{ journalEmpty }}" hint-placeholder-val="{{ true }}"><div style="padding:18px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)">{{ journalEmptyText }}</div></sc-if>
+          <div style="display:flex;flex-direction:column;gap:8px"><sc-for list="{{ journalItems }}" as="entry" hint-placeholder-count="3"><div style="padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)"><div style="display:flex;justify-content:space-between;gap:12px"><strong>{{ entry.message }}</strong><span style="font-family:'Roboto Mono',monospace;font-size:11.5px;color:var(--md-sys-color-on-surface-variant)">{{ entry.shortSha }}</span></div><div style="margin-top:4px;font-family:'Roboto Mono',monospace;font-size:11.5px;color:var(--md-sys-color-on-surface-variant)">{{ entry.timestamp }} · {{ entry.snapshotId }}</div></div></sc-for></div>
+          <p style="margin:12px 0 0;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Read-only metadata journal. Restore is intentionally unavailable because journal entries do not contain snapshot state.</p>
+        </section>
       </div>
       </sc-if>
 
@@ -1857,6 +1864,7 @@ class Component extends DCLogic {
     this.packageEngineStates = {};
     this.recycleSubmitActive = false;
     this.snapshotQuery = '';
+    this.journalQuery = '';
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -1869,6 +1877,7 @@ class Component extends DCLogic {
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
       recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
       snapshots: [], snapshotsLoading: false, snapshotListStatus: 'stale', snapshotJournalStatus: 'unknown', snapshotInvalidCount: 0, snapshotTruncated: false, snapshotRestoreConfirm: false, snapshotRestoreId: null, snapshotRestoring: false,
+      journalEntries: [], journalLoading: false, journalListStatus: 'stale', journalInvalidCount: 0, journalTruncated: false,
       wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null,
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
@@ -1902,6 +1911,18 @@ class Component extends DCLogic {
       const journalStatus = ['available', 'unavailable', 'failed'].includes(result.journalStatus) ? result.journalStatus : 'unknown';
       this.setState({ snapshots, snapshotsLoading: false, snapshotListStatus: result.status, snapshotJournalStatus: journalStatus, snapshotInvalidCount: Number.isInteger(result.invalidCount) ? Math.max(0, Math.min(10000, result.invalidCount)) : 0, snapshotTruncated: result.truncated === true });
     }).catch(() => this.setState({ snapshots: [], snapshotsLoading: false, snapshotListStatus: 'invalid' }));
+  }
+  refreshJournal() {
+    const bridge = window.winforge;
+    if (!bridge || !bridge.listSnapshotJournal) { this.setState({ journalEntries: [], journalLoading: false, journalListStatus: 'unavailable' }); return; }
+    this.setState({ journalLoading: true, journalListStatus: 'loading' });
+    bridge.listSnapshotJournal().then(result => {
+      if (!result || result.schemaVersion !== 1 || !['listed', 'unavailable', 'failed'].includes(result.status) || !Array.isArray(result.entries) || result.entries.length > 50) throw new Error('invalid');
+      const seen = new Set();
+      const entries = result.entries.filter(entry => entry && /^[0-9a-f]{40}$/.test(entry.commitSha) && !seen.has(entry.commitSha) && (seen.add(entry.commitSha) || true) && typeof entry.timestamp === 'string' && Number.isFinite(Date.parse(entry.timestamp)) && typeof entry.message === 'string' && entry.message.length >= 1 && entry.message.length <= 160 && !/[\u0000-\u001f\u007f]/.test(entry.message) && /^snapshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{16}\.json$/.test(entry.snapshotId));
+      if (entries.length !== result.entries.length) throw new Error('invalid');
+      this.setState({ journalEntries: entries, journalLoading: false, journalListStatus: result.status, journalInvalidCount: Number.isInteger(result.invalidCount) ? Math.max(0, Math.min(10000, result.invalidCount)) : 0, journalTruncated: result.truncated === true });
+    }).catch(() => this.setState({ journalEntries: [], journalLoading: false, journalListStatus: 'invalid' }));
   }
   persist() {
     try {
@@ -1945,6 +1966,7 @@ class Component extends DCLogic {
     };
     this.pollSystemMetrics();
     this.refreshSnapshots();
+    this.refreshJournal();
     this.sysTimer = setInterval(this.pollSystemMetrics, 4000);
     this.saveTimer = setInterval(() => this.persist(), 4000);
     this.onKey = e => {
@@ -2071,6 +2093,7 @@ class Component extends DCLogic {
       loads: { label: 'Reactor loads', get: () => this.loadQuery || '', set: v => { this.loadQuery = v; this.bump(); } },
       skills: { label: 'Memory skills', get: () => this.skillQuery || '', set: v => { this.skillQuery = v; this.bump(); } },
       snapshots: { label: 'Local snapshot history', get: () => this.snapshotQuery || '', set: v => { this.snapshotQuery = v; this.bump(); } },
+      journal: { label: 'Snapshot revision journal', get: () => this.journalQuery || '', set: v => { this.journalQuery = v; this.bump(); } },
       extapps: { label: 'External apps', get: () => this.extQuery || '', set: v => { this.extQuery = v; this.bump(); } },
       dev: { label: 'Developer workflows', get: () => this.devQuery || '', set: v => { this.devQuery = v; this.bump(); } },
       log: { label: 'Control-room log', get: () => this.logQuery || '', set: v => { this.logQuery = v; this.bump(); } },
@@ -2267,7 +2290,7 @@ class Component extends DCLogic {
     V.rbPalette = mk('palette'); V.rbRows = mk('rows'); V.rbAllApps = mk('allapps');
     V.rbCats = mk('cats'); V.rbPackages = mk('packages'); V.rbDimSum = mk('dimsum');
     V.rbNotifs = mk('notifs'); V.rbRps = mk('rps'); V.rbLoads = mk('loads');
-    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
+    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
     V.rbShown = !!rb.target && this.isShipped('feat.regex');
     V.rbLabel = rb.label;
     const rbField = fields[rb.target] || { get: () => '', set: () => {} };
@@ -2330,6 +2353,7 @@ class Component extends DCLogic {
     V.loadQuery = this.loadQuery || ''; V.setLoadQuery = e => { this.loadQuery = e.target.value; this.bump(); };
     V.skillQuery = this.skillQuery || ''; V.setSkillQuery = e => { this.skillQuery = e.target.value; this.bump(); };
     V.snapshotQuery = this.snapshotQuery || ''; V.setSnapshotQuery = e => { this.snapshotQuery = e.target.value; this.bump(); };
+    V.journalQuery = this.journalQuery || ''; V.setJournalQuery = e => { this.journalQuery = e.target.value; this.bump(); };
     V.extQuery = this.extQuery || ''; V.setExtQuery = e => { this.extQuery = e.target.value; this.bump(); };
     V.devQuery = this.devQuery || ''; V.setDevQuery = e => { this.devQuery = e.target.value; this.bump(); };
     V.logQuery = this.logQuery || ''; V.setLogQuery = e => { this.logQuery = e.target.value; this.bump(); };
@@ -2598,7 +2622,7 @@ class Component extends DCLogic {
         if (!result || result.schemaVersion !== 1 || !allowed.includes(result.status) || typeof result.message !== 'string') {
           this.notify('Local snapshot', 'The snapshot bridge returned an invalid response.' + retry, 'error', true); return;
         }
-        if (result.status === 'created') { this.notify('Local snapshot', result.message, 'success', true); this.refreshSnapshots(); }
+        if (result.status === 'created') { this.notify('Local snapshot', result.message, 'success', true); this.refreshSnapshots(); this.refreshJournal(); }
         else this.notify('Local snapshot', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
       }).catch(() => this.notify('Local snapshot', 'The local snapshot request failed.' + retry, 'error', true));
     };
@@ -3021,6 +3045,14 @@ class Component extends DCLogic {
     V.snapshotsLoading = s.snapshotsLoading;
     V.snapshotStatusText = snapshotStatus === 'loading' ? 'Reading the private local snapshot directory…' : snapshotStatus === 'listed' ? ('Newest valid snapshots · up to 50' + (s.snapshotInvalidCount ? ' · ' + s.snapshotInvalidCount + ' invalid file' + (s.snapshotInvalidCount === 1 ? '' : 's') + ' omitted' : '') + (s.snapshotTruncated ? ' · older valid snapshots omitted' : '')) : snapshotStatus === 'stale' ? 'Not checked yet.' : snapshotStatus === 'unsupported' ? 'Snapshot history is unavailable on this platform.' : snapshotStatus === 'invalid' ? 'The snapshot list response was invalid. Refresh to retry.' : 'Snapshot history could not be read. Refresh to retry.';
     V.snapshotJournalText = s.snapshotJournalStatus === 'available' ? 'Append-only local Git revision journal available · no network remote configured.' : s.snapshotJournalStatus === 'unavailable' ? 'Revision journal unavailable: no existing Git installation was discovered. Snapshots still work.' : s.snapshotJournalStatus === 'failed' ? 'Revision journal failed safely. Snapshots still work; refresh or create another snapshot to retry.' : 'Revision journal availability has not been checked.';
+    const journalStatus = s.journalListStatus;
+    V.journalLoading = s.journalLoading;
+    V.journalListStatusText = journalStatus === 'loading' ? 'Reading validated local commit metadata…' : journalStatus === 'listed' ? ('Newest journal commits · up to 50' + (s.journalInvalidCount ? ' · ' + s.journalInvalidCount + ' invalid entr' + (s.journalInvalidCount === 1 ? 'y' : 'ies') + ' omitted' : '') + (s.journalTruncated ? ' · older commits omitted' : '')) : journalStatus === 'stale' ? 'Not checked yet.' : journalStatus === 'unavailable' ? 'Journal history is unavailable because Git was not discovered.' : journalStatus === 'invalid' ? 'The journal response was invalid. Refresh to retry.' : 'Journal history could not be read. Refresh to retry.';
+    V.refreshJournal = () => this.refreshJournal();
+    const matchingJournal = (s.journalEntries || []).filter(entry => this.match(this.journalQuery, [entry.commitSha, entry.timestamp, entry.message, entry.snapshotId].join(' ')));
+    V.journalItems = matchingJournal.map(entry => ({ message: entry.message, shortSha: entry.commitSha.slice(0, 8), timestamp: entry.timestamp, snapshotId: entry.snapshotId }));
+    V.journalEmpty = !matchingJournal.length;
+    V.journalEmptyText = journalStatus === 'listed' ? ((s.journalEntries || []).length ? 'No journal commit metadata matches this search.' : 'No validated local journal commits exist yet.') : V.journalListStatusText;
     V.refreshSnapshots = () => this.refreshSnapshots();
     const matchingSnapshots = (s.snapshots || []).filter(item => this.match(this.snapshotQuery, [item.createdAt, item.theme, item.lang, item.routeView, item.bytes].join(' ')));
     V.snapshotItems = matchingSnapshots.map(item => ({ createdAt: item.createdAt, meta: item.theme + ' · ' + item.lang + ' · ' + item.routeView + ' · ' + item.bytes + ' bytes', restore: () => this.setState({ snapshotRestoreConfirm: true, snapshotRestoreId: item.id }) }));
@@ -3049,7 +3081,7 @@ class Component extends DCLogic {
         const routeForUi = route => route.id ? { view: route.view, id: route.id, cat: route.id } : { view: route.view };
         this.tabs = state.tabs.map(tab => ({ id: tab.id, label: tab.label, icon: 'tab', route: routeForUi(tab.route) }));
         this.tweaks = Object.fromEntries(state.tweaks.map(entry => [entry.id, entry.value]));
-        this.setState({ theme: state.theme, lang: state.lang, funnyEn: state.funnyEn, funnyZh: state.funnyZh, route: routeForUi(state.route), snapshotRestoring: false, snapshotRestoreConfirm: false, snapshotRestoreId: null }, () => { this.persist(); this.refreshSnapshots(); });
+        this.setState({ theme: state.theme, lang: state.lang, funnyEn: state.funnyEn, funnyZh: state.funnyZh, route: routeForUi(state.route), snapshotRestoring: false, snapshotRestoreConfirm: false, snapshotRestoreId: null }, () => { this.persist(); this.refreshSnapshots(); this.refreshJournal(); });
         this.notify('Restore snapshot', 'The snapshot was restored after a fresh safety snapshot was created.', 'success', true);
       }).catch(error => {
         this.setState({ snapshotRestoring: false });

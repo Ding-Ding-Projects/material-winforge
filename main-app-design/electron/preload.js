@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('winforge', {
   emptyRecycleBin: () => ipcRenderer.invoke('winforge:empty-recycle-bin'),
   createSnapshot: payload => ipcRenderer.invoke('winforge:create-snapshot', payload),
   listSnapshots: () => ipcRenderer.invoke('winforge:list-snapshots'),
+  listSnapshotJournal: () => ipcRenderer.invoke('winforge:list-snapshot-journal'),
   restoreSnapshot: id => ipcRenderer.invoke('winforge:restore-snapshot', id),
   wingetUpgrade: ids => ipcRenderer.invoke('winforge:winget-upgrade', ids),
   cancelWingetUpgrade: () => ipcRenderer.invoke('winforge:cancel-winget-upgrade'),

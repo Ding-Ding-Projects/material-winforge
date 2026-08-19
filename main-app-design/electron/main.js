@@ -368,13 +368,49 @@ async function discoverGitExecutable() {
   return executable;
 }
 
-function runLocalGit(executable, args, cwd) {
+function runLocalGit(executable, args, cwd, outputLimit = 4096) {
   return new Promise((resolve) => {
     execFile(executable, args, { cwd, windowsHide: true, timeout: 10_000, maxBuffer: 128 * 1024, encoding: 'utf8', shell: false }, (error, stdout) => {
       if (error) { resolve({ ok: false, output: '' }); return; }
-      resolve({ ok: true, output: String(stdout || '').slice(0, 4096) });
+      resolve({ ok: true, output: String(stdout || '').slice(0, outputLimit) });
     });
   });
+}
+
+async function listSnapshotJournal() {
+  const executable = await discoverGitExecutable();
+  if (!executable) return { schemaVersion: 1, status: 'unavailable', entries: [], invalidCount: 0, truncated: false };
+  const journal = path.join(app.getPath('userData'), 'snapshot-journal');
+  try {
+    const gitDirectory = await fs.promises.stat(path.join(journal, '.git'));
+    if (!gitDirectory.isDirectory()) return { schemaVersion: 1, status: 'listed', entries: [], invalidCount: 0, truncated: false };
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return { schemaVersion: 1, status: 'listed', entries: [], invalidCount: 0, truncated: false };
+    return { schemaVersion: 1, status: 'failed', entries: [], invalidCount: 0, truncated: false };
+  }
+  const remotes = await runLocalGit(executable, ['remote'], journal);
+  if (!remotes.ok || remotes.output.trim()) return { schemaVersion: 1, status: 'failed', entries: [], invalidCount: 0, truncated: false };
+  const result = await runLocalGit(executable, ['log', '--max-count=51', '--date=iso-strict', '--format=%H%x1f%cI%x1f%s', '--name-only', '--', 'entries'], journal, 64 * 1024);
+  if (!result.ok) return { schemaVersion: 1, status: 'failed', entries: [], invalidCount: 0, truncated: false };
+  const lines = result.output.split(/\r?\n/);
+  const entries = [];
+  let invalidCount = 0;
+  let validCount = 0;
+  for (let index = 0; index < lines.length;) {
+    const header = lines[index++].trim();
+    if (!header) continue;
+    const parts = header.split('\x1f');
+    let entryPath = '';
+    while (index < lines.length && !lines[index].trim()) index += 1;
+    if (index < lines.length && !lines[index].includes('\x1f')) entryPath = lines[index++].trim().replace(/\\/g, '/');
+    const basename = entryPath.startsWith('entries/') ? entryPath.slice(8) : '';
+    const snapshotId = basename.endsWith('.journal.json') ? `${basename.slice(0, -13)}.json` : '';
+    const parsedDate = parts.length === 3 ? new Date(parts[1]) : null;
+    if (parts.length !== 3 || !/^[0-9a-f]{40}$/.test(parts[0]) || !parsedDate || !Number.isFinite(parsedDate.getTime()) || !parts[2] || parts[2].length > 160 || /[\u0000-\u001f\u007f]/.test(parts[2]) || !SNAPSHOT_BASENAME.test(snapshotId)) { invalidCount += 1; continue; }
+    validCount += 1;
+    if (entries.length < 50) entries.push({ commitSha: parts[0], timestamp: parsedDate.toISOString(), message: parts[2], snapshotId });
+  }
+  return { schemaVersion: 1, status: 'listed', entries, invalidCount: Math.min(10_000, invalidCount), truncated: validCount > entries.length };
 }
 
 async function appendSnapshotJournal(id, createdAt, state, bytes) {
@@ -738,6 +774,7 @@ ipcMain.handle('winforge:restart-explorer', () => restartExplorer());
 ipcMain.handle('winforge:empty-recycle-bin', () => emptyRecycleBin());
 ipcMain.handle('winforge:create-snapshot', (_event, payload) => createLocalSnapshot(payload));
 ipcMain.handle('winforge:list-snapshots', () => listLocalSnapshots());
+ipcMain.handle('winforge:list-snapshot-journal', () => listSnapshotJournal());
 ipcMain.handle('winforge:restore-snapshot', (_event, id) => restoreLocalSnapshot(id));
 ipcMain.handle('winforge:winget-upgrade', (_event, ids) => upgradeWingetPackages(ids));
 ipcMain.handle('winforge:cancel-winget-upgrade', () => {
