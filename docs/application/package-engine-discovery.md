@@ -20,7 +20,7 @@ Missing executable candidates produce **Not installed**. A bounded discovery tim
 
 ## Verification
 
-The accelerated pass built and packaged the Electron application. Tests, live engine discovery, UI interaction, package-manager execution, installer execution, and screenshots were not run, so runtime discovery and presentation remain unverified.
+The c144163 packaged artifact was exercised on a fresh hidden desktop. The actual bridge returned bounded engine states and the Packages surface rendered Available, Not installed, and Unavailable rows with a Preview-only queue. Package-manager execution, cancellation, installer execution, accessibility variants, tests, and screenshots remain unverified.
 
 ## Suggested articles
 

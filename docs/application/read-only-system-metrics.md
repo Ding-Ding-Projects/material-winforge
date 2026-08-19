@@ -22,7 +22,7 @@ The bridge accepts no renderer arguments. It returns no paths, interface names, 
 
 ## Verification
 
-The accelerated pass built and packaged the Electron application. Tests, runtime interaction, UI inspection, and screenshots were not run, so live metric values and visual presentation remain unverified.
+The c144163 packaged artifact was exercised on a fresh hidden desktop. Real CPU, memory, app-data disk, and connected-network values rendered, and **Read-only metrics summary** produced its factual non-blocking notification, including the no-DISM and no-operating-system-change disclosure. Tests, broader accessibility variants, installer execution, and screenshots remain unverified.
 
 ## Suggested articles
 
