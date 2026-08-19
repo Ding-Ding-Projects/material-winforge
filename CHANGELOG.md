@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Protected the Pages Settings reset and its command-palette route with one blocking, localized two-acknowledgement and full-slider confirmation that preserves personal vocabulary and records completion in Settings history.
+
 - Added command-palette search parity on the Pages site: literal search remains the default, while an adjacent full regex builder owns explicit mode, flags, samples, matches, and invalid-pattern feedback.
 
 - Added bounded browser-local Settings history for the eight site preferences and Global/project ownership, with dedicated search, ISO date and action filters, Markdown export, and confirmed append-only restore.
