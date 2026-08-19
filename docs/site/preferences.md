@@ -14,7 +14,7 @@ The Settings tab changes the site immediately and stores the selected presentati
 - A strict local personal-vocabulary JSON cache with semantic load/replace/clear controls
 - One-action reset to shipped defaults
 
-The chosen edge persists in the versioned browser-local Preferences record and applies immediately. Left and right use a vertical tablist with <kbd>ArrowUp</kbd>/<kbd>ArrowDown</kbd>; top and bottom use a horizontal tablist with <kbd>ArrowLeft</kbd>/<kbd>ArrowRight</kbd>. <kbd>Home</kbd> and <kbd>End</kbd> select the first and last tab at every edge. Focus follows selection.
+The chosen edge persists in the versioned browser-local Preferences record and applies immediately. Left and right use a vertical tablist with <kbd>ArrowUp</kbd>/<kbd>ArrowDown</kbd>; top and bottom use a horizontal tablist with <kbd>ArrowLeft</kbd>/<kbd>ArrowRight</kbd>. <kbd>Home</kbd> and <kbd>End</kbd> select the first and last tab at every edge. Focus follows selection. Reordering uses separate labelled move controls and does not replace these navigation keys.
 
 At widths of 760 pixels or less, every dock choice renders as a compact horizontal strip at the top so the content keeps the full available width. The accessibility orientation changes to horizontal with the rendered layout, so the matching left/right keys apply. The persisted desktop-width edge remains unchanged and returns when the viewport widens.
 
@@ -22,13 +22,15 @@ When the rendered strip cannot fit all six destinations, an **All tabs** afforda
 
 Each tab has a keyboard-reachable pin toggle, and the command palette can pin or unpin the current tab. Pin choices are validated against the six shipped tab identifiers and persist in the same versioned browser-local Preferences record. Pinned tabs move into a stable leading region that remains available when ordinary tabs overflow. Both the strip and **All tabs** surface label pinned state; pinned entries carry an explicit bulk-close protection marker for future close actions.
 
-This slice does not implement reordering, groups, bulk close, or the remaining group/window discovery searches; those remain separate incomplete contracts rather than implied behavior.
+Each tab also has keyboard-reachable move controls whose direction follows the rendered axis. The complete six-tab order persists locally and drives the strip, **All tabs**, and command-palette destination order. Moves stay within the tab's current pinned or ordinary region, preserving the stable pinned boundary and focus. See [Tab reordering](tab-reordering.md).
+
+This slice does not implement groups, bulk close, or the remaining group/window discovery searches; those remain separate incomplete contracts rather than implied behavior.
 
 Tone controls style voice, not facts. Preview boundaries, release state, version data, platform names, checksums, and warning facts remain exact.
 
 ## Configuration
 
-Preferences use the versioned browser-storage key `winforge-material-preview-preferences-v1` and an internal `schemaVersion: 1` record. The shipped defaults are English, English tone 2, Cantonese tone 3, system theme, comfortable density, left tabs, no pinned tabs, accent `#2f7d45`, and decorative message emoji enabled. Legacy records without the pin list migrate to an empty list; malformed, duplicate, unknown, or oversized pin lists are rejected with the rest of the record.
+Preferences use the versioned browser-storage key `winforge-material-preview-preferences-v1` and an internal `schemaVersion: 1` record. The shipped defaults are English, English tone 2, Cantonese tone 3, system theme, comfortable density, left tabs, no pinned tabs, the shipped six-tab order, accent `#2f7d45`, and decorative message emoji enabled. Legacy records without the pin list migrate to an empty list, and records without an order migrate to the shipped order. Malformed pin lists or incomplete, duplicate, or unknown order entries are rejected with the rest of the record.
 
 Emoji decoration never changes notification/status text, controls, accessible names, release facts, checksums, platform names, or warnings. English, Cantonese, and bilingual Settings copy names the same preference.
 
@@ -53,3 +55,4 @@ The initial source implements loading, persistence, live application, and reset 
 - [Landing page](landing-page.md)
 - [Search and regex builder](search-and-regex.md)
 - [Tab pinning](tab-pinning.md)
+- [Tab reordering](tab-reordering.md)

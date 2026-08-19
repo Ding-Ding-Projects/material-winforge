@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added persisted local ordering for the six Pages destinations, with axis-aware keyboard-accessible move controls, stable pinned-region boundaries, focus preservation, and current-order All-tabs and command-palette results; groups and bulk close remain outside this slice.
 - Added persisted local tab pinning for the six Pages destinations, including keyboard-reachable strip and overflow actions, a stable pinned region, clear protected-state labels, and command-palette control; reordering, groups, and bulk close remain outside this slice.
 
 - Added measured Pages tab overflow for the existing six destinations, with a bounded local all-tabs surface, plain-text-first search, and an independent anchored JavaScript regex builder; reordering and grouping remain outside that slice.
