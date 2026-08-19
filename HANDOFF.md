@@ -11,6 +11,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 ## Implemented source
 
 - The Pages command palette now renders real bounded inline controls for language, separate English and Cantonese funny levels, theme, all four tab edges, density, accent color, message emoji, app-logo preset, and shared confirmed reset. Each control reuses its owning Settings setter; a separate result action clears the Settings filter and focuses the exact owning card.
+- Follow-up repairs add version-2 bounded logo snapshots and restore, shared history-aware preset/upload/reset mutations, palette-to-reset modal ownership transfer, Escape propagation from inline controls, action-accurate destination semantics, opener restoration with a contained focus loop and inert background, and flexible nested scrolling for short or magnified viewports. Personal vocabulary and logo bytes in Markdown exports remain excluded.
 - Material Design 3 site shell with tabs dockable to the left, right, top, or bottom for Home, Feature map, Documentation, Settings, Changelog, and Status. Vertical and horizontal keyboard direction follows the rendered orientation; narrow widths use a top horizontal fallback without changing the persisted edge.
 - Local English, playful Hong Kong-style Cantonese, and bilingual presentation.
 - Separate five-level English and Cantonese tone controls.
@@ -41,6 +42,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 ## Verification state
 
 - Rich command-palette Settings slice: Sites and Pages builds plus vocabulary-currency, publication, and diff preflights are the only requested verification. Tests, lint, reviews, audits, runtime interaction, and captures were not run.
+- Rich command-palette repair: source compilation through the sequential Sites and Pages builds plus vocabulary-currency, publication, and diff preflights are the only requested evidence; modal and history behavior remains runtime-unverified.
 - Tests: not run in the initial ultra-speed pass.
 - Lint and static analysis: not run.
 - Desktop runtime interaction: one bounded cheap headless session exercised the packaged `b52cf34` banner, live read-only metrics, and metrics-summary action; destructive and package-mutation actions were not invoked.
