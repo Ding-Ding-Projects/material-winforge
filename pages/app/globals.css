@@ -874,6 +874,49 @@ kbd {
   padding: 10px 12px;
   border-radius: 14px;
 }
+.master-tab-search-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.master-tab-search-controls > .search-field {
+  flex: 1 1 auto;
+}
+.master-tab-search-meta {
+  min-height: 1.2em;
+  margin: 8px 0;
+  color: var(--on-surface-variant);
+  font-size: 0.78rem;
+}
+.master-tab-results {
+  display: grid;
+  gap: 6px;
+}
+.master-tab-results > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 14px;
+  background: var(--surface-container);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.master-tab-results > button:hover,
+.master-tab-results > button:focus-visible {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+.master-tab-results > button > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+.master-tab-results small {
+  color: var(--on-surface-variant);
+}
 .tab-group-create {
   display: flex;
   align-items: center;
@@ -2834,6 +2877,10 @@ footer {
   .tab-group-search,
   .tab-group-settings-search,
   .bulk-close-search {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .master-tab-search-controls {
     align-items: stretch;
     flex-direction: column;
   }

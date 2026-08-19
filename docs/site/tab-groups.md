@@ -13,6 +13,8 @@ Each tab exposes **Move… into group…**. The anchored picker lists current gr
 
 Every rendered group has its own local tab search with an independent anchored JavaScript regex builder. Search state is transient, plain text is the default, and filtering never collapses the group or changes stored membership. The Settings group-management card has a separate group-name/member-count search and builder with an explicit no-match state.
 
+Settings also provides the fourth discovery surface: a separate master-tab search across every tab owned by this site surface. Each result names its group and pinned/ordinary status and focuses the real tab without changing the search, group, or pin state. This site owns one browser surface, so “all windows” is explicitly bounded to that single site instance.
+
 The All tabs surface also provides **Close tabs containing text** and **Close tabs not containing text**. Both actions share the same bounded local query and anchored builder predicate, show the eligible count and a tab-name preview, exclude pinned tabs unless the user explicitly includes them, protect the current tab, and require two acknowledgements plus a full-range slider before closing. Escape, Emergency exit, and scrim cancellation leave the tab state unchanged.
 
 Pinned tabs remain exclusively in the stable pinned region. Pinning a grouped tab removes its group membership, persisted records discard pinned membership during normalization, and move attempts cannot place a pinned tab into a group. Group member counts therefore describe exactly the members rendered in the ordinary region.

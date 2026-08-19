@@ -1218,6 +1218,13 @@ export default function SiteShell({
   const [groupSettingsSample, setGroupSettingsSample] = useState(
     "Work\nReference\nLater",
   );
+  const [masterTabQuery, setMasterTabQuery] = useState("");
+  const [masterTabRegex, setMasterTabRegex] = useState(false);
+  const [masterTabBuilderOpen, setMasterTabBuilderOpen] = useState(false);
+  const [masterTabFlags, setMasterTabFlags] = useState({ i: true, m: false });
+  const [masterTabSample, setMasterTabSample] = useState(
+    "Home\nFeature map\nDocumentation\nSettings\nChangelog\nStatus",
+  );
   const [changelogQuery, setChangelogQuery] = useState("");
   const [changelogRegex, setChangelogRegex] = useState(false);
   const [changelogFrom, setChangelogFrom] = useState("");
@@ -2363,6 +2370,10 @@ export default function SiteShell({
       "groups",
       `Tab groups create rename remove collapse expand move ${prefs.tabGroups.groups.map((group) => group.name).join(" ")}`,
     ],
+    [
+      "master-tabs",
+      `Master tab search all open tabs windows groups pinned ${prefs.tabOrder.join(" ")}`,
+    ],
     ["density", `Density comfortable compact ${prefs.density}`],
     ["accent", `Accent color ${prefs.accent}`],
     [
@@ -2741,6 +2752,41 @@ export default function SiteShell({
           language,
         );
   const orderedTabs = [...pinnedTabs, ...ordinaryTabs];
+  let masterTabPattern: RegExp | null = null;
+  let masterTabPatternError = "";
+  if (masterTabRegex && masterTabQuery)
+    try {
+      masterTabPattern = new RegExp(
+        masterTabQuery,
+        `${masterTabFlags.i ? "i" : ""}${masterTabFlags.m ? "m" : ""}`,
+      );
+    } catch (error) {
+      masterTabPatternError =
+        error instanceof Error ? error.message : "Invalid regular expression";
+    }
+  const masterTabResults = orderedTabs.filter((tab) => {
+    const groupName =
+      prefs.tabGroups.groups.find((group) => group.tabs.includes(tab.id))?.name ??
+      "Ungrouped";
+    const text = `${tab.en} ${tab.yue} ${groupName} ${prefs.pinnedTabs.includes(tab.id) ? "Pinned" : "Ordinary"}`;
+    return (
+      !masterTabQuery ||
+      (masterTabRegex
+        ? !!masterTabPattern?.test(text)
+        : text.toLocaleLowerCase().includes(masterTabQuery.toLocaleLowerCase()))
+    );
+  });
+  const masterTabMatches =
+    masterTabRegex && masterTabQuery && !masterTabPatternError
+      ? Array.from(
+          masterTabSample.matchAll(
+            new RegExp(
+              masterTabQuery,
+              `${masterTabFlags.i ? "i" : ""}${masterTabFlags.m ? "m" : ""}g`,
+            ),
+          ),
+        ).slice(0, 50)
+      : [];
   type PaletteCommand = {
     id: string;
     label: string;
@@ -3206,6 +3252,16 @@ export default function SiteShell({
         openSetting("tab-group-settings");
       },
     });
+  });
+  commands.push({
+    id: "master-tab-search",
+    label: dual("Search all open tabs", "搜尋所有開啟中分頁", language),
+    detail: dual(
+      "Find tabs across this site surface with group and pinned context",
+      "喺呢個網站介面按群組同釘選狀態搜尋分頁",
+      language,
+    ),
+    action: () => openSetting("master-tab-search"),
   });
   let palettePattern: RegExp | null = null;
   let palettePatternError = "";
@@ -5340,6 +5396,103 @@ export default function SiteShell({
                     language,
                   )}
                 </p>
+              </SettingCard>
+              <SettingCard
+                id="master-tab-search"
+                hidden={!settingsVisible("master-tabs")}
+                title={dual("Master tab search", "總分頁搜尋", language)}
+                description={dual(
+                  "Search every open tab owned by this site surface, including group and pinned context.",
+                  "搜尋呢個網站介面擁有嘅所有開啟中分頁，包括群組同釘選資料。",
+                  language,
+                )}
+                provenance={dual(
+                  "Search state stays transient and does not change tab state.",
+                  "搜尋狀態只係暫時，唔會改分頁狀態。",
+                  language,
+                )}
+              >
+                <div className="master-tab-search-controls">
+                  <label className="search-field" htmlFor="master-tab-search-input">
+                    <span aria-hidden="true">⌕</span>
+                    <input
+                      id="master-tab-search-input"
+                      maxLength={128}
+                      value={masterTabQuery}
+                      onChange={(event) => setMasterTabQuery(event.target.value)}
+                      placeholder={dual("Search all open tabs", "搜尋所有開啟中分頁", language)}
+                      aria-label={dual("Search all open tabs", "搜尋所有開啟中分頁", language)}
+                      aria-invalid={Boolean(masterTabPatternError)}
+                    />
+                  </label>
+                  <div className="builder-anchor">
+                    <button
+                      type="button"
+                      className={masterTabRegex ? "active" : ""}
+                      onClick={() => setMasterTabBuilderOpen((value) => !value)}
+                      aria-expanded={masterTabBuilderOpen}
+                      aria-controls="master-tab-regex"
+                    >
+                      {dual("Regex builder", "正規表示式工具", language)}
+                    </button>
+                    {masterTabBuilderOpen && (
+                      <RegexBuilder
+                        builderId="master-tab-regex"
+                        language={language}
+                        query={masterTabQuery}
+                        setQuery={(value) => {
+                          setMasterTabQuery(value.slice(0, 128));
+                          setMasterTabRegex(true);
+                        }}
+                        regexMode={masterTabRegex}
+                        setRegexMode={setMasterTabRegex}
+                        flags={masterTabFlags}
+                        setFlags={setMasterTabFlags}
+                        error={masterTabPatternError}
+                        sample={masterTabSample}
+                        setSample={setMasterTabSample}
+                        matches={masterTabMatches}
+                        announce={announce}
+                        close={() => setMasterTabBuilderOpen(false)}
+                      />
+                    )}
+                  </div>
+                </div>
+                <p className="master-tab-search-meta" aria-live="polite">
+                  {masterTabPatternError ||
+                    `${masterTabResults.length} ${dual("matching tabs", "個符合分頁", language)}`}
+                </p>
+                <div className="master-tab-results">
+                  {masterTabResults.map((tab) => {
+                    const groupName =
+                      prefs.tabGroups.groups.find((group) => group.tabs.includes(tab.id))?.name ??
+                      dual("Ungrouped", "未分組", language);
+                    const pinned = prefs.pinnedTabs.includes(tab.id);
+                    return (
+                      <button
+                        type="button"
+                        key={tab.id}
+                        onClick={() => selectTab(tab.id, `tab-${tab.id}`)}
+                        aria-label={dual(
+                          `${tab.en}; ${groupName}; ${pinned ? "Pinned" : "Ordinary"}`,
+                          `${tab.yue}；${groupName}；${pinned ? "已釘選" : "普通"}`,
+                          language,
+                        )}
+                      >
+                        <span className="tab-icon" aria-hidden="true">{tab.icon}</span>
+                        <span>
+                          <strong>{dual(tab.en, tab.yue, language)}</strong>
+                          <small>{dual(`${groupName} · ${pinned ? "Pinned" : "Ordinary"}`, `${groupName} · ${pinned ? "已釘選" : "普通"}`, language)}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {!masterTabResults.length && (
+                    <p className="empty-state" role="status">
+                      {dual("No open tabs match this search.", "冇開啟中分頁符合呢個搜尋。", language)}
+                    </p>
+                  )}
+                </div>
               </SettingCard>
               <SettingCard
                 hidden={!settingsVisible("density")}

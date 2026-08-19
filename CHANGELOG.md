@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added the separate master-tab search in Settings with its own bounded query/regex builder, contextual group and pinned-state results, and exact tab focus routing.
 - Added bounded per-group appearance editing from the strip and Settings: a persisted icon, text color, background color, live preview, and per-group reset, with full typography/color translation remaining explicitly separate.
 - Added one command-palette destination per group appearance editor, targeting the owning Settings card without sharing editor state between groups.
 - Fixed the published Pages first render to hydrate from the build-time release manifest, so an already-published installer is not briefly shown as unavailable before client JavaScript starts.
