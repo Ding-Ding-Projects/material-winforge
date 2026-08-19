@@ -31,7 +31,9 @@ Code signing is prohibited. Published Windows artifacts remain unsigned and must
 
 Source compilation or packaging is not runtime proof. Verification must eventually drive the real packaged artifact through the approved hidden desktop route, confirm the actual integration result through an independent channel, and capture the exact surface at the candidate commit.
 
-The current package build does not claim tests, runtime interaction, installer execution, screenshots, or visual review. The stale all-sample banner was discovered during packaged runtime inspection, but this source repair was not exercised in a subsequent runtime session.
+The first packaged runtime capture at `c0a5d72` discovered that the persistent banner still described every action as sample-only. The `b52cf34` repair was then launched as a packaged artifact on a fresh hidden desktop. One product window with class `Chrome_WidgetWin_1` was resolved; the corrected bounded-live banner was visually inspected; real CPU, memory, app-data-disk, and network values rendered; and the read-only metrics summary was clicked. Cleanup closed the owned process tree and hidden desktop.
+
+That session verifies the repaired banner and the observed read-only metrics surface only. It does not verify installer execution, update installation, destructive actions, package mutation, tests, lint, type checking, or broader visual conformance.
 
 ## Suggested articles
 

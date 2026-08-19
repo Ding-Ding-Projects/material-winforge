@@ -31,13 +31,14 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 - Tests: not run in the initial ultra-speed pass.
 - Lint and static analysis: not run.
-- Desktop runtime interaction: not run.
+- Desktop runtime interaction: one bounded cheap headless session exercised the packaged `b52cf34` banner, live read-only metrics, and metrics-summary action; destructive and package-mutation actions were not invoked.
 - Installer execution: not run.
-- Screenshots or visual review: not run.
+- Visual evidence: the repaired banner and rendered read-only metrics were visually inspected in the fresh hidden-desktop session. Broader surface coverage remains unverified, and no local capture path is published here.
 - Worker-target site build: final `npm --prefix pages run build:sites` exited 0 under verified official Node 22.23.2 after the exact returned Sites project identifier was recorded.
 - Static GitHub Pages build: final `npm --prefix pages run build:pages` exited 0 under the same runtime, classified `/` as static, prerendered it with zero skipped routes, and wrote `pages/dist/client/index.html` plus `.nojekyll` and local public assets.
 - Social assets: `pages/public/og.png` and root `social-preview.png` are byte-identical 1200×630 PNG files with SHA-256 `6720a5713878e429a42a7c02f75aa3c2d0aa7fae053ce634f1e03a122536ea8d`.
 - Deployment and release: not yet claimed by this handoff.
+- Packaged banner and metrics runtime evidence: the `b52cf34` artifact was launched on a fresh hidden desktop, its single product window was resolved by the `Chrome_WidgetWin_1` class, and the repaired bounded-live banner was visually inspected. Real CPU, memory, app-data-disk, and network values rendered, and the read-only metrics summary action was clicked. The owned process tree and hidden desktop were then closed. No destructive action was invoked.
 
 ## Next owner actions
 
@@ -68,3 +69,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Reviewed Winget upgrades now support only `Git.Git`, `Microsoft.PowerShell`, and `GitHub.cli`; review, execution, progress, cancellation, timeout, and partial queue handling were packaged but not exercised.
 - Empty Recycle Bin is a real destructive action behind its own super-confirmation surface; the action, cancellation paths, permanent deletion, and completion state were deliberately not exercised.
 - Packaged runtime inspection found the prior top banner still claiming every action was sample-only. The copy was repaired in source and packaged, but the repaired banner was not reopened or visually inspected in the running artifact.
+- The first packaged runtime capture at `c0a5d72` exposed the stale all-sample banner. The follow-up `b52cf34` package replaced it, and a fresh cheap headless session visually confirmed the repaired banner and live read-only metrics. This evidence does not verify the destructive or package-mutation actions.

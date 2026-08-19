@@ -38,4 +38,5 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 
 - `npm --prefix pages run build:sites` completed under Node 22.23.2 after the exact Sites project record was configured.
 - `npm --prefix pages run build:pages` completed under Node 22.23.2, statically prerendering `/` into `pages/dist/client` with zero skipped routes.
+- A fresh cheap headless session launched the packaged `b52cf34` artifact, resolved one `Chrome_WidgetWin_1` product window, visually confirmed the repaired bounded-live banner, rendered real CPU, memory, app-data-disk, and network values, clicked the read-only metrics summary, and closed the owned process tree and hidden desktop. The first `c0a5d72` runtime capture had exposed the stale banner that `b52cf34` repaired.
 - Tests, lint, runtime interaction, installer execution, visual review, and screenshots were not part of the initial ultra-speed bootstrap.
