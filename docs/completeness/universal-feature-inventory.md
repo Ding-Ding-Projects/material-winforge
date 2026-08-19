@@ -32,7 +32,7 @@ The active ultra-speed pass prohibited tests and captures. Accordingly, **no row
 | Unlock ladder | Not proven | No authentication; canonical equivalent not implemented | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Built-in authenticator and local QR registration | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Local Git-backed history | Partial desktop source claim, not exercised | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
-| Changelog viewer with filters and commit links | Not proven | Missing; repository changelog only | `CHANGELOG.md` | Missing | Unverified | Unverified | Missing | Incomplete |
+| Changelog viewer with filters and commit links | Source present for five factual releases, text/regex/date filters, copy/export | Matching Changelog tab and local controls | `docs/application/changelog-viewer.md`, `docs/site/changelog.md` | Site navigation/filter copy English/Cantonese/bilingual; desktop English | Unverified | Unverified | Missing | Incomplete |
 | Shared Status Hub | Not proven | Local manifest status cards only; Hub integration missing | Missing | Partial | Unverified | Unverified | Missing | Incomplete |
 | Universal file converter | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Local Ollama suite manager | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |

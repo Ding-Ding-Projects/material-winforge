@@ -89,3 +89,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Personal-vocabulary file selection, strict validation failures, reload persistence, replacement, clear, command-palette routing, and five-string rendering coverage were built but not exercised in the packaged runtime.
 - Desktop/site emoji-preference migration, global/project inheritance, Settings controls, snapshot schema 3, and aria-hidden notification/snackbar/status decoration were built but not exercised in the packaged runtime.
 - Site personal-vocabulary selection, strict parsing, last-valid-cache preservation, reload persistence, five-string replacement, clear, and palette focus were built but not exercised in a browser runtime.
+- Desktop/site changelog navigation, static published catalogue, text/regex/date filtering, no-match, clipboard copy, Markdown export, and commit links were built but not exercised in runtime artifacts.

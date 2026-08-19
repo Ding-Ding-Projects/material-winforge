@@ -558,6 +558,17 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       </div>
       </sc-if>
 
+      <sc-if value="{{ isChangelog }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px 32px 48px;max-width:980px;animation:wf-in .32s var(--emph) both">
+        <h1 style="margin:0;font-size:32px;font-weight:400">Changelog</h1>
+        <p style="margin:6px 0 18px;color:var(--md-sys-color-on-surface-variant)">Published WinForge releases with exact dates and commit links. This catalogue is bundled and makes no network request.</p>
+        <div style="display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;margin-bottom:12px;border-radius:999px;background:var(--md-sys-color-surface-container-high)"><span class="ms" aria-hidden="true">search</span><input value="{{ changelogQuery }}" onInput="{{ setChangelogQuery }}" maxlength="128" aria-label="Search changelog" placeholder="Search version, category, or summary" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbChangelog }}" aria-label="Open changelog regex builder" title="Advanced regex builder" style="width:36px;height:36px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms">regular_expression</span></button></div>
+        <div style="display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-bottom:16px"><label style="display:flex;flex-direction:column;gap:5px;font-size:12px">From date<input type="date" value="{{ changelogFrom }}" onInput="{{ setChangelogFrom }}" aria-label="Changelog start date" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"></label><label style="display:flex;flex-direction:column;gap:5px;font-size:12px">To date<input type="date" value="{{ changelogTo }}" onInput="{{ setChangelogTo }}" aria-label="Changelog end date" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"></label><button onClick="{{ copyChangelog }}" disabled="{{ changelogEmpty }}" style="height:40px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Copy filtered view</button><button onClick="{{ exportChangelog }}" disabled="{{ changelogEmpty }}" style="height:40px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)">Export Markdown</button></div>
+        <sc-if value="{{ changelogEmpty }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding:18px;border:1px dashed var(--md-sys-color-outline);border-radius:12px;color:var(--md-sys-color-on-surface-variant)">No published release matches the current text and ISO date range.</div></sc-if>
+        <div style="display:flex;flex-direction:column;gap:12px"><sc-for list="{{ changelogEntries }}" as="entry" hint-placeholder-count="5"><article style="padding:18px;border-radius:16px;background:var(--md-sys-color-surface-container-low)"><div style="display:flex;justify-content:space-between;gap:12px"><h2 style="margin:0;font-size:18px">{{ entry.version }}</h2><time style="font-family:'Roboto Mono',monospace;font-size:12px">{{ entry.date }}</time></div><div style="margin:8px 0 5px;color:var(--md-sys-color-primary);font-weight:500">{{ entry.category }}</div><p style="margin:0 0 10px">{{ entry.summary }}</p><a href="{{ entry.commitUrl }}" style="color:var(--md-sys-color-primary);font-family:'Roboto Mono',monospace">{{ entry.shortSha }}</a></article></sc-for></div>
+      </div>
+      </sc-if>
+
       <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
       <div style="padding:20px 32px 48px;max-width:880px;animation:wf-in .32s var(--emph) both">
         <h1 style="margin:0;font-size:32px;font-weight:400">Settings</h1>
@@ -1703,6 +1714,7 @@ const RAIL = [
   { id: 'apps', label: 'Apps', icon: 'rocket_launch' },
   { id: 'terminal', label: 'Dev', icon: 'terminal' },
   { id: 'memory', label: 'Preview data', icon: 'dataset' },
+  { id: 'changelog', label: 'Changelog', icon: 'history' },
   { id: 'handoff', label: 'Handoff', icon: 'checklist' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
@@ -1710,6 +1722,13 @@ const RAIL = [
 const PKG_VIEWS = ['Discover', 'Updates', 'Installed', 'Bundles', 'Sources', 'Ignored', 'Setup', 'Settings', 'Operations'];
 const APP_SETTING_KEYS_V1 = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
 const APP_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS_V1, 'showEmojis']);
+const CHANGELOG_ENTRIES = Object.freeze([
+  { version: 'v1.0.35', date: '2026-08-19', category: 'Release', summary: 'Add local personal vocabulary to the site', sha: '0221bcf0d1ef46378a080c2ca98b3f5b2f5740b6' },
+  { version: 'v1.0.34', date: '2026-08-19', category: 'Release', summary: 'Align project settings completeness inventory', sha: 'af2fb6d24fb265a49125c4a398b8d3719e5b4492' },
+  { version: 'v1.0.33', date: '2026-08-19', category: 'Release', summary: 'Add bounded personal vocabulary loading', sha: '5eb2c2f110ca3ab33b6d95b6f227cbc9ca818ead' },
+  { version: 'v1.0.32', date: '2026-08-19', category: 'Release', summary: 'Formalize the app-wide settings allowlist', sha: 'f2f7305c4f24a4f0373a7489ee2af4cd3534c505' },
+  { version: 'v1.0.31', date: '2026-08-19', category: 'Release', summary: 'Record corrected Settings route evidence', sha: '5c363222fe118c357eab35ff4884b8240965cb4c' },
+]);
 const PKG_ENGINES = [
   { id: 'winget', label: 'WinGet', icon: 'window' }, { id: 'scoop', label: 'Scoop', icon: 'water_drop' },
   { id: 'choco', label: 'Chocolatey', icon: 'cookie' }, { id: 'pip', label: 'pip', icon: 'code' },
@@ -1828,6 +1847,7 @@ const SHIP_ITEMS = [
   { id: 'nav.apps', group: 'Shell', label: 'External App Launcher', dod: 'Fifteen data-only manifests with winget chains and manual executable locator.', where: 'Navigation rail · Apps', def: true },
   { id: 'nav.terminal', group: 'Shell', label: 'Developer workflow', dod: 'Embedded terminal with eight parameterised, argument-vector workflows.', where: 'Navigation rail · Dev', def: true },
   { id: 'nav.memory', group: 'Local tools', label: 'Preview Data', dod: 'Sample datasets, bundled resources and local-only preferences are labelled as preview content.', where: 'Navigation rail · Preview data', def: true },
+  { id: 'nav.changelog', group: 'Delivery', label: 'Changelog', dod: 'Published release catalogue with exact dates, commits, bounded search/date filtering, copy and Markdown export.', where: 'Navigation rail · Changelog', def: true },
   { id: 'nav.settings', group: 'Shell', label: 'Settings', dod: 'Appearance, language mode, funny levels and local-state controls persist.', where: 'Navigation rail · Settings', def: true },
   { id: 'nav.handoff', group: 'Delivery', label: 'Handoff checklist', dod: 'Every feature lists its definition of done and only appears in the app once ticked off.', where: 'Navigation rail · Handoff', def: true },
   { id: 'surface.cake', group: 'Reactor family', label: 'Cake Factory & Farm', dod: 'Plant lines, herd telemetry, CIP, signed .cake minting, and the exact power-loss freeze rule.', where: 'Dashboard · Jump back in, command palette', def: false },
@@ -1898,6 +1918,9 @@ class Component extends DCLogic {
     this.journalQuery = '';
     this.projectQuery = '';
     this.settingsQuery = '';
+    this.changelogQuery = '';
+    this.changelogFrom = '';
+    this.changelogTo = '';
     const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
     const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3, showEmojis: true };
     const storedGlobal = L && L.settingsGlobal && typeof L.settingsGlobal === 'object' && !Array.isArray(L.settingsGlobal) ? L.settingsGlobal : {};
@@ -2206,6 +2229,7 @@ class Component extends DCLogic {
       journal: { label: 'Snapshot revision journal', get: () => this.journalQuery || '', set: v => { this.journalQuery = v; this.bump(); } },
       projects: { label: 'Active project picker', get: () => this.projectQuery || '', set: v => { this.projectQuery = v; this.bump(); } },
       settings: { label: 'Settings sections', get: () => this.settingsQuery || '', set: v => { this.settingsQuery = v; this.bump(); } },
+      changelog: { label: 'Changelog', get: () => this.changelogQuery || '', set: v => { this.changelogQuery = v; this.bump(); } },
       extapps: { label: 'External apps', get: () => this.extQuery || '', set: v => { this.extQuery = v; this.bump(); } },
       dev: { label: 'Developer workflows', get: () => this.devQuery || '', set: v => { this.devQuery = v; this.bump(); } },
       log: { label: 'Control-room log', get: () => this.logQuery || '', set: v => { this.logQuery = v; this.bump(); } },
@@ -2402,7 +2426,7 @@ class Component extends DCLogic {
     V.rbPalette = mk('palette'); V.rbRows = mk('rows'); V.rbAllApps = mk('allapps');
     V.rbCats = mk('cats'); V.rbPackages = mk('packages'); V.rbDimSum = mk('dimsum');
     V.rbNotifs = mk('notifs'); V.rbRps = mk('rps'); V.rbLoads = mk('loads');
-    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbProjects = mk('projects'); V.rbSettings = mk('settings'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
+    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbProjects = mk('projects'); V.rbSettings = mk('settings'); V.rbChangelog = mk('changelog'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
     V.rbShown = !!rb.target && this.isShipped('feat.regex');
     V.rbLabel = rb.label;
     const rbField = fields[rb.target] || { get: () => '', set: () => {} };
@@ -2468,6 +2492,9 @@ class Component extends DCLogic {
     V.journalQuery = this.journalQuery || ''; V.setJournalQuery = e => { this.journalQuery = e.target.value; this.bump(); };
     V.projectQuery = this.projectQuery || ''; V.setProjectQuery = e => { this.projectQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
     V.settingsQuery = this.settingsQuery || ''; V.setSettingsQuery = e => { this.settingsQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
+    V.changelogQuery = this.changelogQuery || ''; V.setChangelogQuery = e => { this.changelogQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
+    V.changelogFrom = this.changelogFrom || ''; V.setChangelogFrom = e => { this.changelogFrom = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : ''; this.bump(); };
+    V.changelogTo = this.changelogTo || ''; V.setChangelogTo = e => { this.changelogTo = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : ''; this.bump(); };
     V.extQuery = this.extQuery || ''; V.setExtQuery = e => { this.extQuery = e.target.value; this.bump(); };
     V.devQuery = this.devQuery || ''; V.setDevQuery = e => { this.devQuery = e.target.value; this.bump(); };
     V.logQuery = this.logQuery || ''; V.setLogQuery = e => { this.logQuery = e.target.value; this.bump(); };
@@ -2561,6 +2588,7 @@ class Component extends DCLogic {
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
       for (const command of settingsCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'settings', route: { view: 'settings' }, label: 'Settings', settingsQuery: command.query });
+      if (this.match(q, 'Changelog published releases dates commit links copy export')) hits.push({ kind: 'destination', title: 'Changelog', sub: 'Published release history and commit links', icon: 'history', route: { view: 'changelog' }, label: 'Changelog' });
       const vocabularyCommands = [
         { title: 'Upload personal vocabulary', sub: 'Choose or replace the local JSON file', action: 'upload' },
         { title: 'Personal vocabulary status', sub: 'Open the local loaded, invalid or no-file state', action: 'status' },
@@ -2598,6 +2626,14 @@ class Component extends DCLogic {
     V.isModule = r.view === 'module';
     V.isReactor = r.view === 'reactor';
     V.isSettings = r.view === 'settings';
+    V.isChangelog = r.view === 'changelog';
+
+    const filteredChanges = CHANGELOG_ENTRIES.filter(entry => (!this.changelogFrom || entry.date >= this.changelogFrom) && (!this.changelogTo || entry.date <= this.changelogTo) && this.match(this.changelogQuery, entry.version + ' ' + entry.category + ' ' + entry.summary + ' ' + entry.sha));
+    V.changelogEntries = filteredChanges.map(entry => ({ ...entry, shortSha: entry.sha.slice(0, 12), commitUrl: 'https://github.com/Ding-Ding-Projects/material-winforge/commit/' + entry.sha }));
+    V.changelogEmpty = filteredChanges.length === 0;
+    const changelogMarkdown = () => filteredChanges.map(entry => '## ' + entry.version + ' — ' + entry.date + '\n\n**' + entry.category + '**\n\n' + entry.summary + '\n\nCommit: https://github.com/Ding-Ding-Projects/material-winforge/commit/' + entry.sha).join('\n\n');
+    V.copyChangelog = () => navigator.clipboard.writeText(changelogMarkdown()).then(() => this.notify('Changelog', 'Filtered changelog copied locally.', 'success', true)).catch(() => this.notify('Changelog', 'Clipboard copy failed. Retry is available.', 'error', true));
+    V.exportChangelog = () => { const url = URL.createObjectURL(new Blob([changelogMarkdown() + '\n'], { type: 'text/markdown;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'winforge-changelog.md'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0); this.notify('Changelog', 'Filtered Markdown export created locally.', 'success', true); };
 
     // dashboard
     const meta = this.D.meta || {};
