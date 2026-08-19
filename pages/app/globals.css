@@ -501,10 +501,7 @@ kbd {
 }
 .tab-group-header {
   display: grid;
-  grid-template-columns: 12px minmax(72px, 1fr) 44px minmax(44px, auto) minmax(
-      44px,
-      auto
-    );
+  grid-template-columns: 12px minmax(72px, 1fr) 44px repeat(4, minmax(44px, auto));
   align-items: center;
   gap: 5px;
   overflow: visible;
@@ -800,7 +797,7 @@ kbd {
 }
 .tab-group-settings-list > div {
   display: grid;
-  grid-template-columns: 16px minmax(90px, 1fr) auto auto auto;
+  grid-template-columns: 16px minmax(90px, 1fr) auto repeat(4, auto);
   align-items: center;
   gap: 8px;
 }
@@ -2757,10 +2754,7 @@ footer {
   .tab-items { overflow-x: auto; overflow-y: hidden; }
   .tab-group, .ungrouped-tab-items { flex: 0 0 auto; }
   .tab-group-header {
-    grid-template-columns: 12px minmax(64px, 100px) 44px minmax(
-        44px,
-        auto
-      ) minmax(44px, auto);
+    grid-template-columns: 12px minmax(64px, 100px) 44px repeat(4, minmax(44px, auto));
   }
   .tab-group-members {
     flex-direction: row;
@@ -2778,7 +2772,7 @@ footer {
     flex-direction: column;
   }
   .tab-group-settings-list > div {
-    grid-template-columns: 16px minmax(0, 1fr) auto;
+    grid-template-columns: 16px minmax(0, 1fr) repeat(4, auto);
   }
   .tab-group-settings-list > div button {
     grid-column: auto;

@@ -2,6 +2,8 @@
 
 ## Behavior
 
+Groups can move up or down from both the rendered headers and Settings. The order is persisted locally, boundary controls disable at the first and last group, and moving a group preserves its members, collapse state, and active tab.
+
 The Pages site can create up to eight ordered local groups for its six known destinations. Pinned tabs remain in the stable pinned region. Unpinned members render below a group header; unassigned tabs remain in the ordinary region. Group controls create, rename, recolor, collapse, expand, and remove a group. Removing a group returns its members to the ordinary region.
 
 Each tab exposes **Move… into group…**. The anchored picker lists current groups with their color and member count, offers an ungrouped destination and create-new path, starts with local plain-text search, and provides an adjacent full JavaScript regex builder. Arrow keys traverse choices, Escape cancels, and closure returns focus to the initiating control.

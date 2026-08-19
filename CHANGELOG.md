@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added persisted up/down group-order controls in the tab strip and Settings with localized 44-pixel targets and boundary-aware disabled states.
+
 - Added independent plain-text-first tab searches with anchored JavaScript regex builders inside every rendered group and a separate group-management search in Settings; filtering is transient and preserves membership and collapse state.
 - Added All tabs bulk-close actions for containing/not-containing text with a shared bounded predicate, pinned-tab opt-in, current-tab protection, reviewable previews, and two-key/full-slider confirmation.
 

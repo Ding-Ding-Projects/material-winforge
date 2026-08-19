@@ -1713,6 +1713,31 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
       "Tab groups",
     );
   };
+  const moveTabGroup = (groupId: string, direction: -1 | 1) => {
+    const index = prefs.tabGroups.groups.findIndex((group) => group.id === groupId);
+    const nextIndex = index + direction;
+    if (
+      index < 0 ||
+      nextIndex < 0 ||
+      nextIndex >= prefs.tabGroups.groups.length
+    )
+      return;
+    const groups = [...prefs.tabGroups.groups];
+    [groups[index], groups[nextIndex]] = [groups[nextIndex], groups[index]];
+    setPrefs({
+      ...prefs,
+      tabGroups: { schemaVersion: 1, groups },
+    });
+    announce(
+      dual(
+        `Group order moved ${direction < 0 ? "up" : "down"}.`,
+        `群組次序已向${direction < 0 ? "上" : "下"}移。`,
+        language,
+      ),
+      "success",
+      "Tab groups",
+    );
+  };
   const moveTabIntoGroup = (tabId: TabId, groupId: string | null) => {
     if (
       groupId &&
@@ -3678,6 +3703,30 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   />
                   <button
                     type="button"
+                    disabled={prefs.tabGroups.groups.findIndex((item) => item.id === group.id) === 0}
+                    onClick={() => moveTabGroup(group.id, -1)}
+                    aria-label={dual(
+                      `Move ${group.name} group up`,
+                      `${group.name}群組向上移`,
+                      language,
+                    )}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={prefs.tabGroups.groups.findIndex((item) => item.id === group.id) === prefs.tabGroups.groups.length - 1}
+                    onClick={() => moveTabGroup(group.id, 1)}
+                    aria-label={dual(
+                      `Move ${group.name} group down`,
+                      `${group.name}群組向下移`,
+                      language,
+                    )}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
                     onClick={() =>
                       updateTabGroup(group.id, { collapsed: !group.collapsed })
                     }
@@ -5005,7 +5054,11 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   </p>
                 </div>
                 <div className="tab-group-settings-list">
-                  {visibleGroupSettings.map((group) => (
+                  {visibleGroupSettings.map((group) => {
+                    const groupIndex = prefs.tabGroups.groups.findIndex(
+                      (item) => item.id === group.id,
+                    );
+                    return (
                     <div key={group.id}>
                       <span
                         className="group-swatch"
@@ -5020,6 +5073,30 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                           language,
                         )}
                       </span>
+                      <button
+                        type="button"
+                        disabled={groupIndex === 0}
+                        onClick={() => moveTabGroup(group.id, -1)}
+                        aria-label={dual(
+                          `Move ${group.name} group up`,
+                          `${group.name}群組向上移`,
+                          language,
+                        )}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        disabled={groupIndex === prefs.tabGroups.groups.length - 1}
+                        onClick={() => moveTabGroup(group.id, 1)}
+                        aria-label={dual(
+                          `Move ${group.name} group down`,
+                          `${group.name}群組向下移`,
+                          language,
+                        )}
+                      >
+                        ↓
+                      </button>
                       <button
                         type="button"
                         onClick={() =>
@@ -5051,7 +5128,8 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                         {dual("Remove", "移除", language)}
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                   {prefs.tabGroups.groups.length > 0 &&
                     !visibleGroupSettings.length &&
                     !groupSettingsPatternError && (
