@@ -34,6 +34,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - The active-project picker has its own bounded plain-text search and anchored regex builder; filtering Global defaults and local projects never changes the active selection, and no-match copy stays distinct from the empty-project state.
 - Settings now has a top-level bounded plain-text search and anchored regex builder that filters its four sections locally; command-palette results route to the field or selected section, and filtering never mutates persisted values or active-project selection.
 - New schema-version 2 snapshots include validated global defaults, project records, sparse overrides, and active ownership; restore applies ownership and effective presentation together after the safety snapshot. Schema-version 1 snapshots remain presentation-only and preserve current ownership.
+- Source inventory confirmed the desktop Settings surface currently owns exactly four persisted app-wide preferences: theme, language, English tone, and Cantonese tone. A named allowlist now aligns renderer persistence and main-process snapshot validation; tabs, route, tweaks, notifications, reactor/log/evidence records, plus unimplemented density/accent/tab-position controls remain explicitly outside project inheritance.
 
 ## Verification state
 

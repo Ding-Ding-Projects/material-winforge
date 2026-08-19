@@ -62,6 +62,7 @@ const WINGET_UPGRADE_ALLOWLIST = Object.freeze({
 });
 const SNAPSHOT_BASENAME = /^snapshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{16}\.json$/;
 const SNAPSHOT_MAX_BYTES = 300 * 1024;
+const APP_SETTING_KEYS = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
 let updateState = {
   state: 'idle',
   currentVersion: app.getVersion(),
@@ -327,13 +328,13 @@ function boundedString(value, maximum, pattern = null) {
 function validateSnapshotOwnership(ownership, payload) {
   if (!hasExactKeys(ownership, ['schemaVersion', 'global', 'projects', 'activeProjectId']) || ownership.schemaVersion !== 1) return false;
   const settingValid = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
-  if (!hasExactKeys(ownership.global, ['theme', 'lang', 'funnyEn', 'funnyZh']) || !Object.entries(ownership.global).every(([key, value]) => settingValid(key, value))) return false;
+  if (!hasExactKeys(ownership.global, APP_SETTING_KEYS) || !Object.entries(ownership.global).every(([key, value]) => settingValid(key, value))) return false;
   if (!Array.isArray(ownership.projects) || ownership.projects.length > 50) return false;
   const seen = new Set();
   for (const project of ownership.projects) {
     if (!hasExactKeys(project, ['id', 'name', 'overrides']) || !boundedString(project.id, 56, /^project-[a-z0-9-]{6,48}$/) || seen.has(project.id) || !boundedString(project.name, 64) || !project.name.trim() || /[\u0000-\u001f\u007f]/.test(project.name) || !isPlainObject(project.overrides)) return false;
     const keys = Object.keys(project.overrides);
-    if (keys.length > 4 || !keys.every((key) => ['theme', 'lang', 'funnyEn', 'funnyZh'].includes(key) && settingValid(key, project.overrides[key]))) return false;
+    if (keys.length > APP_SETTING_KEYS.length || !keys.every((key) => APP_SETTING_KEYS.includes(key) && settingValid(key, project.overrides[key]))) return false;
     seen.add(project.id);
   }
   if (!(ownership.activeProjectId === null || (typeof ownership.activeProjectId === 'string' && seen.has(ownership.activeProjectId)))) return false;

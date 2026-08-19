@@ -4,13 +4,15 @@
 
 Settings stores global defaults for theme, language, English tone, and Cantonese tone. A user may create up to 50 local project records with names from 1 to 64 characters. No sample project is seeded. The active-project picker always includes **Global defaults** and lists only projects the user created.
 
+Those four fields are the complete persisted app-wide preference allowlist currently exposed by the desktop Settings surface. Density, accent, and tab position are not implemented desktop preferences and are therefore not invented or silently serialized by this feature. Persisted tabs, route, tweak switches, notifications, reactor state, logs, and delivery metadata are session, content, operational, or evidence records—not app-wide Settings preferences—and remain outside global/project inheritance.
+
 Each project stores sparse overrides. A value equal to its global default is removed from the project record and inherited instead. The active-project picker has its own bounded plain-text search and adjacent anchored regex builder; filtering matches the Global defaults choice plus user-created names and generated IDs without changing the current selection. A no-match result is distinct from the no-project state. The surface reports the exact override and inherited counts, applies the effective values immediately, and offers **Reset project to global** to remove all four overrides. Switching back to global defaults edits the values inherited by every project that has no corresponding override.
 
 The Settings surface also has a top-level bounded plain-text search with its own adjacent anchored regex builder. It filters whole sections—Global/project scopes, Appearance, Funny levels, and Local state—against labels, descriptions, and current values. Filtering never changes a setting or active project. A no-match message states that persisted values remain untouched. The command palette registers the search field and each section and opens Settings with the corresponding filter.
 
 ## Storage and validation
 
-State remains in the existing local browser store. Project identifiers are generated locally and validated against a bounded lowercase identifier pattern. Names, IDs, project count, override keys, and every value are validated on load. Unknown keys, invalid values, duplicate IDs, and records past the 50-project limit are rejected. Records contain no path, credential, account, host detail, or network configuration, and no network request is made.
+State remains in the existing local browser store. One checked-in allowlist—`theme`, `lang`, `funnyEn`, and `funnyZh`—drives global records, sparse override validation, inheritance counts, and snapshot ownership validation in both renderer and main process. Project identifiers are generated locally and validated against a bounded lowercase identifier pattern. Names, IDs, project count, override keys, and every value are validated on load. Unknown keys, invalid values, duplicate IDs, and records past the 50-project limit are rejected. Records contain no path, credential, account, host detail, or network configuration, and no network request is made.
 
 ## Snapshot ownership
 

@@ -1698,6 +1698,7 @@ const RAIL = [
 ];
 
 const PKG_VIEWS = ['Discover', 'Updates', 'Installed', 'Bundles', 'Sources', 'Ignored', 'Setup', 'Settings', 'Operations'];
+const APP_SETTING_KEYS = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
 const PKG_ENGINES = [
   { id: 'winget', label: 'WinGet', icon: 'window' }, { id: 'scoop', label: 'Scoop', icon: 'water_drop' },
   { id: 'choco', label: 'Chocolatey', icon: 'cookie' }, { id: 'pip', label: 'pip', icon: 'code' },
@@ -1888,9 +1889,9 @@ class Component extends DCLogic {
     this.settingsQuery = '';
     const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
     const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3 };
-    this.settingsGlobal = L && L.settingsGlobal && ['theme', 'lang', 'funnyEn', 'funnyZh'].every(key => validSetting(key, L.settingsGlobal[key])) ? { theme: L.settingsGlobal.theme, lang: L.settingsGlobal.lang, funnyEn: L.settingsGlobal.funnyEn, funnyZh: L.settingsGlobal.funnyZh } : fallbackGlobal;
+    this.settingsGlobal = L && L.settingsGlobal && APP_SETTING_KEYS.every(key => validSetting(key, L.settingsGlobal[key])) && Object.keys(L.settingsGlobal).length === APP_SETTING_KEYS.length ? { theme: L.settingsGlobal.theme, lang: L.settingsGlobal.lang, funnyEn: L.settingsGlobal.funnyEn, funnyZh: L.settingsGlobal.funnyZh } : fallbackGlobal;
     const seenProjects = new Set();
-    this.settingsProjects = (L && Array.isArray(L.settingsProjects) ? L.settingsProjects : []).slice(0, 50).filter(project => project && typeof project.id === 'string' && /^project-[a-z0-9-]{6,48}$/.test(project.id) && !seenProjects.has(project.id) && typeof project.name === 'string' && project.name.trim().length >= 1 && project.name.trim().length <= 64 && project.overrides && typeof project.overrides === 'object' && !Array.isArray(project.overrides) && Object.keys(project.overrides).every(key => ['theme', 'lang', 'funnyEn', 'funnyZh'].includes(key) && validSetting(key, project.overrides[key])) && (seenProjects.add(project.id) || true)).map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
+    this.settingsProjects = (L && Array.isArray(L.settingsProjects) ? L.settingsProjects : []).slice(0, 50).filter(project => project && typeof project.id === 'string' && /^project-[a-z0-9-]{6,48}$/.test(project.id) && !seenProjects.has(project.id) && typeof project.name === 'string' && project.name.trim().length >= 1 && project.name.trim().length <= 64 && project.overrides && typeof project.overrides === 'object' && !Array.isArray(project.overrides) && Object.keys(project.overrides).every(key => APP_SETTING_KEYS.includes(key) && validSetting(key, project.overrides[key])) && (seenProjects.add(project.id) || true)).map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
     this.activeProjectId = L && typeof L.activeProjectId === 'string' && this.settingsProjects.some(project => project.id === L.activeProjectId) ? L.activeProjectId : null;
     const activeSettingsProject = this.settingsProjects.find(project => project.id === this.activeProjectId);
     const effectiveSettings = { ...this.settingsGlobal, ...(activeSettingsProject ? activeSettingsProject.overrides : {}) };
@@ -2882,6 +2883,7 @@ class Component extends DCLogic {
       } else this.settingsGlobal[key] = value;
       this.setState({ [key]: value }, () => this.persist());
     };
+    V.toggleTheme = () => writeSetting('theme', s.theme === 'light' ? 'dark' : 'light');
     const filteredProjectChoices = [{ id: null, name: 'Global defaults' }, ...this.settingsProjects].filter(project => this.match(this.projectQuery, project.name + ' ' + (project.id || 'global-defaults')));
     V.projectChoices = filteredProjectChoices.map(project => {
       const active = project.id === this.activeProjectId;
@@ -2892,7 +2894,7 @@ class Component extends DCLogic {
     V.hasActiveProject = !!activeProject;
     const overrideCount = activeProject ? Object.keys(activeProject.overrides).length : 0;
     V.projectScopeLine = activeProject ? ('Editing ' + activeProject.name + ' · effective values apply live and sparse overrides stay local-only.') : 'Editing global defaults · projects inherit these values unless they override one.';
-    V.inheritanceLine = overrideCount + ' override' + (overrideCount === 1 ? '' : 's') + ' · ' + (4 - overrideCount) + ' inherited global value' + (4 - overrideCount === 1 ? '' : 's') + '.';
+    V.inheritanceLine = overrideCount + ' override' + (overrideCount === 1 ? '' : 's') + ' · ' + (APP_SETTING_KEYS.length - overrideCount) + ' inherited global value' + (APP_SETTING_KEYS.length - overrideCount === 1 ? '' : 's') + '.';
     V.projectNameInput = s.projectNameInput;
     V.setProjectNameInput = event => this.setState({ projectNameInput: String(event.target.value || '').slice(0, 64) });
     V.projectCreateDisabled = !s.projectNameInput.trim() || s.projectNameInput.trim().length > 64 || this.settingsProjects.length >= 50;
@@ -3170,12 +3172,12 @@ class Component extends DCLogic {
         const routeValid = route => route && Object.keys(route).length === 2 && Object.hasOwn(route, 'view') && Object.hasOwn(route, 'id') && typeof route.view === 'string' && /^[a-z0-9-]{1,64}$/.test(route.view) && (route.id === null || (typeof route.id === 'string' && /^[a-zA-Z0-9:._-]{1,128}$/.test(route.id)));
         const settingValid = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
         const ownershipValid = ownership => {
-          if (!ownership || Object.keys(ownership).length !== 4 || ownership.schemaVersion !== 1 || !ownership.global || !Array.isArray(ownership.projects) || ownership.projects.length > 50 || !['theme', 'lang', 'funnyEn', 'funnyZh'].every(key => settingValid(key, ownership.global[key])) || Object.keys(ownership.global).length !== 4) return false;
+          if (!ownership || Object.keys(ownership).length !== 4 || ownership.schemaVersion !== 1 || !ownership.global || !Array.isArray(ownership.projects) || ownership.projects.length > 50 || !APP_SETTING_KEYS.every(key => settingValid(key, ownership.global[key])) || Object.keys(ownership.global).length !== APP_SETTING_KEYS.length) return false;
           const seen = new Set();
           for (const project of ownership.projects) {
             if (!project || Object.keys(project).length !== 3 || !/^project-[a-z0-9-]{6,48}$/.test(project.id) || seen.has(project.id) || typeof project.name !== 'string' || project.name.trim().length < 1 || project.name.trim().length > 64 || /[\u0000-\u001f\u007f]/.test(project.name) || !project.overrides || Array.isArray(project.overrides)) return false;
             const keys = Object.keys(project.overrides);
-            if (keys.length > 4 || !keys.every(key => ['theme', 'lang', 'funnyEn', 'funnyZh'].includes(key) && settingValid(key, project.overrides[key]))) return false;
+            if (keys.length > APP_SETTING_KEYS.length || !keys.every(key => APP_SETTING_KEYS.includes(key) && settingValid(key, project.overrides[key]))) return false;
             seen.add(project.id);
           }
           if (!(ownership.activeProjectId === null || (typeof ownership.activeProjectId === 'string' && seen.has(ownership.activeProjectId)))) return false;

@@ -10,6 +10,7 @@ The active ultra-speed pass prohibited tests and captures. Accordingly, **no row
 |---|---|---|---|---|---|---|---|---|
 | Three language modes | Partial source in design export | Present in `SiteShell.tsx` | `docs/site/preferences.md` | English, Cantonese, bilingual site copy | Unverified | Unverified | Missing | Incomplete |
 | Separate English/Cantonese funny levels | Partial source in design export | Present and wired to hero copy | `docs/site/preferences.md` | Partial site coverage | Unverified | Unverified | Missing | Incomplete |
+| Global defaults and per-project settings overrides | Explicit four-field desktop allowlist (`theme`, `lang`, `funnyEn`, `funnyZh`); other persisted records excluded by role | Missing | `docs/application/project-settings-overrides.md` | English only | Unverified | Partial desktop interaction evidence | Missing | Incomplete |
 | Emoji display toggle | Not inventoried as implemented | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | School mode and shared unlock | Not inventoried as implemented | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Narrator, voice pickers, rate, and pitch | Not inventoried as implemented | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
