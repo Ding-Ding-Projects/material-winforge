@@ -14,9 +14,9 @@ The roadmap distinguishes source capability from proof. A checked item means the
 
 ## Release wiring
 
-- [ ] Publish a unique, non-draft GitHub release carrying the complete unsigned Squirrel.Windows asset set.
-- [ ] Replace the unavailable release manifest with exact version, tag, commit, asset URL, SHA-256, size, and publication time.
-- [ ] Deploy the static GitHub Pages output at the canonical project URL.
+- [x] Publish `v1.0.20` as a unique, non-draft GitHub release carrying the complete unsigned Squirrel.Windows asset set for commit `3e765b4ca49e7d255a67ee370b10ed7d64b1d9cc`.
+- [x] Generate the published release manifest with the exact version, tag, commit, asset URL, SHA-256, size, and publication time from the release record.
+- [x] Deploy the static GitHub Pages output at the canonical project URL and verify the served Open Graph metadata and image URL.
 - [ ] Deploy the same source as a private Sites mirror after an exact Sites project identifier is returned.
 - [ ] Upload the root `social-preview.png` through GitHub repository settings and confirm the repository card.
 
