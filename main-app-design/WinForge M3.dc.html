@@ -2735,7 +2735,9 @@ class Component extends DCLogic {
     if (P.query) pkgList = pkgList.filter(p => (p.name + ' ' + p.id).toLowerCase().includes(P.query.toLowerCase()));
     V.pkgResultCount = pkgList.length + ' in ' + P.view.toLowerCase();
     V.pkgQueueCount = P.queue.length;
-    const selectedWinget = PKG_CATALOG.filter(p => p.engine === 'winget' && p.upd && WINGET_UPGRADE_IDS.includes(p.id) && P.queue.includes('op:' + p.id));
+    const selectedWinget = this.packageEngineStates.winget === 'available'
+      ? PKG_CATALOG.filter(p => p.engine === 'winget' && p.upd && WINGET_UPGRADE_IDS.includes(p.id) && P.queue.includes('op:' + p.id))
+      : [];
     V.pkgQueueButtonLabel = selectedWinget.length ? 'Review Winget upgrades (' + selectedWinget.length + ')' : 'Preview queue (' + P.queue.length + ')';
     V.pkgRows = pkgList.map(p => {
       const queued = P.queue.includes('op:' + p.id);

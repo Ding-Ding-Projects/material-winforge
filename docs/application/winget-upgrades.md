@@ -8,6 +8,8 @@ The real upgrade path accepts only selected, explicitly updatable Winget catalog
 
 **Review Winget upgrades** opens a renderer-owned confirmation listing each exact package name and ID. It states that Winget will download and install those packages and that running applications may close or request a restart. Cancel closes the review without IPC. During execution the decision controls are replaced by bounded progress and **Cancel upgrades**.
 
+The real review action appears only while the current engine-discovery result marks Winget **Available**. If Winget is not checked, not installed, timed out, or unavailable, stale queued IDs remain local preview selections and the button stays **Preview queue**; no real review modal opens.
+
 ## Fixed execution
 
 Each package runs sequentially through direct `execFile` with `shell: false`, a hidden process window, a fifteen-minute timeout, a 1 MiB output cap, and an internal cancellation signal. Arguments are fixed as:
