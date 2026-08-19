@@ -31,7 +31,7 @@ The active ultra-speed pass prohibited tests and captures. Accordingly, **no row
 | Every-element toy locks and Support Tickets | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Unlock ladder | Not proven | No authentication; canonical equivalent not implemented | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
 | Built-in authenticator and local QR registration | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
-| Local Git-backed history | Partial desktop source claim, not exercised | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |
+| Local Git-backed history | Partial desktop source claim, not exercised | Browser-local rather than Git-backed: bounded Global/project Settings revisions with search, ISO date/action filters, Markdown export, and confirmed append-only restore | `docs/site/settings-history.md` | Site control and state copy English/Cantonese/bilingual | Unverified | Unverified | Missing | Incomplete |
 | Changelog viewer with filters and commit links | Source present for five factual releases, text/regex/date filters, copy/export | Matching Changelog tab and local controls | `docs/application/changelog-viewer.md`, `docs/site/changelog.md` | Site navigation/filter copy English/Cantonese/bilingual; desktop English | Unverified | Unverified | Missing | Incomplete |
 | Shared Status Hub | Not proven | Local manifest status cards only; Hub integration missing | Missing | Partial | Unverified | Unverified | Missing | Incomplete |
 | Universal file converter | Not proven | Missing | Missing | Missing | Unverified | Unverified | Missing | Incomplete |

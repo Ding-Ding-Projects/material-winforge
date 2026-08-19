@@ -1,6 +1,7 @@
 # Site documentation
 
 - [Notification history](notifications.md) — persistent local history, search, bulk dismissal, and filtered Markdown export.
+- [Settings history](settings-history.md) — bounded Global/project revisions, filtering, export, and confirmed restore.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 

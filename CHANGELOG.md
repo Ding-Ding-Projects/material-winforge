@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added bounded browser-local Settings history for the eight site preferences and Global/project ownership, with dedicated search, ISO date and action filters, Markdown export, and confirmed append-only restore.
+
 - Added a persistent, schema-versioned Pages notification center with an unread count, bounded local history, dedicated plain-text/regex search, accessible bulk selection and dismissal, and filtered Markdown export.
 
 ### Fixed
