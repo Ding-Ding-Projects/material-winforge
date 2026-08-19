@@ -4,6 +4,8 @@
 
 The desktop dashboard reads a narrow system-metrics snapshot from the Electron main process every four seconds. The renderer sends no input and receives bounded JSON only.
 
+The dashboard's **Read-only metrics summary** action requests the same snapshot and reports CPU, memory, app-data disk, and network availability in a non-blocking notification. It explicitly states that it did not run DISM, inspect the component store, or change an operating-system setting. A bridge error produces an unavailable notification rather than a guessed healthy result.
+
 - CPU usage is calculated from the change in aggregate `os.cpus()` time counters between samples. The first sample is explicitly unavailable because no prior interval exists.
 - Memory usage is the used percentage calculated from `os.totalmem()` and `os.freemem()`.
 - Disk usage is the used percentage returned by `fs.statfsSync()` for the application data location. If the platform cannot provide it, the dashboard says **Unavailable**.

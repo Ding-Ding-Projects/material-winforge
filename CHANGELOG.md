@@ -25,6 +25,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Side-effecting release workflow without cancellation concurrency.
 - Read-only CPU, memory, app-data disk, network-interface, and uptime metrics over a validated no-input IPC bridge, replacing random dashboard telemetry.
 - Fixed-ID installed-app discovery and launching through bounded no-shell `where.exe` calls and `shell.openPath`, with truthful missing, timeout, cancellation, duplicate, and failure states while install chains remain preview-only.
+- Replaced the dashboard's fabricated DISM success notice with a validated read-only metrics summary that explicitly reports no component-store scan or operating-system mutation.
 
 ### Verification boundary
 

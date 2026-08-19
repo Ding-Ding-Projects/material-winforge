@@ -182,7 +182,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             <p style="margin:6px 0 0;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Windows 11 control center · {{ metaModules }} modules, {{ metaTweaks }} catalog tweaks</p>
           </div>
           <button onClick="{{ runHealthCheck }}" style="display:flex;align-items:center;gap:8px;height:40px;padding:0 24px 0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:14px;font-weight:500;flex-shrink:0" style-hover="filter:brightness(1.08);box-shadow:var(--md-sys-elevation-level1)">
-            <span class="ms" style="font-size:18px">health_metrics</span>System health check
+            <span class="ms" style="font-size:18px">health_metrics</span>Read-only metrics summary
           </button>
         </div>
 
@@ -2303,7 +2303,18 @@ class Component extends DCLogic {
     V.metaModules = meta.moduleCount; V.metaTweaks = meta.tweakFeatureCount; V.metaCats = meta.categoryCount;
     V.showAdmin = !s.adminDismissed;
     V.dismissAdmin = () => this.setState({ adminDismissed: true });
-    V.runHealthCheck = () => this.notify('System health check', 'DISM /CheckHealth · no component store corruption detected', 'success');
+    V.runHealthCheck = () => {
+      const bridge = window.winforge;
+      const unavailable = 'Metrics bridge unavailable. No DISM or component-store scan was run, and no operating-system setting was changed.';
+      if (!bridge || !bridge.systemMetrics) { this.notify('Read-only metrics summary', unavailable, 'warning'); return; }
+      bridge.systemMetrics().then(metrics => {
+        if (!metrics || metrics.schemaVersion !== 1) { this.notify('Read-only metrics summary', unavailable, 'warning'); return; }
+        const percent = part => part && part.available === true && Number.isFinite(part.usedPercent) && part.usedPercent >= 0 && part.usedPercent <= 100 ? part.usedPercent.toFixed(1) + '% used' : 'unavailable';
+        const network = metrics.network && metrics.network.available === true && typeof metrics.network.connected === 'boolean' && Number.isInteger(metrics.network.interfaceCount) && metrics.network.interfaceCount >= 0 && metrics.network.interfaceCount <= 256
+          ? (metrics.network.connected ? 'connected (' + metrics.network.interfaceCount + ' interface' + (metrics.network.interfaceCount === 1 ? '' : 's') + ')' : 'not connected') : 'unavailable';
+        this.notify('Read-only metrics summary', 'CPU: ' + percent(metrics.cpu) + ' · Memory: ' + percent(metrics.memory) + ' · App-data disk: ' + percent(metrics.disk) + ' · Network: ' + network + '. No DISM or component-store scan was run, and no operating-system setting was changed.', 'info');
+      }).catch(() => this.notify('Read-only metrics summary', unavailable, 'warning'));
+    };
     const applied = Object.values(this.tweaks).filter(Boolean).length;
     V.statCards = [
       { value: meta.totalFeatures, label: 'TOTAL FEATURES', color: prim },
