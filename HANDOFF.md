@@ -10,7 +10,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 ## Implemented source
 
-- Material Design 3 site shell with dockable tabs for Home, Feature map, Documentation, Settings, and Status.
+- Material Design 3 site shell with tabs dockable to the left, right, top, or bottom for Home, Feature map, Documentation, Settings, Changelog, and Status. Vertical and horizontal keyboard direction follows the rendered orientation; narrow widths use a top horizontal fallback without changing the persisted edge.
 - Local English, playful Hong Kong-style Cantonese, and bilingual presentation.
 - Separate five-level English and Cantonese tone controls.
 - Local theme, density, accent, and tab-position persistence with reset.
@@ -96,3 +96,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - The Pages command palette retains `Ctrl+Shift+F` and its current actions while adding palette-owned literal-first search plus a full adjacent regex builder with independent mode, flags, sample, matches, and error state. Invalid patterns produce zero results. Builds are recorded below; keyboard and browser interaction remain unverified.
 - Pages Reset settings now routes both its Settings button and command-palette command through one blocking two-key/full-slider confirmation. It names removal of all local projects and restoration of the eight shipped defaults, preserves personal vocabulary plus histories, refuses duplicate completion, supports Escape/scrim/Emergency exit, and records the completed reset. Runtime confirmation interaction remains unverified.
 - Pages App logo Settings now provides Forge, Tile, and Mono treatments of the existing local brand asset plus a 256 KiB byte-verified PNG/JPEG picker with bounded decoded dimensions, local persistence, live header/preview rendering, replace/reset states, and palette destinations. Stable product identity is unchanged; runtime file selection and visual output remain unverified.
+- Pages tab docking now persists and renders left, right, top, or bottom placement, exposes all four localized choices plus a command-palette destination, applies matching ARIA/arrow-key direction and Home/End behavior, and collapses to a readable horizontal top strip at narrow widths. Runtime interaction and responsive visual output remain unverified.

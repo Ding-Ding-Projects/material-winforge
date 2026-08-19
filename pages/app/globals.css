@@ -105,7 +105,9 @@ p { color: var(--on-surface-variant); line-height: 1.64; }
 
 .site-shell { min-height: 100vh; display: grid; grid-template-rows: var(--header-height) 1fr auto; background: radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 35%), var(--surface); }
 .dock-left { grid-template-columns: var(--tab-width) minmax(0, 1fr); grid-template-areas: "header header" "tabs content" "footer footer"; }
+.dock-right { grid-template-columns: minmax(0, 1fr) var(--tab-width); grid-template-areas: "header header" "content tabs" "footer footer"; }
 .dock-top { grid-template-columns: 1fr; grid-template-rows: var(--header-height) auto 1fr auto; grid-template-areas: "header" "tabs" "content" "footer"; }
+.dock-bottom { grid-template-columns: 1fr; grid-template-rows: var(--header-height) 1fr auto auto; grid-template-areas: "header" "content" "tabs" "footer"; }
 .density-compact { --header-height: 62px; --tab-width: 196px; }
 
 .top-app-bar { grid-area: header; position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 24px; padding: 10px clamp(16px, 3vw, 38px); border-bottom: 1px solid var(--outline-variant); background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(18px); }
@@ -125,9 +127,12 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 
 .tab-strip { grid-area: tabs; z-index: 20; display: flex; gap: 8px; padding: 18px 12px; background: var(--surface-container); }
 .dock-left .tab-strip { position: sticky; top: var(--header-height); align-self: start; height: calc(100vh - var(--header-height)); flex-direction: column; border-right: 1px solid var(--outline-variant); }
-.dock-top .tab-strip { position: sticky; top: var(--header-height); overflow-x: auto; border-bottom: 1px solid var(--outline-variant); padding: 8px clamp(14px, 3vw, 34px); }
+.dock-right .tab-strip { position: sticky; top: var(--header-height); align-self: start; height: calc(100vh - var(--header-height)); flex-direction: column; border-left: 1px solid var(--outline-variant); }
+.dock-top .tab-strip, .dock-bottom .tab-strip { overflow-x: auto; padding: 8px clamp(14px, 3vw, 34px); }
+.dock-top .tab-strip { position: sticky; top: var(--header-height); border-bottom: 1px solid var(--outline-variant); }
+.dock-bottom .tab-strip { position: sticky; bottom: 0; border-top: 1px solid var(--outline-variant); }
 .tab-strip button { position: relative; display: flex; align-items: center; gap: 13px; min-width: 0; min-height: 52px; padding: 10px 16px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; }
-.dock-top .tab-strip button { min-height: 46px; }
+.dock-top .tab-strip button, .dock-bottom .tab-strip button { min-height: 46px; }
 .tab-strip button:hover { background: var(--surface-container-high); }
 .tab-strip button.active { color: var(--on-primary-container); background: var(--primary-container); font-weight: 650; }
 .tab-icon { display: grid; place-items: center; width: 24px; height: 24px; font-size: 1.12rem; }
@@ -385,12 +390,12 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
 }
 
 @media (max-width: 760px) {
-  .site-shell, .dock-left, .dock-top { grid-template-columns: 1fr; grid-template-rows: var(--header-height) auto 1fr auto; grid-template-areas: "header" "tabs" "content" "footer"; }
+  .site-shell, .dock-left, .dock-right, .dock-top, .dock-bottom { grid-template-columns: 1fr; grid-template-rows: var(--header-height) auto 1fr auto; grid-template-areas: "header" "tabs" "content" "footer"; }
   .top-app-bar { gap: 10px; padding-inline: 12px; }
   .brand small { display: none; }
   .top-actions { gap: 6px; }
   .release-chip { max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
-  .dock-left .tab-strip, .dock-top .tab-strip { position: sticky; top: var(--header-height); height: auto; flex-direction: row; overflow-x: auto; border: 0; border-bottom: 1px solid var(--outline-variant); padding: 7px 10px; }
+  .dock-left .tab-strip, .dock-right .tab-strip, .dock-top .tab-strip, .dock-bottom .tab-strip { position: sticky; top: var(--header-height); bottom: auto; height: auto; flex-direction: row; overflow-x: auto; border: 0; border-bottom: 1px solid var(--outline-variant); padding: 7px 10px; }
   .tab-strip button { min-height: 46px; padding: 8px 13px; }
   .tab-strip button span:last-child { display: none; }
   .tab-strip button.active span:last-child { display: inline; }
