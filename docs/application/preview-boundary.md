@@ -6,6 +6,8 @@ WinForge · Material 3 Preview demonstrates the proposed information architectur
 
 The persistent banner distinguishes those integrations from sample meters, preview data, and controls that still perform no operating-system or package mutation. It also states that build and packaging evidence is not runtime verification.
 
+The Preview Data attestation repeats the same boundary. Its mode and action rows name the bounded live integrations instead of claiming that every interaction is a sample, and its persistence row distinguishes browser-local preferences from private bounded local JSON snapshots.
+
 The project website is a separate landing, documentation, status, settings, and download surface. It never becomes the desktop runtime.
 
 ## Configuration
@@ -34,6 +36,8 @@ Source compilation or packaging is not runtime proof. Verification must eventual
 The first packaged runtime capture at `c0a5d72` discovered that the persistent banner still described every action as sample-only. The `b52cf34` repair was then launched as a packaged artifact on a fresh hidden desktop. One product window with class `Chrome_WidgetWin_1` was resolved; the corrected bounded-live banner was visually inspected; real CPU, memory, app-data-disk, and network values rendered; and the read-only metrics summary was clicked. Cleanup closed the owned process tree and hidden desktop.
 
 That session verifies the repaired banner and the observed read-only metrics surface only. It does not verify installer execution, update installation, destructive actions, package mutation, tests, lint, type checking, or broader visual conformance.
+
+The later Preview Data attestation repair was discovered from source and was not exercised in the packaged runtime. It carries no new runtime-verification claim.
 
 ## Suggested articles
 

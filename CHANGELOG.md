@@ -6,6 +6,7 @@
 
 - Restrict the release workflow's push trigger to `main`, preventing each generated release tag from recursively starting another release.
 - Replaced the stale all-sample top banner with exact bounded-live, remaining-preview, and runtime-unverified disclosures.
+- Corrected the Preview Data attestation so its mode, actions, and persistence rows no longer contradict the bounded integrations or local snapshot storage.
 
 All notable project changes are recorded here. Dates use ISO 8601 and entries link to commits once the repository has published history.
 

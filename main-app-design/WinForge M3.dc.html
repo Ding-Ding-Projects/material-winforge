@@ -2993,10 +2993,10 @@ class Component extends DCLogic {
       { name: 'Material 3 tokens', kind: 'local styles' },
     ].filter(s => this.match(this.skillQuery, s.name + ' ' + s.kind));
     V.memAttest = [
-      { label: 'Mode', value: 'preview-only' },
+      { label: 'Mode', value: 'bounded live integrations + preview controls' },
       { label: 'Network', value: 'remote renderer requests blocked' },
-      { label: 'Actions', value: 'sample interactions only' },
-      { label: 'Persistence', value: 'localStorage preferences only' },
+      { label: 'Actions', value: 'metrics, DNS, Explorer, Recycle Bin, snapshots + reviewed Winget are live; others preview-only' },
+      { label: 'Persistence', value: 'localStorage preferences + private bounded local JSON snapshots' },
     ];
     V.vocabLine = 'Preview only · no live dictionary or publication scan is connected.';
     V.uploadVocab = () => this.notify('Personal vocabulary', 'Preview only · no local file was loaded', 'info');

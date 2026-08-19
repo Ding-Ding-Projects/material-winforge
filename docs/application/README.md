@@ -2,6 +2,8 @@
 
 The current desktop package is a design preview with a bounded set of real privileged integrations. Documentation in this category distinguishes sample controls, implemented behavior, and independently verified runtime evidence.
 
+The Preview Data attestation now identifies both sides of that boundary and reports persistence as local preferences plus private bounded local JSON snapshots. This copy correction is source-verified only.
+
 - [Preview boundary](preview-boundary.md)
 - [Unsigned automatic updates](unsigned-automatic-updates.md)
 - [Read-only system metrics](read-only-system-metrics.md)

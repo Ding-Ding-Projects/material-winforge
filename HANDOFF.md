@@ -26,6 +26,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Fixed-ID external-app discovery and launching through a no-shell main-process bridge; renderer paths and executable names are never accepted, and install chains remain preview-only.
 - Empty Recycle Bin now requires two independent impact acknowledgements and a full authorization slider before a fixed, no-input Windows command can run; only bounded status and safe copy return to the renderer.
 - The persistent top banner now distinguishes bounded live integrations from sample and preview-only controls, while stating that build and packaging do not establish runtime verification.
+- The Preview Data attestation now mirrors that boundary and distinguishes `localStorage` preferences from private bounded local JSON snapshots; this copy repair was discovered and checked in source only.
 
 ## Verification state
 
@@ -70,3 +71,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Empty Recycle Bin is a real destructive action behind its own super-confirmation surface; the action, cancellation paths, permanent deletion, and completion state were deliberately not exercised.
 - Packaged runtime inspection found the prior top banner still claiming every action was sample-only. The copy was repaired in source and packaged, but the repaired banner was not reopened or visually inspected in the running artifact.
 - The first packaged runtime capture at `c0a5d72` exposed the stale all-sample banner. The follow-up `b52cf34` package replaced it, and a fresh cheap headless session visually confirmed the repaired banner and live read-only metrics. This evidence does not verify the destructive or package-mutation actions.
+- Source inspection subsequently found stale Preview Data rows still claiming preview-only actions and `localStorage`-only persistence. Their copy was repaired without a new packaged runtime session, so the corrected attestation remains runtime-unverified.
