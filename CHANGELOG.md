@@ -30,6 +30,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Wired the dashboard Flush DNS action to fixed `ipconfig.exe /flushdns` execution with bounded no-shell IPC results, while visibly retaining every other quick action as preview-only.
 - Added confirmed Restart Explorer execution with fixed bounded `taskkill.exe` and `explorer.exe` calls, truthful retry states, and an explicit unsaved-File-Explorer-work warning.
 - Added bounded append-only local JSON snapshots with exact state schema, atomic unique writes, Windows rename retries, and no path or host-data exposure.
+- Added reviewed sequential Winget upgrades for three explicitly updatable allowlisted IDs, with fixed arguments, bounded progress, cancellation, completed-item queue removal, and retryable per-item results.
 
 ### Verification boundary
 

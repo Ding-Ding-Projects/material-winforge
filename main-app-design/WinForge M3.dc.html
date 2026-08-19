@@ -626,7 +626,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             <p style="margin:6px 0 0;font-size:14px;color:var(--md-sys-color-on-surface-variant)">11 engines · nine review-first views · one source-aware queue. Nothing installs without an explicit choice.</p>
           </div>
           <button onClick="{{ pkgRunQueue }}" style="display:flex;align-items:center;gap:8px;height:40px;padding:0 24px 0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:14px;font-weight:500;flex-shrink:0" style-hover="filter:brightness(1.08);box-shadow:var(--md-sys-elevation-level1)">
-            <span class="ms" style="font-size:18px">preview</span>Preview queue ({{ pkgQueueCount }})
+            <span class="ms" style="font-size:18px">upgrade</span>{{ pkgQueueButtonLabel }}
           </button>
         </div>
 
@@ -1240,6 +1240,29 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
     </div>
   </sc-if>
 
+  <sc-if value="{{ wingetReview }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeWingetReview }}" style="position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="winget-review-title" style="width:min(620px,94vw);max-height:84vh;overflow:auto;padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);animation:wf-dialog .25s var(--spring) both">
+        <h2 id="winget-review-title" style="margin:0 0 8px;font-size:22px;font-weight:500">Review selected Winget upgrades</h2>
+        <p style="margin:0 0 16px;color:var(--md-sys-color-on-surface-variant);line-height:1.5">Winget will download and install the exact packages below. Running applications may close or request a restart. Only these reviewed IDs will be submitted.</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ wingetReviewItems }}" as="item" hint-placeholder-count="3">
+            <div style="padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)">
+              <div style="font-weight:500">{{ item.name }}</div>
+              <div style="margin-top:3px;font-family:'Roboto Mono',monospace;font-size:12px;color:var(--md-sys-color-on-surface-variant)">{{ item.id }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ wingetRunning }}" hint-placeholder-val="{{ false }}"><div style="margin-top:16px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container)" role="status" aria-live="polite">{{ wingetProgressText }}</div></sc-if>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px">
+          <sc-if value="{{ wingetRunning }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cancelWingetUpgrade }}" style="height:40px;padding:0 20px;border:1px solid var(--md-sys-color-error);border-radius:999px;background:transparent;color:var(--md-sys-color-error);font-size:14px;font-weight:500">Cancel upgrades</button></sc-if>
+          <sc-if value="{{ wingetNotRunning }}" hint-placeholder-val="{{ true }}"><button onClick="{{ closeWingetReview }}" style="height:40px;padding:0 20px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:14px;font-weight:500">Cancel</button></sc-if>
+          <sc-if value="{{ wingetNotRunning }}" hint-placeholder-val="{{ true }}"><button onClick="{{ confirmWingetUpgrade }}" style="height:40px;padding:0 22px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:14px;font-weight:500">Upgrade selected packages</button></sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
     <div onClick="{{ closePalette }}" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.5);display:flex;justify-content:center;padding-top:12vh">
       <div onClick="{{ stopEvent }}" style="width:min(680px,92vw);max-height:66vh;display:flex;flex-direction:column;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);overflow:hidden;animation:wf-in .22s var(--emph) both">
@@ -1628,6 +1651,7 @@ const PKG_CATALOG = [
   { name: 'PSReadLine', id: 'PSReadLine', version: '2.3.6', engine: 'psgallery', icon: 'keyboard' },
   { name: 'Docker Desktop', id: 'Docker.DockerDesktop', version: '4.38.0', engine: 'winget', icon: 'deployed_code' },
 ];
+const WINGET_UPGRADE_IDS = ['Git.Git', 'Microsoft.PowerShell', 'GitHub.cli'];
 const EXTERNAL_APPS = [
   { id: 'vscode', name: 'Visual Studio Code', winget: 'Microsoft.VisualStudioCode', icon: 'code' },
   { id: 'githubdesktop', name: 'GitHub Desktop', winget: 'GitHub.GitHubDesktop', icon: 'merge' },
@@ -1796,6 +1820,7 @@ class Component extends DCLogic {
       funnyZh: (L && L.funnyZh) || 3,
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
+      wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null,
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
       sys: {
@@ -1855,7 +1880,7 @@ class Component extends DCLogic {
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
-      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false });
+      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false, wingetReview: this.state.wingetRunning ? this.state.wingetReview : false });
     };
     window.addEventListener('keydown', this.onKey);
     if (window.winforge && window.winforge.updateState) {
@@ -1878,6 +1903,13 @@ class Component extends DCLogic {
       }).catch(() => {
         this.packageEngineStates = Object.fromEntries(PKG_ENGINES.map(engine => [engine.id, 'unavailable']));
         this.bump();
+      });
+    }
+    if (window.winforge && window.winforge.onWingetUpgradeProgress) {
+      window.winforge.onWingetUpgradeProgress(progress => {
+        const allowed = ['running', 'completed', 'failed', 'timeout', 'cancelled', 'unsupported'];
+        if (!progress || progress.schemaVersion !== 1 || !Number.isInteger(progress.completed) || !Number.isInteger(progress.total) || progress.completed < 0 || progress.total < 1 || progress.total > 10 || progress.completed > progress.total || !WINGET_UPGRADE_IDS.includes(progress.currentId) || !allowed.includes(progress.status)) return;
+        this.setState({ wingetProgress: progress });
       });
     }
     if (window.winforge && window.winforge.onDeepLink) {
@@ -2703,9 +2735,12 @@ class Component extends DCLogic {
     if (P.query) pkgList = pkgList.filter(p => (p.name + ' ' + p.id).toLowerCase().includes(P.query.toLowerCase()));
     V.pkgResultCount = pkgList.length + ' in ' + P.view.toLowerCase();
     V.pkgQueueCount = P.queue.length;
+    const selectedWinget = PKG_CATALOG.filter(p => p.engine === 'winget' && p.upd && WINGET_UPGRADE_IDS.includes(p.id) && P.queue.includes('op:' + p.id));
+    V.pkgQueueButtonLabel = selectedWinget.length ? 'Review Winget upgrades (' + selectedWinget.length + ')' : 'Preview queue (' + P.queue.length + ')';
     V.pkgRows = pkgList.map(p => {
       const queued = P.queue.includes('op:' + p.id);
-      const label = queued ? 'Queued' : (p.upd ? 'Update' : 'Install');
+      const realWingetUpgrade = p.engine === 'winget' && p.upd && WINGET_UPGRADE_IDS.includes(p.id);
+      const label = queued ? (realWingetUpgrade ? 'Selected' : 'Preview queued') : (realWingetUpgrade ? 'Select upgrade' : 'Preview');
       return {
         name: p.name, id: p.id, version: p.version, icon: p.icon,
         engine: PKG_ENGINES.find(e => e.id === p.engine).label,
@@ -2721,10 +2756,56 @@ class Component extends DCLogic {
         },
       };
     });
-    V.pkgFooter = 'Preview only: selections change a local demonstration queue. No package manager is invoked and no package is fetched or modified.';
+    V.wingetReview = s.wingetReview;
+    V.wingetRunning = s.wingetRunning;
+    V.wingetNotRunning = !s.wingetRunning;
+    V.wingetReviewItems = s.wingetReviewIds.map(id => {
+      const row = PKG_CATALOG.find(item => item.id === id && item.engine === 'winget' && item.upd);
+      return row ? { id: row.id, name: row.name } : { id, name: id };
+    });
+    V.wingetProgressText = s.wingetProgress ? s.wingetProgress.completed + ' of ' + s.wingetProgress.total + ' processed · ' + s.wingetProgress.currentId + ' · ' + s.wingetProgress.status : 'Starting selected upgrades…';
+    V.closeWingetReview = () => { if (!this.state.wingetRunning) this.setState({ wingetReview: false, wingetReviewIds: [], wingetProgress: null }); };
+    V.cancelWingetUpgrade = () => {
+      if (window.winforge && window.winforge.cancelWingetUpgrade) window.winforge.cancelWingetUpgrade();
+    };
+    V.confirmWingetUpgrade = () => {
+      if (this.state.wingetRunning) return;
+      const ids = this.state.wingetReviewIds.filter(id => WINGET_UPGRADE_IDS.includes(id)).slice(0, 10);
+      const bridge = window.winforge;
+      if (!ids.length || !bridge || !bridge.wingetUpgrade) {
+        this.setState({ wingetReview: false, wingetReviewIds: [], wingetProgress: null });
+        this.notify('Winget upgrades', 'Reviewed Winget upgrades are unavailable. Select the rows and retry.', 'warning', true);
+        return;
+      }
+      this.setState({ wingetRunning: true, wingetProgress: { completed: 0, total: ids.length, currentId: ids[0], status: 'running' } });
+      bridge.wingetUpgrade(ids).then(result => {
+        const aggregate = ['completed', 'partial', 'cancelled', 'unsupported', 'timeout', 'failed'];
+        const itemStates = ['completed', 'cancelled', 'unsupported', 'timeout', 'failed'];
+        const resultIds = result && Array.isArray(result.items) ? result.items.map(item => item && item.id) : [];
+        const valid = result && result.schemaVersion === 1 && aggregate.includes(result.status) && Array.isArray(result.items) && result.items.length <= ids.length && new Set(resultIds).size === resultIds.length && typeof result.message === 'string' && result.items.every(item => item && ids.includes(item.id) && itemStates.includes(item.status));
+        if (!valid) {
+          this.setState({ wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null });
+          this.notify('Winget upgrades', 'The Winget upgrade bridge returned an invalid response. Review the selected rows and retry.', 'error', true);
+          return;
+        }
+        const completedIds = result.items.filter(item => item.status === 'completed').map(item => item.id);
+        P.queue = P.queue.filter(entry => !completedIds.includes(entry.replace(/^op:/, '')));
+        this.setState({ wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null });
+        for (const item of result.items.filter(item => item.status !== 'completed')) this.notify('Winget upgrade', item.id + ': ' + item.status + '. Keep the row selected and review it again to retry.', item.status === 'cancelled' || item.status === 'unsupported' ? 'warning' : 'error', true);
+        this.notify('Winget upgrades', result.message, result.status === 'completed' ? 'success' : (result.status === 'partial' || result.status === 'cancelled' ? 'warning' : 'error'), true);
+      }).catch(() => {
+        this.setState({ wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null });
+        this.notify('Winget upgrades', 'The Winget upgrade request failed. Keep the rows selected and review them again to retry.', 'error', true);
+      });
+    };
+    V.pkgFooter = 'Only reviewed allowlisted Winget update rows can run. Every non-Winget, install, and non-updatable row remains preview-only.';
     V.pkgRunQueue = () => {
+      if (selectedWinget.length) {
+        this.setState({ wingetReview: true, wingetReviewIds: selectedWinget.map(item => item.id), wingetProgress: null });
+        return;
+      }
       const n = P.queue.length;
-      this.notify('Package Manager preview', n ? n + ' queued selection' + (n > 1 ? 's' : '') + ' shown. No package manager ran and no package was fetched, installed, updated, or removed.' : 'Queue preview is empty. No package manager ran and no package mutation occurred.', 'info');
+      this.notify('Package Manager preview', n ? n + ' preview selection' + (n > 1 ? 's' : '') + ' shown. No package manager ran and no package was fetched, installed, updated, or removed.' : 'Queue preview is empty. No package manager ran and no package mutation occurred.', 'info');
     };
 
     // external app launcher

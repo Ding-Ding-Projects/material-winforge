@@ -20,6 +20,7 @@ let previousCpuTimes = null;
 let flushDnsActive = false;
 let restartExplorerActive = false;
 let snapshotActive = false;
+let wingetUpgradeActive = null;
 const externalAppLaunches = new Map();
 const EXTERNAL_APP_EXECUTABLES = Object.freeze({
   vscode: ['Code.exe', 'code.exe'],
@@ -50,6 +51,11 @@ const PACKAGE_ENGINE_EXECUTABLES = Object.freeze({
   cargo: ['cargo.exe'],
   bun: ['bun.exe'],
   vcpkg: ['vcpkg.exe'],
+});
+const WINGET_UPGRADE_ALLOWLIST = Object.freeze({
+  'Git.Git': 'Git',
+  'Microsoft.PowerShell': 'PowerShell',
+  'GitHub.cli': 'GitHub CLI',
 });
 let updateState = {
   state: 'idle',
@@ -357,6 +363,71 @@ async function createLocalSnapshot(payload) {
   }
 }
 
+function publishWingetProgress(progress) {
+  if (win && !win.isDestroyed()) win.webContents.send('winforge:winget-upgrade-progress', { schemaVersion: 1, ...progress });
+}
+
+function runWingetUpgrade(id, signal) {
+  return new Promise((resolve) => {
+    execFile('winget.exe', ['upgrade', '--id', id, '--exact', '--accept-source-agreements', '--accept-package-agreements'], {
+      windowsHide: true,
+      timeout: 15 * 60 * 1000,
+      maxBuffer: 1024 * 1024,
+      encoding: 'utf8',
+      shell: false,
+      signal,
+    }, (error) => {
+      if (!error) { resolve('completed'); return; }
+      if (signal.aborted || error.name === 'AbortError') { resolve('cancelled'); return; }
+      if (error.killed || error.code === 'ETIMEDOUT') { resolve('timeout'); return; }
+      if (error.code === 'ENOENT') { resolve('unsupported'); return; }
+      resolve('failed');
+    });
+  });
+}
+
+async function upgradeWingetPackages(ids) {
+  if (process.platform !== 'win32') return { schemaVersion: 1, status: 'unsupported', items: [], message: 'Winget upgrades are supported only on Windows.' };
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > 10 || new Set(ids).size !== ids.length || !ids.every((id) => typeof id === 'string' && Object.hasOwn(WINGET_UPGRADE_ALLOWLIST, id))) {
+    return { schemaVersion: 1, status: 'failed', items: [], message: 'The Winget upgrade selection was invalid or not allowlisted.' };
+  }
+  if (wingetUpgradeActive) return { schemaVersion: 1, status: 'failed', items: [], message: 'A Winget upgrade operation is already running.' };
+  const controller = new AbortController();
+  wingetUpgradeActive = controller;
+  const items = [];
+  let processed = 0;
+  try {
+    for (let index = 0; index < ids.length; index += 1) {
+      const id = ids[index];
+      if (controller.signal.aborted) {
+        for (const remaining of ids.slice(index)) items.push({ id: remaining, status: 'cancelled' });
+        break;
+      }
+      publishWingetProgress({ completed: processed, total: ids.length, currentId: id, status: 'running' });
+      const status = await runWingetUpgrade(id, controller.signal);
+      items.push({ id, status });
+      processed += 1;
+      publishWingetProgress({ completed: processed, total: ids.length, currentId: id, status });
+      if (status === 'cancelled') {
+        for (const remaining of ids.slice(index + 1)) items.push({ id: remaining, status: 'cancelled' });
+        break;
+      }
+    }
+    const successful = items.filter((item) => item.status === 'completed').length;
+    let status;
+    if (items.some((item) => item.status === 'cancelled')) status = 'cancelled';
+    else if (successful === ids.length) status = 'completed';
+    else if (successful > 0) status = 'partial';
+    else if (items.some((item) => item.status === 'timeout')) status = 'timeout';
+    else if (items.length && items.every((item) => item.status === 'unsupported')) status = 'unsupported';
+    else status = 'failed';
+    const message = status === 'completed' ? 'All selected Winget upgrades completed.' : status === 'partial' ? 'Some selected Winget upgrades completed; unsuccessful items remain retryable.' : status === 'cancelled' ? 'The Winget upgrade operation was cancelled; unfinished items remain retryable.' : status === 'timeout' ? 'A selected Winget upgrade timed out; retry is available.' : status === 'unsupported' ? 'Winget is unavailable on this system.' : 'The selected Winget upgrades did not complete; retry is available.';
+    return { schemaVersion: 1, status, items, message };
+  } finally {
+    wingetUpgradeActive = null;
+  }
+}
+
 async function launchExternalApp(id) {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
   if (externalAppLaunches.has(id)) return externalAppResult(id, 'busy', 'A launch check for this app is already running.');
@@ -528,6 +599,12 @@ ipcMain.handle('winforge:package-engines', () => readPackageEngines());
 ipcMain.handle('winforge:flush-dns', () => flushDns());
 ipcMain.handle('winforge:restart-explorer', () => restartExplorer());
 ipcMain.handle('winforge:create-snapshot', (_event, payload) => createLocalSnapshot(payload));
+ipcMain.handle('winforge:winget-upgrade', (_event, ids) => upgradeWingetPackages(ids));
+ipcMain.handle('winforge:cancel-winget-upgrade', () => {
+  if (!wingetUpgradeActive) return { schemaVersion: 1, status: 'failed', message: 'No Winget upgrade operation is running.' };
+  wingetUpgradeActive.abort();
+  return { schemaVersion: 1, status: 'cancelled', message: 'Winget upgrade cancellation was requested.' };
+});
 ipcMain.handle('winforge:launch-external-app', (_event, id) => launchExternalApp(id));
 ipcMain.handle('winforge:cancel-external-app-launch', (_event, id) => {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');

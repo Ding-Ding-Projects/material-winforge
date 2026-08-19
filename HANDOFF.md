@@ -63,3 +63,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Flush DNS is real and uses fixed bounded `ipconfig.exe /flushdns`; it was packaged but not executed.
 - Restart Explorer is now also real behind an explicit interruption warning and fixed bounded process calls; it was packaged but neither the confirmation nor Explorer termination/restart was exercised.
 - New local snapshot now writes bounded append-only JSON atomically under private app data; it is not yet Git-backed history and creation/restore were not exercised.
+- Reviewed Winget upgrades now support only `Git.Git`, `Microsoft.PowerShell`, and `GitHub.cli`; review, execution, progress, cancellation, timeout, and partial queue handling were packaged but not exercised.

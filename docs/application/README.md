@@ -10,6 +10,7 @@ The current desktop package is a design preview. Documentation in this category 
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)
 - [Local snapshot](local-snapshot.md)
+- [Reviewed Winget upgrades](winget-upgrades.md)
 
 ## Not yet claimed
 
