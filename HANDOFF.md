@@ -59,3 +59,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - The system-metrics bridge was built and packaged but not exercised in the running artifact; its live values and dashboard rendering remain unverified.
 - External-app discovery, actual launch, cancellation, timeout, and duplicate-request behaviour were not exercised in the running artifact.
 - The dashboard read-only summary uses the metrics bridge and no longer claims a DISM result; its notification path was built but not exercised in the running artifact.
+- Package-engine discovery and its Not checked, Available, Not installed, and Unavailable renderer states were built and packaged but not exercised; Preview queue performs no package mutation.

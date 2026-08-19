@@ -625,7 +625,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             <p style="margin:6px 0 0;font-size:14px;color:var(--md-sys-color-on-surface-variant)">11 engines · nine review-first views · one source-aware queue. Nothing installs without an explicit choice.</p>
           </div>
           <button onClick="{{ pkgRunQueue }}" style="display:flex;align-items:center;gap:8px;height:40px;padding:0 24px 0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:14px;font-weight:500;flex-shrink:0" style-hover="filter:brightness(1.08);box-shadow:var(--md-sys-elevation-level1)">
-            <span class="ms" style="font-size:18px">playlist_play</span>Run queue ({{ pkgQueueCount }})
+            <span class="ms" style="font-size:18px">preview</span>Preview queue ({{ pkgQueueCount }})
           </button>
         </div>
 
@@ -1586,12 +1586,12 @@ const RAIL = [
 
 const PKG_VIEWS = ['Discover', 'Updates', 'Installed', 'Bundles', 'Sources', 'Ignored', 'Setup', 'Settings', 'Operations'];
 const PKG_ENGINES = [
-  { id: 'winget', label: 'WinGet', icon: 'window', ok: true }, { id: 'scoop', label: 'Scoop', icon: 'water_drop', ok: true },
-  { id: 'choco', label: 'Chocolatey', icon: 'cookie', ok: true }, { id: 'pip', label: 'pip', icon: 'code', ok: true },
-  { id: 'npm', label: 'npm', icon: 'javascript', ok: true }, { id: 'dotnet', label: '.NET tools', icon: 'terminal', ok: true },
-  { id: 'psgallery', label: 'PS Gallery', icon: 'library_books', ok: true }, { id: 'psresource', label: 'PSResourceGet', icon: 'library_add', ok: true },
-  { id: 'cargo', label: 'Cargo', icon: 'inventory', ok: true }, { id: 'bun', label: 'Bun', icon: 'bakery_dining', ok: false },
-  { id: 'vcpkg', label: 'vcpkg', icon: 'data_object', ok: false },
+  { id: 'winget', label: 'WinGet', icon: 'window' }, { id: 'scoop', label: 'Scoop', icon: 'water_drop' },
+  { id: 'choco', label: 'Chocolatey', icon: 'cookie' }, { id: 'pip', label: 'pip', icon: 'code' },
+  { id: 'npm', label: 'npm', icon: 'javascript' }, { id: 'dotnet', label: '.NET tools', icon: 'terminal' },
+  { id: 'psgallery', label: 'PS Gallery', icon: 'library_books' }, { id: 'psresource', label: 'PSResourceGet', icon: 'library_add' },
+  { id: 'cargo', label: 'Cargo', icon: 'inventory' }, { id: 'bun', label: 'Bun', icon: 'bakery_dining' },
+  { id: 'vcpkg', label: 'vcpkg', icon: 'data_object' },
 ];
 const PKG_CATALOG = [
   { name: 'Git', id: 'Git.Git', version: '2.51.0 → 2.52.1', engine: 'winget', icon: 'merge', upd: true },
@@ -1766,6 +1766,7 @@ class Component extends DCLogic {
     this.snacks = [];
     this.updateInfo = { state: 'idle', currentVersion: '1.0.0', version: null, releaseNotesUrl: null, progress: null, message: 'Updates have not been checked yet.', unsigned: true };
     this.externalAppStates = {};
+    this.packageEngineStates = {};
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -1841,6 +1842,24 @@ class Component extends DCLogic {
     if (window.winforge && window.winforge.updateState) {
       window.winforge.updateState().then(info => { this.updateInfo = info || this.updateInfo; this.bump(); });
       window.winforge.onUpdateState(info => { this.updateInfo = info || this.updateInfo; this.bump(); });
+    }
+    if (window.winforge && window.winforge.packageEngines) {
+      window.winforge.packageEngines().then(result => {
+        const ids = PKG_ENGINES.map(engine => engine.id);
+        const allowed = ['available', 'not-installed', 'timeout', 'unavailable'];
+        if (!result || result.schemaVersion !== 1 || !Array.isArray(result.engines)) throw new Error('Invalid package-engine response');
+        const next = {};
+        for (const engine of result.engines) {
+          if (!engine || !ids.includes(engine.id) || !allowed.includes(engine.status) || next[engine.id]) throw new Error('Invalid package-engine entry');
+          next[engine.id] = engine.status;
+        }
+        for (const id of ids) if (!next[id]) next[id] = 'unavailable';
+        this.packageEngineStates = next;
+        this.bump();
+      }).catch(() => {
+        this.packageEngineStates = Object.fromEntries(PKG_ENGINES.map(engine => [engine.id, 'unavailable']));
+        this.bump();
+      });
     }
     if (window.winforge && window.winforge.onDeepLink) {
       window.winforge.onDeepLink(page => {
@@ -2568,14 +2587,17 @@ class Component extends DCLogic {
       bar: P.view === v ? prim : 'transparent',
     }));
     V.pkgEngines = PKG_ENGINES.map(e => {
-      const sel = !!P.engines[e.id] && e.ok;
+      const status = this.packageEngineStates[e.id] || 'not-checked';
+      const available = status === 'available';
+      const sel = !!P.engines[e.id] && available;
+      const statusLabel = { 'not-checked': 'Not checked', available: 'Available', 'not-installed': 'Not installed', timeout: 'Unavailable (timeout)', unavailable: 'Unavailable' }[status];
       return {
-        label: e.label, icon: e.icon, state: e.ok ? (sel ? 'on' : 'off') : 'not installed',
+        label: e.label, icon: e.icon, state: statusLabel,
         bg: sel ? 'var(--md-sys-color-secondary-container)' : 'transparent',
-        fg: e.ok ? (sel ? 'var(--md-sys-color-on-secondary-container)' : onVar) : 'var(--md-sys-color-outline)',
+        fg: available ? (sel ? 'var(--md-sys-color-on-secondary-container)' : onVar) : 'var(--md-sys-color-outline)',
         border: sel ? 'transparent' : 'var(--md-sys-color-outline-variant)',
         toggle: () => {
-          if (!e.ok) { this.notify(e.label, 'Engine not installed — shown as a setup dependency, not success', 'warning'); return; }
+          if (!available) { this.notify(e.label, statusLabel + ' — no package manager or package mutation ran.', 'warning'); return; }
           P.engines[e.id] = !P.engines[e.id]; this.setState(st => ({ tick: st.tick + 1 }));
         },
       };
@@ -2584,7 +2606,7 @@ class Component extends DCLogic {
     V.setPkgQuery = e => { P.query = e.target.value; this.setState(st => ({ tick: st.tick + 1 })); };
     const engBg = { winget: 'var(--md-sys-color-primary-container)', scoop: 'var(--dm-green-container)', pip: 'var(--dm-amber-container)', npm: 'var(--md-sys-color-error-container)', dotnet: 'var(--md-sys-color-secondary-container)', cargo: 'var(--md-sys-color-surface-container-highest)', psgallery: 'var(--md-sys-color-surface-container-highest)' };
     const engFg = { winget: 'var(--md-sys-color-on-primary-container)', scoop: 'var(--dm-green-on-container)', pip: 'var(--dm-amber-on-container)', npm: 'var(--md-sys-color-on-error-container)', dotnet: 'var(--md-sys-color-on-secondary-container)', cargo: onVar, psgallery: onVar };
-    let pkgList = PKG_CATALOG.filter(p => P.engines[p.engine]);
+    let pkgList = PKG_CATALOG.filter(p => P.engines[p.engine] && this.packageEngineStates[p.engine] === 'available');
     if (P.view === 'Updates') pkgList = pkgList.filter(p => p.upd);
     if (P.view === 'Installed') pkgList = pkgList.filter(p => !p.upd);
     if (P.view === 'Ignored') pkgList = pkgList.filter(p => P.queue.includes('ignore:' + p.id));
@@ -2610,11 +2632,10 @@ class Component extends DCLogic {
         },
       };
     });
-    V.pkgFooter = 'Review first: selections are queued, and nothing is fetched until you run the queue. Proxy settings never carry credentials on a command line.';
+    V.pkgFooter = 'Preview only: selections change a local demonstration queue. No package manager is invoked and no package is fetched or modified.';
     V.pkgRunQueue = () => {
-      if (!P.queue.length) { this.notify('Package Manager', 'Queue is empty — select packages first', 'info'); return; }
-      const n = P.queue.length; P.queue = [];
-      this.notify('Package Manager', n + ' operation' + (n > 1 ? 's' : '') + ' completed · hashes verified, atomic saves committed', 'success');
+      const n = P.queue.length;
+      this.notify('Package Manager preview', n ? n + ' queued selection' + (n > 1 ? 's' : '') + ' shown. No package manager ran and no package was fetched, installed, updated, or removed.' : 'Queue preview is empty. No package manager ran and no package mutation occurred.', 'info');
     };
 
     // external app launcher

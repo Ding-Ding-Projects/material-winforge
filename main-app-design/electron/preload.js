@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('winforge', {
   version: () => ipcRenderer.invoke('winforge:version'),
   mode: () => ipcRenderer.invoke('winforge:mode'),
   systemMetrics: () => ipcRenderer.invoke('winforge:system-metrics'),
+  packageEngines: () => ipcRenderer.invoke('winforge:package-engines'),
   launchExternalApp: id => ipcRenderer.invoke('winforge:launch-external-app', id),
   cancelExternalAppLaunch: id => ipcRenderer.invoke('winforge:cancel-external-app-launch', id),
   updateState: () => ipcRenderer.invoke('winforge:update-state'),

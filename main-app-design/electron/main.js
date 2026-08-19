@@ -34,6 +34,19 @@ const EXTERNAL_APP_EXECUTABLES = Object.freeze({
   dockerdesktop: ['Docker Desktop.exe'],
   wireshark: ['Wireshark.exe'],
 });
+const PACKAGE_ENGINE_EXECUTABLES = Object.freeze({
+  winget: ['winget.exe'],
+  scoop: ['scoop.cmd'],
+  choco: ['choco.exe'],
+  pip: ['pip.exe', 'pip3.exe'],
+  npm: ['npm.cmd'],
+  dotnet: ['dotnet.exe'],
+  psgallery: [],
+  psresource: [],
+  cargo: ['cargo.exe'],
+  bun: ['bun.exe'],
+  vcpkg: ['vcpkg.exe'],
+});
 let updateState = {
   state: 'idle',
   currentVersion: app.getVersion(),
@@ -151,6 +164,7 @@ function discoverExecutable(candidate, signal) {
       if (error) {
         if (signal.aborted || error.name === 'AbortError') resolve({ status: 'cancelled' });
         else if (error.killed || error.code === 'ETIMEDOUT') resolve({ status: 'timeout' });
+        else if (error.code === 'ENOENT') resolve({ status: 'unavailable' });
         else resolve({ status: 'not-found' });
         return;
       }
@@ -165,6 +179,23 @@ function discoverExecutable(candidate, signal) {
       resolve({ status: 'found', executable: match });
     });
   });
+}
+
+async function readPackageEngines() {
+  const engines = await Promise.all(Object.entries(PACKAGE_ENGINE_EXECUTABLES).map(async ([id, candidates]) => {
+    if (process.platform !== 'win32') return { id, status: 'unavailable' };
+    if (!candidates.length) return { id, status: 'unavailable' };
+    const controller = new AbortController();
+    let timedOut = false;
+    for (const candidate of candidates) {
+      const discovery = await discoverExecutable(candidate, controller.signal);
+      if (discovery.status === 'found') return { id, status: 'available' };
+      if (discovery.status === 'timeout') timedOut = true;
+      if (discovery.status === 'unavailable') return { id, status: 'unavailable' };
+    }
+    return { id, status: timedOut ? 'timeout' : 'not-installed' };
+  }));
+  return { schemaVersion: 1, engines };
 }
 
 async function launchExternalApp(id) {
@@ -334,6 +365,7 @@ ipcMain.on('winforge:close', () => win && win.close());
 ipcMain.handle('winforge:version', () => app.getVersion());
 ipcMain.handle('winforge:mode', () => 'preview');
 ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
+ipcMain.handle('winforge:package-engines', () => readPackageEngines());
 ipcMain.handle('winforge:launch-external-app', (_event, id) => launchExternalApp(id));
 ipcMain.handle('winforge:cancel-external-app-launch', (_event, id) => {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');

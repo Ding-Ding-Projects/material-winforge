@@ -6,6 +6,7 @@ The current desktop package is a design preview. Documentation in this category 
 - [Unsigned automatic updates](unsigned-automatic-updates.md)
 - [Read-only system metrics](read-only-system-metrics.md)
 - [External app launch](external-app-launch.md)
+- [Package engine discovery](package-engine-discovery.md)
 
 ## Not yet claimed
 
