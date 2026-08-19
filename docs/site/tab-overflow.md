@@ -2,7 +2,7 @@
 
 ## Behavior
 
-The existing six-destination tab strip is measured in its rendered orientation. When the available width or height cannot contain every tab, an **All tabs** affordance appears and opens a bounded list of all six destinations. Selecting a result activates the same tab and panel used by the strip.
+The existing six-destination tab strip is measured in its rendered orientation. When the available width or height cannot contain the ordinary tabs, an **All tabs** affordance appears and opens a bounded list of all six destinations. Selecting a result activates the same tab and panel used by the strip. Pinned tabs remain in a separate stable region and every list result states whether it is pinned and protected from future bulk-close actions.
 
 The list has its own search. Plain text is the default; an adjacent anchored builder deliberately enables the browser's JavaScript regular-expression dialect with `i` and `m` flags, guided tokens, sample text, live match count, capture display, invalid-pattern feedback, and reset/copy actions.
 

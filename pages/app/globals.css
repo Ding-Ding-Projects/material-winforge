@@ -126,18 +126,28 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .release-chip.waiting { color: var(--on-surface-variant); background: var(--surface-container-high); }
 
 .tab-strip { grid-area: tabs; z-index: 20; position: relative; display: flex; gap: 8px; padding: 18px 12px; background: var(--surface-container); }
-.tab-items { display: flex; min-width: 0; min-height: 0; gap: 8px; overflow: hidden; }
+.tab-collection, .tab-items, .pinned-tab-items { display: flex; min-width: 0; min-height: 0; gap: 8px; }
+.tab-items { flex: 1 1 auto; overflow: hidden; }
+.pinned-tab-items { flex: 0 1 auto; overflow: auto; padding: 0 0 8px; border-bottom: 1px solid var(--outline-variant); }
 .dock-left .tab-strip { position: sticky; top: var(--header-height); align-self: start; height: calc(100vh - var(--header-height)); flex-direction: column; border-right: 1px solid var(--outline-variant); }
 .dock-right .tab-strip { position: sticky; top: var(--header-height); align-self: start; height: calc(100vh - var(--header-height)); flex-direction: column; border-left: 1px solid var(--outline-variant); }
-.dock-left .tab-items, .dock-right .tab-items { flex: 1 1 auto; flex-direction: column; }
-.dock-top .tab-items, .dock-bottom .tab-items { flex: 1 1 auto; flex-direction: row; }
+.dock-left .tab-collection, .dock-right .tab-collection, .dock-left .tab-items, .dock-right .tab-items, .dock-left .pinned-tab-items, .dock-right .pinned-tab-items { flex-direction: column; }
+.dock-left .tab-collection, .dock-right .tab-collection { flex: 1 1 auto; }
+.dock-left .pinned-tab-items, .dock-right .pinned-tab-items { max-height: 50%; }
+.dock-top .tab-collection, .dock-bottom .tab-collection, .dock-top .tab-items, .dock-bottom .tab-items, .dock-top .pinned-tab-items, .dock-bottom .pinned-tab-items { flex-direction: row; }
+.dock-top .tab-collection, .dock-bottom .tab-collection { flex: 1 1 auto; }
+.dock-top .pinned-tab-items, .dock-bottom .pinned-tab-items { max-width: 55%; padding: 0 8px 0 0; border-right: 1px solid var(--outline-variant); border-bottom: 0; }
 .dock-top .tab-strip, .dock-bottom .tab-strip { overflow-x: auto; padding: 8px clamp(14px, 3vw, 34px); }
 .dock-top .tab-strip { position: sticky; top: var(--header-height); border-bottom: 1px solid var(--outline-variant); }
 .dock-bottom .tab-strip { position: sticky; bottom: 0; border-top: 1px solid var(--outline-variant); }
-.tab-items > button { position: relative; display: flex; align-items: center; gap: 13px; min-width: 0; min-height: 52px; padding: 10px 16px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; }
-.dock-top .tab-items > button, .dock-bottom .tab-items > button { min-height: 46px; }
-.tab-items > button:hover { background: var(--surface-container-high); }
-.tab-items > button.active { color: var(--on-primary-container); background: var(--primary-container); font-weight: 650; }
+.tab-entry { position: relative; display: flex; flex: 0 0 auto; align-items: center; min-width: 0; }
+.tab-entry > [role="tab"] { position: relative; display: flex; flex: 1 1 auto; align-items: center; gap: 10px; min-width: 0; min-height: 52px; padding: 10px 42px 10px 16px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; }
+.dock-top .tab-entry > [role="tab"], .dock-bottom .tab-entry > [role="tab"] { min-height: 46px; }
+.tab-entry > [role="tab"]:hover { background: var(--surface-container-high); }
+.tab-entry > [role="tab"].active { color: var(--on-primary-container); background: var(--primary-container); font-weight: 650; }
+.tab-state-label { padding: 2px 7px; border-radius: 999px; background: var(--surface-container-highest); color: var(--on-surface-variant); font-size: .68rem; font-weight: 700; }
+.tab-pin-toggle { position: absolute; z-index: 1; right: 5px; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--on-surface-variant); cursor: pointer; font-size: 1.15rem; }
+.tab-pin-toggle:hover, .tab-pin-toggle:focus-visible { background: var(--surface-container-highest); }
 .tab-icon { display: grid; place-items: center; width: 24px; height: 24px; font-size: 1.12rem; }
 .tab-overflow-anchor { position: relative; flex: 0 0 auto; }
 .tab-overflow-trigger { min-height: 46px !important; color: var(--on-surface-variant); background: var(--surface-container-high) !important; }
@@ -154,9 +164,11 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .tab-overflow-search .builder-anchor > button { min-height: 48px; padding: 0 12px; border: 1px solid var(--outline); border-radius: 14px; background: var(--surface); cursor: pointer; }
 .tab-overflow-meta { color: var(--on-surface-variant); font-size: .78rem; }
 .tab-overflow-list { display: grid; gap: 6px; margin-top: 12px; }
-.tab-overflow-list > button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 9px 12px; border: 0; border-radius: 14px; background: transparent; color: inherit; cursor: pointer; text-align: left; }
-.tab-overflow-list > button:hover, .tab-overflow-list > button[aria-current="page"] { background: var(--primary-container); color: var(--on-primary-container); }
-.tab-overflow-list > button > span:last-child { display: grid; gap: 2px; }
+.tab-overflow-list > article { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.tab-overflow-list > article > button:first-child { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 9px 12px; border: 0; border-radius: 14px; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.tab-overflow-list > article > button:first-child:hover, .tab-overflow-list > article > button:first-child[aria-current="page"] { background: var(--primary-container); color: var(--on-primary-container); }
+.tab-overflow-list > article > button:first-child > span:last-child { display: grid; gap: 2px; }
+.overflow-pin-toggle { min-width: 70px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--outline); border-radius: 13px; background: var(--surface); color: inherit; cursor: pointer; }
 .tab-overflow-list small { color: var(--on-surface-variant); }
 .tab-overflow-empty { padding: 20px 12px; color: var(--on-surface-variant); }
 
@@ -426,10 +438,12 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
   .top-actions { gap: 6px; }
   .release-chip { max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
   .dock-left .tab-strip, .dock-right .tab-strip, .dock-top .tab-strip, .dock-bottom .tab-strip { position: sticky; top: var(--header-height); bottom: auto; height: auto; flex-direction: row; border: 0; border-bottom: 1px solid var(--outline-variant); padding: 7px 10px; }
-  .dock-left .tab-items, .dock-right .tab-items, .dock-top .tab-items, .dock-bottom .tab-items { flex-direction: row; }
-  .tab-items > button { min-height: 46px; padding: 8px 13px; }
-  .tab-items > button span:last-child { display: none; }
-  .tab-items > button.active span:last-child { display: inline; }
+  .dock-left .tab-collection, .dock-right .tab-collection, .dock-top .tab-collection, .dock-bottom .tab-collection, .dock-left .tab-items, .dock-right .tab-items, .dock-top .tab-items, .dock-bottom .tab-items, .dock-left .pinned-tab-items, .dock-right .pinned-tab-items, .dock-top .pinned-tab-items, .dock-bottom .pinned-tab-items { flex-direction: row; }
+  .tab-collection { flex: 1 1 auto; }
+  .pinned-tab-items { max-width: 55%; max-height: none; padding: 0 8px 0 0; border-right: 1px solid var(--outline-variant); border-bottom: 0; }
+  .tab-entry > [role="tab"] { min-height: 46px; padding: 8px 40px 8px 13px; }
+  .tab-entry > [role="tab"] .tab-label, .tab-entry > [role="tab"] .tab-state-label { display: none; }
+  .tab-entry > [role="tab"].active .tab-label { display: inline; }
   .tab-overflow-trigger span:last-child { display: none; }
   .tab-overflow-surface { position: fixed; inset: calc(var(--header-height) + 8px) 8px auto; width: auto; max-height: calc(100vh - var(--header-height) - 16px); }
   .tab-overflow-search { align-items: stretch; flex-direction: column; }
