@@ -16,6 +16,12 @@ type TabGroup = {
   color: string;
   collapsed: boolean;
   tabs: TabId[];
+  appearance: TabGroupAppearance;
+};
+type TabGroupAppearance = {
+  icon: string;
+  textColor: string;
+  backgroundColor: string;
 };
 type GroupSearchState = {
   query: string;
@@ -25,7 +31,7 @@ type GroupSearchState = {
   builderOpen: boolean;
 };
 type BulkCloseMode = "contains" | "not-contains";
-type TabGroupsState = { schemaVersion: 1; groups: TabGroup[] };
+type TabGroupsState = { schemaVersion: 2; groups: TabGroup[] };
 type LanguageMode = "en" | "yue" | "both";
 type VocabularyCache = {
   schemaVersion: 1;
@@ -137,12 +143,17 @@ const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   accent: "#2f7d45",
   showEmojis: true,
 };
+const DEFAULT_GROUP_APPEARANCE: TabGroupAppearance = {
+  icon: "▦",
+  textColor: "#1b1b1f",
+  backgroundColor: "#f3f3f7",
+};
 const DEFAULTS: Preferences = {
   schemaVersion: 1,
   ...DEFAULT_SITE_SETTINGS,
   pinnedTabs: [],
   tabOrder: ["home", "features", "docs", "settings", "changelog", "status"],
-  tabGroups: { schemaVersion: 1, groups: [] },
+  tabGroups: { schemaVersion: 2, groups: [] },
   personalVocabulary: null,
   logoPreset: "forge",
   customLogo: null,
@@ -672,13 +683,35 @@ function validGroupName(value: unknown): string | null {
     return null;
   return value;
 }
-function normalizeTabGroups(value: unknown): TabGroupsState | null {
-  if (value === undefined) return { schemaVersion: 1, groups: [] };
+function normalizeTabGroupAppearance(value: unknown): TabGroupAppearance | null {
+  if (value === undefined) return { ...DEFAULT_GROUP_APPEARANCE };
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const root = value as Partial<TabGroupsState>;
+  const root = value as Record<string, unknown>;
+  if (
+    Object.keys(root).length !== 3 ||
+    typeof root.icon !== "string" ||
+    root.icon.length < 1 ||
+    root.icon.length > 2 ||
+    /[\u0000-\u001f\u007f]/.test(root.icon) ||
+    typeof root.textColor !== "string" ||
+    !/^#[0-9a-f]{6}$/i.test(root.textColor) ||
+    typeof root.backgroundColor !== "string" ||
+    !/^#[0-9a-f]{6}$/i.test(root.backgroundColor)
+  )
+    return null;
+  return {
+    icon: root.icon,
+    textColor: root.textColor.toLowerCase(),
+    backgroundColor: root.backgroundColor.toLowerCase(),
+  };
+}
+function normalizeTabGroups(value: unknown): TabGroupsState | null {
+  if (value === undefined) return { schemaVersion: 2, groups: [] };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Record<string, unknown>;
   if (
     Object.keys(root).length !== 2 ||
-    root.schemaVersion !== 1 ||
+    ![1, 2].includes(Number(root.schemaVersion)) ||
     !Array.isArray(root.groups) ||
     root.groups.length > 8
   )
@@ -692,10 +725,10 @@ function normalizeTabGroups(value: unknown): TabGroupsState | null {
       !candidate ||
       typeof candidate !== "object" ||
       Array.isArray(candidate) ||
-      Object.keys(candidate).length !== 5
+      ![5, 6].includes(Object.keys(candidate).length)
     )
       return null;
-    const group = candidate as Partial<TabGroup>;
+    const group = candidate as Partial<TabGroup> & { appearance?: unknown };
     if (
       typeof group.id !== "string" ||
       !/^group-[a-z0-9]{8,24}$/.test(group.id) ||
@@ -705,7 +738,8 @@ function normalizeTabGroups(value: unknown): TabGroupsState | null {
       !/^#[0-9a-f]{6}$/i.test(group.color) ||
       typeof group.collapsed !== "boolean" ||
       !Array.isArray(group.tabs) ||
-      group.tabs.length > TABS.length
+      group.tabs.length > TABS.length ||
+      (Number(root.schemaVersion) === 2 && normalizeTabGroupAppearance(group.appearance) === null)
     )
       return null;
     const tabs = group.tabs as TabId[];
@@ -716,15 +750,18 @@ function normalizeTabGroups(value: unknown): TabGroupsState | null {
       return null;
     groupIds.add(group.id);
     tabs.forEach((tab) => assignedTabs.add(tab));
+    const appearance = normalizeTabGroupAppearance(group.appearance);
+    if (!appearance) return null;
     groups.push({
       id: group.id,
       name: group.name,
       color: group.color.toLowerCase(),
       collapsed: group.collapsed,
       tabs: [...tabs],
+      appearance,
     });
   }
-  return { schemaVersion: 1, groups };
+  return { schemaVersion: 2, groups };
 }
 function normalizeLogoState(value: unknown): SettingsLogoState | null {
   if (
@@ -913,7 +950,7 @@ function normalizePreferences(value: unknown): Preferences | null {
     pinnedTabs,
     tabOrder,
     tabGroups: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       groups: tabGroups.groups.map((group) => ({
         ...group,
         tabs: group.tabs.filter((tab) => !pinnedTabs.includes(tab)),
@@ -1125,6 +1162,8 @@ export default function SiteShell({
   const [groupSearches, setGroupSearches] = useState<
     Record<string, GroupSearchState>
   >({});
+  const [groupAppearanceHeaderId, setGroupAppearanceHeaderId] = useState<string | null>(null);
+  const [groupAppearanceSettingsId, setGroupAppearanceSettingsId] = useState<string | null>(null);
   const movePickerOrigin = useRef<HTMLElement | null>(null);
   const movePickerDialog = useRef<HTMLElement | null>(null);
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
@@ -1597,7 +1636,7 @@ export default function SiteShell({
       tabGroups: pinned
         ? prefs.tabGroups
         : {
-            schemaVersion: 1,
+            schemaVersion: 2,
             groups: prefs.tabGroups.groups.map((group) => ({
               ...group,
               tabs: group.tabs.filter((tab) => tab !== tabId),
@@ -1647,7 +1686,7 @@ export default function SiteShell({
       if (current.tabGroups.groups.length >= 8 || (assignTab && current.pinnedTabs.includes(assignTab))) return current;
       const generatedId = candidates.find((candidate) => !current.tabGroups.groups.some((item) => item.id === candidate));
       if (!generatedId) return current;
-      const group: TabGroup = { id: generatedId, name, color: newGroupColor.toLowerCase(), collapsed: false, tabs: assignTab ? [assignTab] : [] };
+      const group: TabGroup = { id: generatedId, name, color: newGroupColor.toLowerCase(), collapsed: false, tabs: assignTab ? [assignTab] : [], appearance: { ...DEFAULT_GROUP_APPEARANCE } };
       const withoutTab = assignTab
         ? current.tabGroups.groups.map((item) => ({
             ...item,
@@ -1656,7 +1695,7 @@ export default function SiteShell({
         : current.tabGroups.groups;
       return {
         ...current,
-        tabGroups: { schemaVersion: 1, groups: [...withoutTab, group] },
+        tabGroups: { schemaVersion: 2, groups: [...withoutTab, group] },
       };
     });
     setNewGroupName("");
@@ -1690,11 +1729,47 @@ export default function SiteShell({
     setPrefs({
       ...prefs,
       tabGroups: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         groups: prefs.tabGroups.groups.map((group) =>
           group.id === groupId
             ? { ...group, ...normalizedPatch }
             : group,
+        ),
+      },
+    });
+    return true;
+  };
+  const updateTabGroupAppearance = (
+    groupId: string,
+    patch: Partial<TabGroupAppearance>,
+  ): boolean => {
+    const group = prefs.tabGroups.groups.find((item) => item.id === groupId);
+    if (!group) return false;
+    const next = { ...group.appearance, ...patch };
+    if (
+      typeof next.icon !== "string" ||
+      next.icon.length < 1 ||
+      next.icon.length > 2 ||
+      /[\u0000-\u001f\u007f]/.test(next.icon) ||
+      !/^#[0-9a-f]{6}$/i.test(next.textColor) ||
+      !/^#[0-9a-f]{6}$/i.test(next.backgroundColor)
+    )
+      return false;
+    setPrefs({
+      ...prefs,
+      tabGroups: {
+        schemaVersion: 2,
+        groups: prefs.tabGroups.groups.map((item) =>
+          item.id === groupId
+            ? {
+                ...item,
+                appearance: {
+                  icon: next.icon,
+                  textColor: next.textColor.toLowerCase(),
+                  backgroundColor: next.backgroundColor.toLowerCase(),
+                },
+              }
+            : item,
         ),
       },
     });
@@ -1706,7 +1781,7 @@ export default function SiteShell({
     setPrefs({
       ...prefs,
       tabGroups: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         groups: prefs.tabGroups.groups.filter((item) => item.id !== groupId),
       },
     });
@@ -1733,7 +1808,7 @@ export default function SiteShell({
     [groups[index], groups[nextIndex]] = [groups[nextIndex], groups[index]];
     setPrefs({
       ...prefs,
-      tabGroups: { schemaVersion: 1, groups },
+      tabGroups: { schemaVersion: 2, groups },
     });
     announce(
       dual(
@@ -1778,7 +1853,7 @@ export default function SiteShell({
     setPrefs({
       ...prefs,
       tabGroups: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         groups: prefs.tabGroups.groups.map((group) => ({
           ...group,
           tabs:
@@ -3113,6 +3188,25 @@ export default function SiteShell({
       if (opener) openMovePicker(activeTab, opener);
     },
   });
+  prefs.tabGroups.groups.forEach((group) => {
+    commands.push({
+      id: `tab-group-appearance-${group.id}`,
+      label: dual(
+        `Edit ${group.name} group appearance`,
+        `編輯${group.name}群組外觀`,
+        language,
+      ),
+      detail: dual(
+        "Open the bounded icon and color editor in Settings",
+        "喺設定開啟有限圖示同顏色編輯器",
+        language,
+      ),
+      action: () => {
+        setGroupAppearanceSettingsId(group.id);
+        openSetting("tab-group-settings");
+      },
+    });
+  });
   let palettePattern: RegExp | null = null;
   let palettePatternError = "";
   if (paletteRegex && paletteQuery)
@@ -3370,7 +3464,7 @@ export default function SiteShell({
       tabOrder: current.tabOrder.filter((id) => !targetSet.has(id)),
       pinnedTabs: current.pinnedTabs.filter((id) => !targetSet.has(id)),
       tabGroups: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         groups: current.tabGroups.groups.map((group) => ({
           ...group,
           tabs: group.tabs.filter((id) => !targetSet.has(id)),
@@ -3660,7 +3754,11 @@ export default function SiteShell({
                 className="tab-group"
                 role="group"
                 key={group.id}
-                style={{ "--group-color": group.color } as CSSProperties}
+                style={{
+                  "--group-color": group.color,
+                  "--group-text-color": group.appearance.textColor,
+                  "--group-background": group.appearance.backgroundColor,
+                } as CSSProperties}
                 aria-label={dual(
                   `${group.name} tab group`,
                   `${group.name} 分頁群組`,
@@ -3668,6 +3766,9 @@ export default function SiteShell({
                 )}
               >
                 <div className="tab-group-header">
+                  <span className="tab-group-icon" aria-hidden="true">
+                    {group.appearance.icon}
+                  </span>
                   <span className="tab-group-color" aria-hidden="true" />
                   <input
                     defaultValue={group.name}
@@ -3734,6 +3835,19 @@ export default function SiteShell({
                   </button>
                   <button
                     type="button"
+                    onClick={() => setGroupAppearanceHeaderId((current) => current === group.id ? null : group.id)}
+                    aria-expanded={groupAppearanceHeaderId === group.id}
+                    aria-controls={`group-appearance-${group.id}`}
+                    aria-label={dual(
+                      `Edit ${group.name} group appearance`,
+                      `編輯${group.name}群組外觀`,
+                      language,
+                    )}
+                  >
+                    {dual("Appearance", "外觀", language)}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() =>
                       updateTabGroup(group.id, { collapsed: !group.collapsed })
                     }
@@ -3751,6 +3865,15 @@ export default function SiteShell({
                     {dual("Remove", "移除", language)}
                   </button>
                 </div>
+                {groupAppearanceHeaderId === group.id && (
+                  <GroupAppearanceEditor
+                    id={`group-appearance-${group.id}`}
+                    language={language}
+                    group={group}
+                    update={updateTabGroupAppearance}
+                    close={() => setGroupAppearanceHeaderId(null)}
+                  />
+                )}
                 <div className="tab-group-search">
                   <label>
                     <span aria-hidden="true">⌕</span>
@@ -5082,6 +5205,19 @@ export default function SiteShell({
                       </span>
                       <button
                         type="button"
+                        onClick={() => setGroupAppearanceSettingsId((current) => current === group.id ? null : group.id)}
+                        aria-expanded={groupAppearanceSettingsId === group.id}
+                        aria-controls={`settings-group-appearance-${group.id}`}
+                        aria-label={dual(
+                          `Edit ${group.name} group appearance`,
+                          `編輯${group.name}群組外觀`,
+                          language,
+                        )}
+                      >
+                        {dual("Appearance", "外觀", language)}
+                      </button>
+                      <button
+                        type="button"
                         disabled={groupIndex === 0}
                         onClick={() => moveTabGroup(group.id, -1)}
                         aria-label={dual(
@@ -5134,6 +5270,15 @@ export default function SiteShell({
                       >
                         {dual("Remove", "移除", language)}
                       </button>
+                      {groupAppearanceSettingsId === group.id && (
+                        <GroupAppearanceEditor
+                          id={`settings-group-appearance-${group.id}`}
+                          language={language}
+                          group={group}
+                          update={updateTabGroupAppearance}
+                          close={() => setGroupAppearanceSettingsId(null)}
+                        />
+                      )}
                     </div>
                     );
                   })}
@@ -6667,6 +6812,98 @@ function BulkCloseConfirmation({
         )}
       </section>
     </div>
+  );
+}
+
+function GroupAppearanceEditor({
+  id,
+  language,
+  group,
+  update,
+  close,
+}: {
+  id: string;
+  language: LanguageMode;
+  group: TabGroup;
+  update: (groupId: string, patch: Partial<TabGroupAppearance>) => boolean;
+  close: () => void;
+}) {
+  return (
+    <section
+      id={id}
+      className="group-appearance-editor"
+      role="region"
+      aria-labelledby={`${id}-title`}
+    >
+      <header>
+        <div>
+          <span className="eyebrow">
+            {dual("Bounded group appearance", "有限群組外觀", language)}
+          </span>
+          <h3 id={`${id}-title`}>
+            {dual(`${group.name} appearance`, `${group.name} 外觀`, language)}
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={close}
+          aria-label={dual("Close group appearance", "關閉群組外觀", language)}
+        >
+          ×
+        </button>
+      </header>
+      <label>
+        <span>{dual("Group icon", "群組圖示", language)}</span>
+        <input
+          value={group.appearance.icon}
+          maxLength={2}
+          onChange={(event) => update(group.id, { icon: event.target.value.slice(0, 2) })}
+          aria-label={dual("Group icon", "群組圖示", language)}
+        />
+      </label>
+      <label>
+        <span>{dual("Text color", "文字顏色", language)}</span>
+        <input
+          type="color"
+          value={group.appearance.textColor}
+          onChange={(event) => update(group.id, { textColor: event.target.value })}
+          aria-label={dual("Group text color", "群組文字顏色", language)}
+        />
+      </label>
+      <label>
+        <span>{dual("Background color", "背景顏色", language)}</span>
+        <input
+          type="color"
+          value={group.appearance.backgroundColor}
+          onChange={(event) => update(group.id, { backgroundColor: event.target.value })}
+          aria-label={dual("Group background color", "群組背景顏色", language)}
+        />
+      </label>
+      <div
+        className="group-appearance-preview"
+        style={{
+          color: group.appearance.textColor,
+          background: group.appearance.backgroundColor,
+        }}
+        aria-label={dual("Group appearance preview", "群組外觀預覽", language)}
+      >
+        <span aria-hidden="true">{group.appearance.icon}</span>
+        <strong>{group.name}</strong>
+      </div>
+      <p className="supporting-copy">
+        {dual(
+          "This bounded editor changes the icon and two colors locally; full typography and color translation remain separate work.",
+          "呢個有限編輯器只改本機圖示同兩種顏色；完整字體同顏色轉換另有工作。",
+          language,
+        )}
+      </p>
+      <button
+        type="button"
+        onClick={() => update(group.id, { ...DEFAULT_GROUP_APPEARANCE })}
+      >
+        {dual("Reset group appearance", "重設群組外觀", language)}
+      </button>
+    </section>
   );
 }
 

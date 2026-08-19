@@ -496,12 +496,13 @@ kbd {
   border: 1px solid
     color-mix(in srgb, var(--group-color) 55%, var(--outline-variant));
   border-radius: 18px;
-  background: color-mix(in srgb, var(--group-color) 8%, var(--surface));
+  background: var(--group-background, color-mix(in srgb, var(--group-color) 8%, var(--surface)));
+  color: var(--group-text-color, var(--on-surface));
   min-width: max-content;
 }
 .tab-group-header {
   display: grid;
-  grid-template-columns: 12px minmax(72px, 1fr) 44px repeat(4, minmax(44px, auto));
+  grid-template-columns: 20px 12px minmax(72px, 1fr) 44px repeat(6, minmax(44px, auto));
   align-items: center;
   gap: 5px;
   overflow: visible;
@@ -512,6 +513,14 @@ kbd {
   height: 12px;
   border-radius: 50%;
   background: var(--group-color);
+}
+.tab-group-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--group-text-color, var(--on-surface));
+  font-weight: 800;
 }
 .tab-group-header input[type="text"],
 .tab-group-header input:not([type]) {
@@ -797,13 +806,73 @@ kbd {
 }
 .tab-group-settings-list > div {
   display: grid;
-  grid-template-columns: 16px minmax(90px, 1fr) auto repeat(4, auto);
+  grid-template-columns: 16px minmax(90px, 1fr) auto repeat(5, auto);
   align-items: center;
   gap: 8px;
 }
 .tab-group-settings-list button {
   min-width: 44px;
   min-height: 44px;
+}
+.group-appearance-editor {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 10px;
+  min-width: min(100%, 360px);
+  padding: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 16px;
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+}
+.group-appearance-editor header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.group-appearance-editor h3 {
+  margin: 0;
+}
+.group-appearance-editor header button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-container);
+  cursor: pointer;
+}
+.group-appearance-editor > label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+}
+.group-appearance-editor > label > span {
+  font-weight: 650;
+}
+.group-appearance-editor > label input[type="text"],
+.group-appearance-editor > label input:not([type]) {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--outline);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+}
+.group-appearance-editor > label input[type="color"] {
+  width: 48px;
+  height: 48px;
+}
+.group-appearance-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 14px;
 }
 .tab-group-create {
   display: flex;
@@ -2754,7 +2823,7 @@ footer {
   .tab-items { overflow-x: auto; overflow-y: hidden; }
   .tab-group, .ungrouped-tab-items { flex: 0 0 auto; }
   .tab-group-header {
-    grid-template-columns: 12px minmax(64px, 100px) 44px repeat(4, minmax(44px, auto));
+    grid-template-columns: 20px 12px minmax(64px, 100px) 44px repeat(6, minmax(44px, auto));
   }
   .tab-group-members {
     flex-direction: row;
@@ -2772,7 +2841,7 @@ footer {
     flex-direction: column;
   }
   .tab-group-settings-list > div {
-    grid-template-columns: 16px minmax(0, 1fr) repeat(4, auto);
+    grid-template-columns: 16px minmax(0, 1fr) repeat(5, auto);
   }
   .tab-group-settings-list > div button {
     grid-column: auto;

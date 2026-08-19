@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added bounded per-group appearance editing from the strip and Settings: a persisted icon, text color, background color, live preview, and per-group reset, with full typography/color translation remaining explicitly separate.
+- Added one command-palette destination per group appearance editor, targeting the owning Settings card without sharing editor state between groups.
 - Fixed the published Pages first render to hydrate from the build-time release manifest, so an already-published installer is not briefly shown as unavailable before client JavaScript starts.
 - Added persisted up/down group-order controls in the tab strip and Settings with localized 44-pixel targets and boundary-aware disabled states.
 
