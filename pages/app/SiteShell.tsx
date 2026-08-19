@@ -625,6 +625,17 @@ function validSiteSetting(key: SiteSettingKey, value: unknown): boolean {
   if (key === "showEmojis") return typeof value === "boolean";
   return Number.isFinite(value) && Number(value) >= 1 && Number(value) <= 5;
 }
+function validGroupName(value: unknown): string | null {
+  if (
+    typeof value !== "string" ||
+    value.trim() !== value ||
+    value.length < 1 ||
+    value.length > 48 ||
+    /[\u0000-\u001f\u007f]/.test(value)
+  )
+    return null;
+  return value;
+}
 function normalizeTabGroups(value: unknown): TabGroupsState | null {
   if (value === undefined) return { schemaVersion: 1, groups: [] };
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -653,11 +664,7 @@ function normalizeTabGroups(value: unknown): TabGroupsState | null {
       typeof group.id !== "string" ||
       !/^group-[a-z0-9]{8,24}$/.test(group.id) ||
       groupIds.has(group.id) ||
-      typeof group.name !== "string" ||
-      group.name.length < 1 ||
-      group.name.length > 48 ||
-      group.name.trim() !== group.name ||
-      /[\u0000-\u001f\u007f]/.test(group.name) ||
+      validGroupName(group.name) === null ||
       typeof group.color !== "string" ||
       !/^#[0-9a-f]{6}$/i.test(group.color) ||
       typeof group.collapsed !== "boolean" ||
@@ -863,7 +870,13 @@ function normalizePreferences(value: unknown): Preferences | null {
     showEmojis: effective.showEmojis,
     pinnedTabs,
     tabOrder,
-    tabGroups,
+    tabGroups: {
+      schemaVersion: 1,
+      groups: tabGroups.groups.map((group) => ({
+        ...group,
+        tabs: group.tabs.filter((tab) => !pinnedTabs.includes(tab)),
+      })),
+    },
     personalVocabulary,
     logoPreset: v.logoPreset ?? "forge",
     customLogo: v.customLogo ?? null,
@@ -1257,7 +1270,14 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     observer.observe(element);
     measure();
     return () => observer.disconnect();
-  }, [language, narrowTabs, prefs.dock, prefs.pinnedTabs, prefs.tabOrder]);
+  }, [
+    language,
+    narrowTabs,
+    prefs.dock,
+    prefs.pinnedTabs,
+    prefs.tabOrder,
+    prefs.tabGroups.groups,
+  ]);
   useEffect(() => {
     if (!tabOverflow) {
       setTabOverflowOpen(false);
@@ -1443,7 +1463,19 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     const pinnedTabs = pinned
       ? prefs.pinnedTabs.filter((id) => id !== tabId)
       : [...prefs.pinnedTabs, tabId];
-    setPrefs({ ...prefs, pinnedTabs });
+    setPrefs({
+      ...prefs,
+      pinnedTabs,
+      tabGroups: pinned
+        ? prefs.tabGroups
+        : {
+            schemaVersion: 1,
+            groups: prefs.tabGroups.groups.map((group) => ({
+              ...group,
+              tabs: group.tabs.filter((tab) => tab !== tabId),
+            })),
+          },
+    });
     announce(
       dual(
         pinned
@@ -1460,20 +1492,51 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     if (returnFocus)
       setTimeout(() => document.getElementById(`tab-${tabId}`)?.focus(), 0);
   };
-  const safeGroupId = () =>
-    `group-${crypto
-      .getRandomValues(new Uint32Array(2))
-      .reduce((value, part) => value + part.toString(36).padStart(7, "0"), "")
-      .slice(0, 14)}`;
+  const safeGroupId = () => {
+    const existing = new Set(prefs.tabGroups.groups.map((group) => group.id));
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = `group-${crypto
+        .getRandomValues(new Uint32Array(2))
+        .reduce((value, part) => value + part.toString(36).padStart(7, "0"), "")
+        .slice(0, 14)}`;
+      if (!existing.has(candidate)) return candidate;
+    }
+    return null;
+  };
   const createTabGroup = (assignTab?: TabId) => {
-    const name = newGroupName.trim();
+    const name = validGroupName(newGroupName);
     if (
       !name ||
-      name.length > 48 ||
       prefs.tabGroups.groups.length >= 8 ||
       !/^#[0-9a-f]{6}$/i.test(newGroupColor)
     )
       return;
+    if (assignTab && prefs.pinnedTabs.includes(assignTab)) {
+      announce(
+        dual(
+          "Pinned tabs stay in the pinned region and cannot join a group.",
+          "已釘選分頁會留喺釘選區域，唔可以加入群組。",
+          language,
+        ),
+        "warning",
+        "Tab groups",
+      );
+      closeMovePicker();
+      return;
+    }
+    const groupId = safeGroupId();
+    if (!groupId) {
+      announce(
+        dual(
+          "A unique group identifier could not be created. Nothing changed.",
+          "建立唔到唯一群組識別碼；冇任何變更。",
+          language,
+        ),
+        "error",
+        "Tab groups",
+      );
+      return;
+    }
     const withoutTab = assignTab
       ? prefs.tabGroups.groups.map((group) => ({
           ...group,
@@ -1481,7 +1544,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         }))
       : prefs.tabGroups.groups;
     const group: TabGroup = {
-      id: safeGroupId(),
+      id: groupId,
       name,
       color: newGroupColor.toLowerCase(),
       collapsed: false,
@@ -1506,11 +1569,12 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const updateTabGroup = (
     groupId: string,
     patch: Partial<Pick<TabGroup, "name" | "color" | "collapsed">>,
-  ) => {
-    const nextName = patch.name?.trim();
-    if (patch.name !== undefined && (!nextName || nextName.length > 48)) return;
+  ): boolean => {
+    const nextName =
+      patch.name === undefined ? undefined : validGroupName(patch.name);
+    if (patch.name !== undefined && !nextName) return false;
     if (patch.color !== undefined && !/^#[0-9a-f]{6}$/i.test(patch.color))
-      return;
+      return false;
     setPrefs({
       ...prefs,
       tabGroups: {
@@ -1522,6 +1586,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         ),
       },
     });
+    return true;
   };
   const removeTabGroup = (groupId: string) => {
     const group = prefs.tabGroups.groups.find((item) => item.id === groupId);
@@ -1544,6 +1609,19 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     );
   };
   const moveTabIntoGroup = (tabId: TabId, groupId: string | null) => {
+    if (groupId && prefs.pinnedTabs.includes(tabId)) {
+      announce(
+        dual(
+          "Pinned tabs stay in the pinned region and cannot join a group.",
+          "已釘選分頁會留喺釘選區域，唔可以加入群組。",
+          language,
+        ),
+        "warning",
+        "Tab groups",
+      );
+      closeMovePicker();
+      return;
+    }
     setPrefs({
       ...prefs,
       tabGroups: {
@@ -2389,6 +2467,25 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     ...group,
     members: ordinaryTabs.filter((tab) => group.tabs.includes(tab.id)),
   }));
+  const groupLimitReached = prefs.tabGroups.groups.length >= 8;
+  const groupNameReady = validGroupName(newGroupName) !== null;
+  const createGroupHint = groupLimitReached
+    ? dual(
+        "Eight groups already exist. Remove one before creating another.",
+        "已經有八個群組；要先移除一個先可以再建立。",
+        language,
+      )
+    : groupNameReady
+      ? dual(
+          "Ready to create this local group.",
+          "可以建立呢個本機群組。",
+          language,
+        )
+      : dual(
+          "Enter a name from 1 to 48 characters without control characters.",
+          "輸入 1 至 48 個字元嘅名稱，唔可以有控制字元。",
+          language,
+        );
   const orderedTabs = [...pinnedTabs, ...ordinaryTabs];
   type PaletteCommand = {
     id: string;
@@ -3208,11 +3305,24 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   <input
                     defaultValue={group.name}
                     maxLength={48}
-                    onBlur={(event) =>
-                      updateTabGroup(group.id, {
-                        name: event.currentTarget.value,
-                      })
-                    }
+                    onBlur={(event) => {
+                      if (
+                        !updateTabGroup(group.id, {
+                          name: event.currentTarget.value,
+                        })
+                      ) {
+                        event.currentTarget.value = group.name;
+                        announce(
+                          dual(
+                            "Group names must contain 1 to 48 characters and no control characters.",
+                            "群組名稱要有 1 至 48 個字元，而且唔可以有控制字元。",
+                            language,
+                          ),
+                          "warning",
+                          "Tab groups",
+                        );
+                      }
+                    }}
                     aria-label={dual(
                       `Rename ${group.name} group`,
                       `重新命名 ${group.name} 群組`,
@@ -3337,6 +3447,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                     </button>
                     {tabOverflowBuilderOpen && (
                       <RegexBuilder
+                        language={language}
                         query={tabOverflowQuery}
                         setQuery={setTabOverflowQuery}
                         regexMode={tabOverflowRegex}
@@ -3459,6 +3570,14 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                           onClick={(event) =>
                             openMovePicker(tab.id, event.currentTarget)
                           }
+                          aria-label={dual(
+                            `Move ${tab.en} into a group`,
+                            `移動${tab.yue}去群組`,
+                            language,
+                          )}
+                          aria-haspopup="dialog"
+                          aria-expanded={movePickerTab === tab.id}
+                          aria-controls="move-group-picker"
                         >
                           {dual("Move… into group…", "移動…去群組…", language)}
                         </button>
@@ -3492,6 +3611,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         )}
         {movePickerTab && (
           <section
+            id="move-group-picker"
             className="move-group-picker"
             role="dialog"
             aria-modal="false"
@@ -3560,6 +3680,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                 </button>
                 {moveGroupBuilderOpen && (
                   <RegexBuilder
+                    language={language}
                     query={moveGroupQuery}
                     setQuery={setMoveGroupQuery}
                     regexMode={moveGroupRegex}
@@ -3663,14 +3784,20 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
               />
               <button
                 type="button"
-                disabled={
-                  !newGroupName.trim() || prefs.tabGroups.groups.length >= 8
-                }
+                disabled={!groupNameReady || groupLimitReached}
+                aria-describedby="move-group-create-hint"
                 onClick={() => createTabGroup(movePickerTab)}
               >
                 {dual("Create and move", "建立並移動", language)}
               </button>
             </div>
+            <p
+              id="move-group-create-hint"
+              className="supporting-copy"
+              aria-live="polite"
+            >
+              {createGroupHint}
+            </p>
             <footer>
               <span>
                 {dual(
@@ -4308,6 +4435,13 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                             collapsed: !group.collapsed,
                           })
                         }
+                        aria-label={dual(
+                          `${group.collapsed ? "Expand" : "Collapse"} ${group.name} group`,
+                          `${group.collapsed ? "展開" : "收合"}${group.name}群組`,
+                          language,
+                        )}
+                        aria-expanded={!group.collapsed}
+                        aria-controls={`group-tabs-${group.id}`}
                       >
                         {group.collapsed
                           ? dual("Expand", "展開", language)
@@ -4316,6 +4450,11 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                       <button
                         type="button"
                         onClick={() => removeTabGroup(group.id)}
+                        aria-label={dual(
+                          `Remove ${group.name} group`,
+                          `移除${group.name}群組`,
+                          language,
+                        )}
                       >
                         {dual("Remove", "移除", language)}
                       </button>
@@ -4347,14 +4486,20 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   />
                   <button
                     type="button"
-                    disabled={
-                      !newGroupName.trim() || prefs.tabGroups.groups.length >= 8
-                    }
+                    disabled={!groupNameReady || groupLimitReached}
+                    aria-describedby="settings-group-create-hint"
                     onClick={() => createTabGroup()}
                   >
                     {dual("Create group", "建立群組", language)}
                   </button>
                 </div>
+                <p
+                  id="settings-group-create-hint"
+                  className="supporting-copy"
+                  aria-live="polite"
+                >
+                  {createGroupHint}
+                </p>
                 <p className="supporting-copy">
                   {dual(
                     "Per-group appearance editing and group bulk-close are not implemented in this bounded slice.",
@@ -6192,6 +6337,7 @@ function Row({
 }
 
 function RegexBuilder({
+  language = "en",
   query,
   setQuery,
   regexMode,
@@ -6205,6 +6351,7 @@ function RegexBuilder({
   announce,
   close,
 }: {
+  language?: LanguageMode;
   query: string;
   setQuery: (v: string) => void;
   regexMode: boolean;
@@ -6227,33 +6374,53 @@ function RegexBuilder({
       await navigator.clipboard.writeText(
         `/${query}/${flags.i ? "i" : ""}${flags.m ? "m" : ""}`,
       );
-      announce("Regular expression copied.");
+      announce(
+        dual("Regular expression copied.", "正規表示式已複製。", language),
+      );
     } catch {
-      announce("Clipboard access was unavailable.");
+      announce(
+        dual(
+          "Clipboard access was unavailable.",
+          "剪貼簿暫時用唔到。",
+          language,
+        ),
+      );
     }
   };
   const tokens = [
-    ["Literal", "text"],
-    ["Class", "[a-z]"],
-    ["Start", "^"],
-    ["End", "$"],
-    ["Group", "(text)"],
-    ["Either", "a|b"],
-    ["One+", "+"],
-    ["Optional", "?"],
+    [dual("Literal", "文字", language), "text"],
+    [dual("Class", "字元組", language), "[a-z]"],
+    [dual("Start", "開頭", language), "^"],
+    [dual("End", "結尾", language), "$"],
+    [dual("Group", "群組", language), "(text)"],
+    [dual("Either", "或者", language), "a|b"],
+    [dual("One+", "一個以上", language), "+"],
+    [dual("Optional", "可選", language), "?"],
   ];
   return (
     <section
       id="regex-builder"
       className="regex-builder"
-      aria-label="Regular expression builder"
+      aria-label={dual(
+        "Regular expression builder",
+        "正規表示式工具",
+        language,
+      )}
     >
       <header>
         <div>
           <span className="eyebrow">JavaScript RegExp</span>
-          <h2>Regex builder</h2>
+          <h2>{dual("Regex builder", "正規表示式工具", language)}</h2>
         </div>
-        <button type="button" onClick={close} aria-label="Close regex builder">
+        <button
+          type="button"
+          onClick={close}
+          aria-label={dual(
+            "Close regex builder",
+            "關閉正規表示式工具",
+            language,
+          )}
+        >
           ×
         </button>
       </header>
@@ -6263,18 +6430,18 @@ function RegexBuilder({
           className={!regexMode ? "selected" : ""}
           onClick={() => setRegexMode(false)}
         >
-          Plain text
+          {dual("Plain text", "純文字", language)}
         </button>
         <button
           type="button"
           className={regexMode ? "selected" : ""}
           onClick={() => setRegexMode(true)}
         >
-          Regular expression
+          {dual("Regular expression", "正規表示式", language)}
         </button>
       </div>
       <label className="builder-field">
-        <span>Pattern</span>
+        <span>{dual("Pattern", "模式", language)}</span>
         <input
           value={query}
           onChange={(e) => {
@@ -6287,7 +6454,7 @@ function RegexBuilder({
       </label>
       {error && (
         <p className="regex-error" role="alert">
-          {error}
+          {dual(`Invalid pattern: ${error}`, `模式無效：${error}`, language)}
         </p>
       )}
       <div className="token-grid">
@@ -6299,14 +6466,14 @@ function RegexBuilder({
         ))}
       </div>
       <fieldset>
-        <legend>Flags</legend>
+        <legend>{dual("Flags", "旗標", language)}</legend>
         <label>
           <input
             type="checkbox"
             checked={flags.i}
             onChange={(e) => setFlags({ ...flags, i: e.target.checked })}
           />{" "}
-          i · ignore case
+          {dual("i · ignore case", "i · 忽略大小寫", language)}
         </label>
         <label>
           <input
@@ -6314,11 +6481,11 @@ function RegexBuilder({
             checked={flags.m}
             onChange={(e) => setFlags({ ...flags, m: e.target.checked })}
           />{" "}
-          m · multiline
+          {dual("m · multiline", "m · 多行", language)}
         </label>
       </fieldset>
       <label className="builder-field">
-        <span>Sample text</span>
+        <span>{dual("Sample text", "範例文字", language)}</span>
         <textarea
           value={sample}
           onChange={(e) => setSample(e.target.value)}
@@ -6326,16 +6493,31 @@ function RegexBuilder({
         />
       </label>
       <div className="match-summary" aria-live="polite">
-        <strong>{matches.length} live matches</strong>
+        <strong>
+          {dual(
+            `${matches.length} live matches`,
+            `${matches.length} 個即時配對`,
+            language,
+          )}
+        </strong>
         <span>
           {matches.length
-            ? `Captures: ${
-                matches
-                  .flatMap((m) => m.slice(1))
-                  .filter(Boolean)
-                  .join(", ") || "none"
-              }`
-            : "No captures"}
+            ? dual(
+                `Captures: ${
+                  matches
+                    .flatMap((m) => m.slice(1))
+                    .filter(Boolean)
+                    .join(", ") || "none"
+                }`,
+                `擷取：${
+                  matches
+                    .flatMap((m) => m.slice(1))
+                    .filter(Boolean)
+                    .join(", ") || "冇"
+                }`,
+                language,
+              )
+            : dual("No captures", "冇擷取", language)}
         </span>
       </div>
       <footer>
@@ -6347,7 +6529,7 @@ function RegexBuilder({
             setRegexMode(false);
           }}
         >
-          Reset
+          {dual("Reset", "重設", language)}
         </button>
         <button
           className="filled-button"
@@ -6355,7 +6537,7 @@ function RegexBuilder({
           onClick={copy}
           disabled={!query || Boolean(error)}
         >
-          Copy pattern
+          {dual("Copy pattern", "複製模式", language)}
         </button>
       </footer>
     </section>

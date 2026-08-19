@@ -495,7 +495,10 @@ kbd {
 }
 .tab-group-header {
   display: grid;
-  grid-template-columns: 12px minmax(72px, 1fr) 36px auto auto;
+  grid-template-columns: 12px minmax(72px, 1fr) 44px minmax(44px, auto) minmax(
+      44px,
+      auto
+    );
   align-items: center;
   gap: 5px;
 }
@@ -511,12 +514,13 @@ kbd {
   min-width: 0;
 }
 .tab-group-header input[type="color"] {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 4px;
 }
 .tab-group-header button {
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0 8px;
   border: 0;
   border-radius: 10px;
@@ -662,6 +666,10 @@ kbd {
   grid-template-columns: 16px minmax(90px, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
+}
+.tab-group-settings-list button {
+  min-width: 44px;
+  min-height: 44px;
 }
 .tab-group-create {
   display: flex;
@@ -2610,7 +2618,10 @@ footer {
     align-items: center;
   }
   .tab-group-header {
-    grid-template-columns: 12px minmax(64px, 100px) 36px auto auto;
+    grid-template-columns: 12px minmax(64px, 100px) 44px minmax(
+        44px,
+        auto
+      ) minmax(44px, auto);
   }
   .tab-group-members {
     flex-direction: row;
