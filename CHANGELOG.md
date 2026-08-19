@@ -39,6 +39,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Added a read-only, no-input snapshot-journal history bridge and dedicated searchable list for up to 50 validated local commit summaries, with no restore action because the journal contains metadata only.
 - Added local global defaults and user-created project settings with sparse overrides for theme, language, and both tone levels, including inheritance counts, live application, and project reset.
 - Added a dedicated bounded project-picker search and adjacent regex builder with selection-preserving local filtering and distinct no-project versus no-match states.
+- Added schema-version 2 snapshots with bounded global/project settings ownership and atomic restore, while retaining schema-version 1 presentation-only compatibility.
 
 ### Verification boundary
 

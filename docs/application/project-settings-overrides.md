@@ -10,9 +10,11 @@ Each project stores sparse overrides. A value equal to its global default is rem
 
 State remains in the existing local browser store. Project identifiers are generated locally and validated against a bounded lowercase identifier pattern. Names, IDs, project count, override keys, and every value are validated on load. Unknown keys, invalid values, duplicate IDs, and records past the 50-project limit are rejected. Records contain no path, credential, account, host detail, or network configuration, and no network request is made.
 
-## Snapshot boundary
+## Snapshot ownership
 
-Local snapshots currently capture the four effective presentation values, route, tabs, and tweak switches. They do not capture or restore the global-default record, project list, active-project identity, or sparse override maps. Restoring a snapshot therefore changes the live effective presentation but does not rewrite project settings ownership; a later project switch reapplies that project's stored effective values. This gap is explicit rather than represented as full project-settings history.
+New schema-version 2 local snapshots capture the four effective presentation values plus a versioned ownership block containing the validated global defaults, up to 50 project records, sparse override maps, and active-project identifier. Restore validates that the ownership block resolves to the same effective values recorded by the snapshot, then applies presentation and ownership together after the current-state safety snapshot succeeds.
+
+Legacy schema-version 1 snapshots remain readable. They restore only effective presentation values and deliberately preserve the current global defaults, projects, overrides, and active-project selection.
 
 ## Failure modes
 
@@ -24,4 +26,4 @@ Local snapshots currently capture the four effective presentation values, route,
 
 ## Verification boundary
 
-The source and unsigned package build may be exercised for this slice. Project creation, switching, inheritance, sparse override removal, reset, persistence across reload, invalid-record omission, and snapshot-gap behavior remain runtime-unverified. Tests, lint, type checking, installer execution, and screenshots were not part of this ultra-speed slice.
+The source and unsigned package build may be exercised for this slice. Project creation, switching, inheritance, sparse override removal, reset, persistence across reload, invalid-record omission, schema-version 1 compatibility, and atomic schema-version 2 ownership restore remain runtime-unverified. Tests, lint, type checking, installer execution, and screenshots were not part of this ultra-speed slice.

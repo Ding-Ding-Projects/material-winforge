@@ -6,6 +6,8 @@ Preview Data lists up to the 50 newest valid local JSON snapshots. Each row show
 
 Restore opens a renderer-owned confirmation naming the selected creation time and the presentation state that will be replaced. Cancel, clicking outside, or pressing Escape leaves current state untouched. Confirm first creates a fresh snapshot of the current state. Only after that safety snapshot succeeds does the renderer request and apply the selected theme, language, English and Cantonese tone levels, route, tabs, and bounded tweak switches.
 
+New state schema version 2 snapshots additionally contain an exact ownership block: block schema version, four global defaults, at most 50 validated user-project records, sparse allowlisted overrides, and a null or known active-project identifier. The main process and renderer independently validate all keys, values, counts, IDs, names, and effective-value consistency. A valid schema-version 2 restore applies presentation and ownership atomically. Legacy schema-version 1 snapshots restore presentation only and preserve current ownership.
+
 ## Revision journal
 
 If an existing `git.exe` is found through bounded executable discovery, each successful snapshot creation appends one redacted metadata record to a Git repository under private application data. The journal contains the generated snapshot identifier, creation time, byte count, theme, language, and route view—not the raw snapshot state. It uses fixed local `git init`, `git remote`, `git add`, and `git commit` argument vectors with no shell. A nonempty remote configuration fails the journal operation, and no fetch, push, clone, URL, credential, or network command exists in this path.
@@ -31,4 +33,4 @@ The main process owns the private snapshot and journal directories. Listing acce
 
 ## Verification boundary
 
-The source and unsigned package build may be exercised for this change. Git discovery, journal initialization, remote refusal, append-only commit creation, bounded journal-log parsing, search, unavailable/failure rendering, snapshot listing, confirmation, backup, restore, cancellation, and state application remain runtime-unverified until a separate packaged-artifact session drives them. Tests, lint, type checking, installer execution, and screenshots were not part of this ultra-speed slice.
+The source and unsigned package build may be exercised for this change. Git discovery, journal initialization, remote refusal, append-only commit creation, bounded journal-log parsing, search, unavailable/failure rendering, snapshot listing, confirmation, backup, schema-version 1 compatibility, atomic schema-version 2 ownership restore, cancellation, and state application remain runtime-unverified until a separate packaged-artifact session drives them. Tests, lint, type checking, installer execution, and screenshots were not part of this ultra-speed slice.

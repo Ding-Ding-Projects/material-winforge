@@ -1917,7 +1917,7 @@ class Component extends DCLogic {
     const s = this.state;
     const safeId = (value, maximum) => String(value || '').replace(/[^a-zA-Z0-9:._-]+/g, '-').slice(0, maximum);
     const routeState = route => { const view = safeId(route && route.view, 64) || 'dashboard'; const id = safeId(route && (route.id || route.cat), 128); return { view, id: id || null }; };
-    return { schemaVersion: 1, theme: ['dark', 'light'].includes(s.theme) ? s.theme : 'dark', lang: ['English', 'Cantonese', 'Bilingual'].includes(s.lang) ? s.lang : 'English', funnyEn: Math.max(1, Math.min(5, Math.round(Number(s.funnyEn) || 1))), funnyZh: Math.max(1, Math.min(5, Math.round(Number(s.funnyZh) || 1))), route: routeState(s.route), tabs: this.tabs.slice(0, 64).map(tab => ({ id: safeId(tab.id, 128) || 'tab', label: String(tab.label || 'Tab').slice(0, 160), route: routeState(tab.route) })), tweaks: Object.entries(this.tweaks).filter(([, value]) => typeof value === 'boolean').slice(0, 1500).map(([id, value]) => ({ id: safeId(id, 160) || 'tweak', value })) };
+    return { schemaVersion: 2, theme: ['dark', 'light'].includes(s.theme) ? s.theme : 'dark', lang: ['English', 'Cantonese', 'Bilingual'].includes(s.lang) ? s.lang : 'English', funnyEn: Math.max(1, Math.min(5, Math.round(Number(s.funnyEn) || 1))), funnyZh: Math.max(1, Math.min(5, Math.round(Number(s.funnyZh) || 1))), route: routeState(s.route), tabs: this.tabs.slice(0, 64).map(tab => ({ id: safeId(tab.id, 128) || 'tab', label: String(tab.label || 'Tab').slice(0, 160), route: routeState(tab.route) })), tweaks: Object.entries(this.tweaks).filter(([, value]) => typeof value === 'boolean').slice(0, 1500).map(([id, value]) => ({ id: safeId(id, 160) || 'tweak', value })), ownership: { schemaVersion: 1, global: { ...this.settingsGlobal }, projects: this.settingsProjects.slice(0, 50).map(project => ({ id: project.id, name: project.name, overrides: { ...project.overrides } })), activeProjectId: this.activeProjectId } };
   }
   refreshSnapshots() {
     const bridge = window.winforge;
@@ -3141,12 +3141,32 @@ class Component extends DCLogic {
         return bridge.restoreSnapshot(selectedSnapshot.id);
       }).then(result => {
         const state = result && result.state;
-        const routeValid = route => route && typeof route.view === 'string' && /^[a-z0-9-]{1,64}$/.test(route.view) && (route.id === null || (typeof route.id === 'string' && /^[a-zA-Z0-9:._-]{1,128}$/.test(route.id)));
-        const valid = result && result.schemaVersion === 1 && result.status === 'restored' && state && state.schemaVersion === 1 && ['dark', 'light'].includes(state.theme) && ['English', 'Cantonese', 'Bilingual'].includes(state.lang) && Number.isInteger(state.funnyEn) && state.funnyEn >= 1 && state.funnyEn <= 5 && Number.isInteger(state.funnyZh) && state.funnyZh >= 1 && state.funnyZh <= 5 && routeValid(state.route) && Array.isArray(state.tabs) && state.tabs.length <= 64 && state.tabs.every(tab => tab && /^[a-zA-Z0-9:._-]{1,128}$/.test(tab.id) && typeof tab.label === 'string' && tab.label.length >= 1 && tab.label.length <= 160 && routeValid(tab.route)) && Array.isArray(state.tweaks) && state.tweaks.length <= 1500 && state.tweaks.every(entry => entry && /^[a-zA-Z0-9._-]{1,160}$/.test(entry.id) && typeof entry.value === 'boolean');
+        const routeValid = route => route && Object.keys(route).length === 2 && Object.hasOwn(route, 'view') && Object.hasOwn(route, 'id') && typeof route.view === 'string' && /^[a-z0-9-]{1,64}$/.test(route.view) && (route.id === null || (typeof route.id === 'string' && /^[a-zA-Z0-9:._-]{1,128}$/.test(route.id)));
+        const settingValid = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
+        const ownershipValid = ownership => {
+          if (!ownership || Object.keys(ownership).length !== 4 || ownership.schemaVersion !== 1 || !ownership.global || !Array.isArray(ownership.projects) || ownership.projects.length > 50 || !['theme', 'lang', 'funnyEn', 'funnyZh'].every(key => settingValid(key, ownership.global[key])) || Object.keys(ownership.global).length !== 4) return false;
+          const seen = new Set();
+          for (const project of ownership.projects) {
+            if (!project || Object.keys(project).length !== 3 || !/^project-[a-z0-9-]{6,48}$/.test(project.id) || seen.has(project.id) || typeof project.name !== 'string' || project.name.trim().length < 1 || project.name.trim().length > 64 || /[\u0000-\u001f\u007f]/.test(project.name) || !project.overrides || Array.isArray(project.overrides)) return false;
+            const keys = Object.keys(project.overrides);
+            if (keys.length > 4 || !keys.every(key => ['theme', 'lang', 'funnyEn', 'funnyZh'].includes(key) && settingValid(key, project.overrides[key]))) return false;
+            seen.add(project.id);
+          }
+          if (!(ownership.activeProjectId === null || (typeof ownership.activeProjectId === 'string' && seen.has(ownership.activeProjectId)))) return false;
+          const active = ownership.projects.find(project => project.id === ownership.activeProjectId);
+          const effective = { ...ownership.global, ...(active ? active.overrides : {}) };
+          return effective.theme === state.theme && effective.lang === state.lang && effective.funnyEn === state.funnyEn && effective.funnyZh === state.funnyZh;
+        };
+        const valid = result && result.schemaVersion === 1 && result.status === 'restored' && state && [1, 2].includes(state.schemaVersion) && Object.keys(state).length === (state.schemaVersion === 2 ? 9 : 8) && ['dark', 'light'].includes(state.theme) && ['English', 'Cantonese', 'Bilingual'].includes(state.lang) && Number.isInteger(state.funnyEn) && state.funnyEn >= 1 && state.funnyEn <= 5 && Number.isInteger(state.funnyZh) && state.funnyZh >= 1 && state.funnyZh <= 5 && routeValid(state.route) && Array.isArray(state.tabs) && state.tabs.length <= 64 && state.tabs.every(tab => tab && Object.keys(tab).length === 3 && /^[a-zA-Z0-9:._-]{1,128}$/.test(tab.id) && typeof tab.label === 'string' && tab.label.length >= 1 && tab.label.length <= 160 && routeValid(tab.route)) && Array.isArray(state.tweaks) && state.tweaks.length <= 1500 && state.tweaks.every(entry => entry && Object.keys(entry).length === 2 && /^[a-zA-Z0-9._-]{1,160}$/.test(entry.id) && typeof entry.value === 'boolean') && (state.schemaVersion === 1 ? !Object.hasOwn(state, 'ownership') : ownershipValid(state.ownership));
         if (!valid) throw new Error('restore');
         const routeForUi = route => route.id ? { view: route.view, id: route.id, cat: route.id } : { view: route.view };
         this.tabs = state.tabs.map(tab => ({ id: tab.id, label: tab.label, icon: 'tab', route: routeForUi(tab.route) }));
         this.tweaks = Object.fromEntries(state.tweaks.map(entry => [entry.id, entry.value]));
+        if (state.schemaVersion === 2) {
+          this.settingsGlobal = { ...state.ownership.global };
+          this.settingsProjects = state.ownership.projects.map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
+          this.activeProjectId = state.ownership.activeProjectId;
+        }
         this.setState({ theme: state.theme, lang: state.lang, funnyEn: state.funnyEn, funnyZh: state.funnyZh, route: routeForUi(state.route), snapshotRestoring: false, snapshotRestoreConfirm: false, snapshotRestoreId: null }, () => { this.persist(); this.refreshSnapshots(); this.refreshJournal(); });
         this.notify('Restore snapshot', 'The snapshot was restored after a fresh safety snapshot was created.', 'success', true);
       }).catch(error => {
