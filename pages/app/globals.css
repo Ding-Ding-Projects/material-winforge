@@ -125,17 +125,40 @@ kbd { padding: 3px 7px; border: 1px solid var(--outline-variant); border-bottom-
 .release-chip.ready { color: var(--on-primary-container); background: var(--primary-container); }
 .release-chip.waiting { color: var(--on-surface-variant); background: var(--surface-container-high); }
 
-.tab-strip { grid-area: tabs; z-index: 20; display: flex; gap: 8px; padding: 18px 12px; background: var(--surface-container); }
+.tab-strip { grid-area: tabs; z-index: 20; position: relative; display: flex; gap: 8px; padding: 18px 12px; background: var(--surface-container); }
+.tab-items { display: flex; min-width: 0; min-height: 0; gap: 8px; overflow: hidden; }
 .dock-left .tab-strip { position: sticky; top: var(--header-height); align-self: start; height: calc(100vh - var(--header-height)); flex-direction: column; border-right: 1px solid var(--outline-variant); }
 .dock-right .tab-strip { position: sticky; top: var(--header-height); align-self: start; height: calc(100vh - var(--header-height)); flex-direction: column; border-left: 1px solid var(--outline-variant); }
+.dock-left .tab-items, .dock-right .tab-items { flex: 1 1 auto; flex-direction: column; }
+.dock-top .tab-items, .dock-bottom .tab-items { flex: 1 1 auto; flex-direction: row; }
 .dock-top .tab-strip, .dock-bottom .tab-strip { overflow-x: auto; padding: 8px clamp(14px, 3vw, 34px); }
 .dock-top .tab-strip { position: sticky; top: var(--header-height); border-bottom: 1px solid var(--outline-variant); }
 .dock-bottom .tab-strip { position: sticky; bottom: 0; border-top: 1px solid var(--outline-variant); }
-.tab-strip button { position: relative; display: flex; align-items: center; gap: 13px; min-width: 0; min-height: 52px; padding: 10px 16px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; }
-.dock-top .tab-strip button, .dock-bottom .tab-strip button { min-height: 46px; }
-.tab-strip button:hover { background: var(--surface-container-high); }
-.tab-strip button.active { color: var(--on-primary-container); background: var(--primary-container); font-weight: 650; }
+.tab-items > button { position: relative; display: flex; align-items: center; gap: 13px; min-width: 0; min-height: 52px; padding: 10px 16px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; }
+.dock-top .tab-items > button, .dock-bottom .tab-items > button { min-height: 46px; }
+.tab-items > button:hover { background: var(--surface-container-high); }
+.tab-items > button.active { color: var(--on-primary-container); background: var(--primary-container); font-weight: 650; }
 .tab-icon { display: grid; place-items: center; width: 24px; height: 24px; font-size: 1.12rem; }
+.tab-overflow-anchor { position: relative; flex: 0 0 auto; }
+.tab-overflow-trigger { min-height: 46px !important; color: var(--on-surface-variant); background: var(--surface-container-high) !important; }
+.tab-overflow-surface { position: absolute; z-index: 90; inset-block-start: 0; inset-inline-start: calc(100% + 10px); width: min(430px, calc(100vw - 32px)); max-height: min(620px, calc(100vh - var(--header-height) - 24px)); overflow: auto; padding: 18px; border: 1px solid var(--outline-variant); border-radius: 24px; background: var(--surface-bright); box-shadow: 0 24px 70px var(--shadow); }
+.dock-right .tab-overflow-surface { inset-inline: auto calc(100% + 10px); }
+.dock-top .tab-overflow-surface, .dock-bottom .tab-overflow-surface { inset-block-start: calc(100% + 10px); inset-inline: auto 0; }
+.dock-bottom .tab-overflow-surface { inset-block: auto calc(100% + 10px); }
+.tab-overflow-surface header, .tab-overflow-search, .tab-overflow-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tab-overflow-surface header h2 { margin: 0; }
+.tab-overflow-surface header > button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--surface-container); cursor: pointer; font-size: 1.35rem; }
+.tab-overflow-search { margin: 16px 0 8px; }
+.tab-overflow-search > label { display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-height: 48px; padding: 0 12px; border: 1px solid var(--outline); border-radius: 16px; background: var(--surface); }
+.tab-overflow-search input { width: 100%; border: 0; outline: 0; background: transparent; color: inherit; }
+.tab-overflow-search .builder-anchor > button { min-height: 48px; padding: 0 12px; border: 1px solid var(--outline); border-radius: 14px; background: var(--surface); cursor: pointer; }
+.tab-overflow-meta { color: var(--on-surface-variant); font-size: .78rem; }
+.tab-overflow-list { display: grid; gap: 6px; margin-top: 12px; }
+.tab-overflow-list > button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 9px 12px; border: 0; border-radius: 14px; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.tab-overflow-list > button:hover, .tab-overflow-list > button[aria-current="page"] { background: var(--primary-container); color: var(--on-primary-container); }
+.tab-overflow-list > button > span:last-child { display: grid; gap: 2px; }
+.tab-overflow-list small { color: var(--on-surface-variant); }
+.tab-overflow-empty { padding: 20px 12px; color: var(--on-surface-variant); }
 
 .content-stage { grid-area: content; min-width: 0; }
 .page-panel { width: min(100%, var(--content-max)); margin: 0 auto; padding: clamp(30px, 5vw, 76px) clamp(18px, 5vw, 72px) 88px; animation: panel-in 280ms ease-out; }
@@ -402,10 +425,14 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
   .brand small { display: none; }
   .top-actions { gap: 6px; }
   .release-chip { max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
-  .dock-left .tab-strip, .dock-right .tab-strip, .dock-top .tab-strip, .dock-bottom .tab-strip { position: sticky; top: var(--header-height); bottom: auto; height: auto; flex-direction: row; overflow-x: auto; border: 0; border-bottom: 1px solid var(--outline-variant); padding: 7px 10px; }
-  .tab-strip button { min-height: 46px; padding: 8px 13px; }
-  .tab-strip button span:last-child { display: none; }
-  .tab-strip button.active span:last-child { display: inline; }
+  .dock-left .tab-strip, .dock-right .tab-strip, .dock-top .tab-strip, .dock-bottom .tab-strip { position: sticky; top: var(--header-height); bottom: auto; height: auto; flex-direction: row; border: 0; border-bottom: 1px solid var(--outline-variant); padding: 7px 10px; }
+  .dock-left .tab-items, .dock-right .tab-items, .dock-top .tab-items, .dock-bottom .tab-items { flex-direction: row; }
+  .tab-items > button { min-height: 46px; padding: 8px 13px; }
+  .tab-items > button span:last-child { display: none; }
+  .tab-items > button.active span:last-child { display: inline; }
+  .tab-overflow-trigger span:last-child { display: none; }
+  .tab-overflow-surface { position: fixed; inset: calc(var(--header-height) + 8px) 8px auto; width: auto; max-height: calc(100vh - var(--header-height) - 16px); }
+  .tab-overflow-search { align-items: stretch; flex-direction: column; }
   .page-panel { padding: 34px 16px 70px; }
   .hero-card { gap: 38px; }
   .preview-body { grid-template-columns: 48px minmax(0, 1fr); min-height: 330px; }

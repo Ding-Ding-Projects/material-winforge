@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added measured Pages tab overflow for the existing six destinations, with a bounded local all-tabs surface, plain-text-first search, and an independent anchored JavaScript regex builder; reordering, pinning, and grouping remain outside this slice.
+
 - Added a bounded top-level Pages Settings search covering every shipped Settings card, with literal matching by default, an independent anchored full regex builder, honest no-match state, and exact command-palette focus routing.
 
 - Extended Pages tab docking to all four edges with persisted real layouts, rendered ARIA orientation, axis-correct keyboard navigation, localized Settings selection, command-palette routing, and a compact narrow-width fallback.

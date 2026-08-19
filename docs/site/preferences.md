@@ -9,16 +9,18 @@ The Settings tab changes the site immediately and stores the selected presentati
 - System, light, and dark themes
 - Comfortable and compact density
 - Left, right, top, or bottom tab docking
+- Local accent color
+- Show emojis in dialogs and message boxes, applied only as aria-hidden decoration in site notifications and status cards
+- A strict local personal-vocabulary JSON cache with semantic load/replace/clear controls
+- One-action reset to shipped defaults
 
 The chosen edge persists in the versioned browser-local Preferences record and applies immediately. Left and right use a vertical tablist with <kbd>ArrowUp</kbd>/<kbd>ArrowDown</kbd>; top and bottom use a horizontal tablist with <kbd>ArrowLeft</kbd>/<kbd>ArrowRight</kbd>. <kbd>Home</kbd> and <kbd>End</kbd> select the first and last tab at every edge. Focus follows selection.
 
 At widths of 760 pixels or less, every dock choice renders as a compact horizontal strip at the top so the content keeps the full available width. The accessibility orientation changes to horizontal with the rendered layout, so the matching left/right keys apply. The persisted desktop-width edge remains unchanged and returns when the viewport widens.
 
-This slice does not implement overflow menus, reordering, pinning, or groups; those remain separate incomplete contracts rather than implied behavior.
-- Local accent color
-- Show emojis in dialogs and message boxes, applied only as aria-hidden decoration in site notifications and status cards
-- A strict local personal-vocabulary JSON cache with semantic load/replace/clear controls
-- One-action reset to shipped defaults
+When the rendered strip cannot fit all six destinations, an **All tabs** affordance opens a bounded local discovery surface. Its search starts in plain-text mode and has its own adjacent anchored JavaScript regular-expression builder, flags, sample text, match count, invalid-pattern feedback, and honest no-match state. Choosing a result activates the same existing tab; it does not duplicate navigation state. The surface makes no network request and stores no search input.
+
+This slice does not implement reordering, pinning, groups, bulk close, or the remaining group/window discovery searches; those remain separate incomplete contracts rather than implied behavior.
 
 Tone controls style voice, not facts. Preview boundaries, release state, version data, platform names, checksums, and warning facts remain exact.
 

@@ -6,6 +6,7 @@
 - [Destructive Settings reset](destructive-confirmation.md) — shared two-key and full-slider confirmation for local reset.
 - [App-logo customization](app-logo.md) — shipped brand treatments and a bounded private local image picker.
 - [Top-level Settings search](settings-search.md) — literal-first filtering across every Settings card with an independent full regex builder.
+- [Tab overflow discovery](tab-overflow.md) — measured six-tab overflow, local search, and an anchored full regex builder.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 
