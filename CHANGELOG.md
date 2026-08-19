@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Restrict the release workflow's push trigger to `main`, preventing each generated release tag from recursively starting another release.
+
 All notable project changes are recorded here. Dates use ISO 8601 and entries link to commits once the repository has published history.
 
 ## Unreleased

@@ -1,5 +1,9 @@
 # Handoff
 
+## Release-trigger repair
+
+The release workflow now responds to pushes on `main` and manual dispatch only. The prior bare `push` trigger also matched generated tags, causing releases v1.0.2 through v1.0.4 to start subsequent workflow runs. Run `32213126094` was cancelled while active. The already published releases and tags were preserved because deleting release history was not authorized.
+
 ## Current scope
 
 This repository bootstraps **WinForge · Material 3 Preview**: an Electron desktop design preview plus a one-route vinext landing and documentation site. The site is deliberately honest that it is not the installed application and does not change Windows settings.
