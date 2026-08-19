@@ -353,6 +353,11 @@ kbd {
 .dock-right .tab-collection {
   flex: 1 1 auto;
 }
+.dock-left .tab-items,
+.dock-right .tab-items {
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
 .dock-left .pinned-tab-items,
 .dock-right .pinned-tab-items {
   max-height: 50%;
@@ -492,6 +497,7 @@ kbd {
     color-mix(in srgb, var(--group-color) 55%, var(--outline-variant));
   border-radius: 18px;
   background: color-mix(in srgb, var(--group-color) 8%, var(--surface));
+  min-width: max-content;
 }
 .tab-group-header {
   display: grid;
@@ -501,6 +507,7 @@ kbd {
     );
   align-items: center;
   gap: 5px;
+  overflow: visible;
 }
 .tab-group-color,
 .group-swatch {
@@ -559,6 +566,7 @@ kbd {
   border-radius: 24px;
   background: var(--surface-bright);
   box-shadow: 0 24px 70px var(--shadow);
+  min-height: 0;
 }
 .move-group-picker header,
 .move-group-search,
@@ -609,6 +617,8 @@ kbd {
 .move-group-list {
   display: grid;
   gap: 6px;
+  min-height: 0;
+  overflow: auto;
 }
 .move-group-list > button {
   display: flex;

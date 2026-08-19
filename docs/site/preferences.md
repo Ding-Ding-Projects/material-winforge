@@ -33,7 +33,7 @@ Tone controls style voice, not facts. Preview boundaries, release state, version
 
 ## Configuration
 
-Preferences use the versioned browser-storage key `winforge-material-preview-preferences-v1` and an internal `schemaVersion: 1` record. The shipped defaults are English, English tone 2, Cantonese tone 3, system theme, comfortable density, left tabs, no pinned tabs, the shipped six-tab order, no groups, accent `#2f7d45`, and decorative message emoji enabled. Legacy records without the pin list, order, or group state migrate to those defaults. `tabGroups` is independently versioned at schema 1 and accepts at most eight ordered records. IDs use a generated `group-` plus 8–24 lowercase letters/digits, names are trimmed 1–48-character strings, colors use the existing six-digit hex contract, collapsed is boolean, and membership accepts only the six shipped tab IDs with no duplicate assignment. Any duplicate/unknown ID, repeated membership, unexpected field, or oversized record rejects the complete Preferences record to shipped defaults.
+Preferences use the versioned browser-storage key `winforge-material-preview-preferences-v1` and an internal `schemaVersion: 1` record. The shipped defaults are English, English tone 2, Cantonese tone 3, system theme, comfortable density, left tabs, no pinned tabs, the shipped six-tab order, no groups, accent `#2f7d45`, and decorative message emoji enabled. Legacy records without the pin list, order, or group state migrate to those defaults. `tabGroups` is independently versioned at schema 1 and accepts at most eight ordered records. IDs use a generated `group-` plus 8–24 lowercase letters/digits, names are trimmed 1–48-character strings, colors use the existing six-digit hex contract, collapsed is boolean, and membership accepts only the six shipped tab IDs with no duplicate assignment. Duplicate/unknown IDs, repeated membership, malformed values, or an oversized record reject the complete Preferences record to shipped defaults. Unknown top-level preference fields are discarded by an explicit allowlist, and the raw stored record is bounded to 512 KiB before parsing.
 
 Emoji decoration never changes notification/status text, controls, accessible names, release facts, checksums, platform names, or warnings. English, Cantonese, and bilingual Settings copy names the same preference.
 
@@ -43,7 +43,7 @@ All eight presentation preferences also participate in [Global defaults and proj
 
 ## Failure modes
 
-Missing or corrupt stored JSON is discarded and the site returns to shipped defaults. Storage failure must not block page rendering. Reset changes site preferences only and never alters the desktop application.
+Missing or corrupt stored JSON is discarded and the site returns to shipped defaults. Browser-storage read, quota, and write failures do not block page rendering; the Settings surface reports that changes may last only until reload. Settings history is capped at 100 records and 512 KiB, while exported history names custom-logo presence but omits image bytes. Reset changes site preferences only and never alters the desktop application.
 
 ## Security and privacy
 

@@ -16,7 +16,7 @@ Creation and rename share one name validator that rejects blank, overlong, white
 
 ## Failure modes
 
-An unknown or duplicate group ID, unknown or repeated tab ID, unexpected field, invalid color, malformed name, or oversized group list rejects the complete Preferences record and restores shipped defaults. Invalid picker regex shows inline feedback and produces no guessed matches.
+An unknown or duplicate group ID, unknown or repeated tab ID, invalid color, malformed name, or oversized group list rejects the complete Preferences record and restores shipped defaults. Unknown top-level preference fields are discarded by an explicit allowlist, and raw preferences are bounded before parsing. Invalid picker regex shows inline feedback and produces no guessed matches. If browser storage is unavailable or full, the page remains usable and reports that changes may last only until reload.
 
 ## Security and privacy
 
@@ -24,7 +24,7 @@ Group state and picker input remain local to the browser. Group persistence cont
 
 ## Verification
 
-This bounded lane compiles the Sites Worker and Pages static export and runs the repository vocabulary, publication, and diff preflights. Source also binds overflow measurement to group-state changes, gives group controls exact localized accessible names/relationships, localizes the picker RegexBuilder, and provides at least 44-by-44-pixel group actions. It does not claim tests, lint, browser interaction, accessibility review, visual review, or captures.
+This bounded lane compiles the Sites Worker and Pages static export and runs the repository vocabulary, publication, and diff preflights. Source also binds overflow measurement to group-state changes, gives group controls exact localized accessible names/relationships, localizes the picker RegexBuilder, traps focus in the bounded move dialog, and provides at least 44-by-44-pixel group actions. It does not claim tests, lint, browser interaction, accessibility review, visual review, or captures.
 
 Per-group appearance editing, group bulk-close, and the remaining group/window discovery searches are explicitly incomplete.
 

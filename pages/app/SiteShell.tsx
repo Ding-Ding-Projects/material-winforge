@@ -155,6 +155,17 @@ const SITE_SETTING_KEYS: SiteSettingKey[] = [
   "accent",
   "showEmojis",
 ];
+const PREFERENCE_KEYS = new Set<string>([
+  "schemaVersion",
+  ...SITE_SETTING_KEYS,
+  "pinnedTabs",
+  "tabOrder",
+  "tabGroups",
+  "personalVocabulary",
+  "logoPreset",
+  "customLogo",
+  "settingsOwnership",
+]);
 const TABS: Array<{ id: TabId; icon: string; en: string; yue: string }> = [
   { id: "home", icon: "⌂", en: "Home", yue: "首頁" },
   { id: "features", icon: "◇", en: "Feature map", yue: "功能地圖" },
@@ -807,7 +818,13 @@ function normalizeOwnership(
 }
 function normalizePreferences(value: unknown): Preferences | null {
   if (!value || typeof value !== "object") return null;
-  const v = value as Partial<Preferences>;
+  const v = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(([key]) =>
+      PREFERENCE_KEYS.has(key),
+    ),
+  ) as Partial<Preferences>;
+  // Unknown root fields are deliberately discarded by this allowlisted reconstruction.
+  // This keeps legacy browser records bounded without copying arbitrary data back to storage.
   const validCustomLogo =
     v.customLogo === undefined ||
     normalizeLogoState({
@@ -1530,17 +1547,6 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     if (returnFocus)
       setTimeout(() => document.getElementById(`tab-${tabId}`)?.focus(), 0);
   };
-  const safeGroupId = () => {
-    const existing = new Set(prefs.tabGroups.groups.map((group) => group.id));
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      const candidate = `group-${crypto
-        .getRandomValues(new Uint32Array(2))
-        .reduce((value, part) => value + part.toString(36).padStart(7, "0"), "")
-        .slice(0, 14)}`;
-      if (!existing.has(candidate)) return candidate;
-    }
-    return null;
-  };
   const createTabGroup = (assignTab?: TabId) => {
     const name = validGroupName(newGroupName);
     if (
@@ -1562,35 +1568,33 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
       closeMovePicker();
       return;
     }
-    const groupId = safeGroupId();
-    if (!groupId) {
-      announce(
-        dual(
-          "A unique group identifier could not be created. Nothing changed.",
-          "建立唔到唯一群組識別碼；冇任何變更。",
-          language,
-        ),
-        "error",
-        "Tab groups",
-      );
-      return;
-    }
-    const withoutTab = assignTab
-      ? prefs.tabGroups.groups.map((group) => ({
-          ...group,
-          tabs: group.tabs.filter((tab) => tab !== assignTab),
-        }))
-      : prefs.tabGroups.groups;
+    const generatedId = `group-${crypto
+      .getRandomValues(new Uint32Array(4))
+      .reduce((value, part) => value + part.toString(36).padStart(7, "0"), "")
+      .slice(0, 20)}`;
     const group: TabGroup = {
-      id: groupId,
+      id: generatedId,
       name,
       color: newGroupColor.toLowerCase(),
       collapsed: false,
       tabs: assignTab ? [assignTab] : [],
     };
-    setPrefs({
-      ...prefs,
-      tabGroups: { schemaVersion: 1, groups: [...withoutTab, group] },
+    setPrefs((current) => {
+      if (
+        current.tabGroups.groups.length >= 8 ||
+        current.tabGroups.groups.some((item) => item.id === generatedId)
+      )
+        return current;
+      const withoutTab = assignTab
+        ? current.tabGroups.groups.map((item) => ({
+            ...item,
+            tabs: item.tabs.filter((tab) => tab !== assignTab),
+          }))
+        : current.tabGroups.groups;
+      return {
+        ...current,
+        tabGroups: { schemaVersion: 1, groups: [...withoutTab, group] },
+      };
     });
     setNewGroupName("");
     announce(
@@ -1608,18 +1612,25 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     groupId: string,
     patch: Partial<Pick<TabGroup, "name" | "color" | "collapsed">>,
   ): boolean => {
+    if (!prefs.tabGroups.groups.some((group) => group.id === groupId))
+      return false;
     const nextName =
       patch.name === undefined ? undefined : validGroupName(patch.name);
     if (patch.name !== undefined && !nextName) return false;
     if (patch.color !== undefined && !/^#[0-9a-f]{6}$/i.test(patch.color))
       return false;
+    const normalizedPatch = {
+      ...patch,
+      ...(nextName ? { name: nextName } : {}),
+      ...(patch.color ? { color: patch.color.toLowerCase() } : {}),
+    };
     setPrefs({
       ...prefs,
       tabGroups: {
         schemaVersion: 1,
         groups: prefs.tabGroups.groups.map((group) =>
           group.id === groupId
-            ? { ...group, ...patch, ...(nextName ? { name: nextName } : {}) }
+            ? { ...group, ...normalizedPatch }
             : group,
         ),
       },
@@ -1647,6 +1658,22 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     );
   };
   const moveTabIntoGroup = (tabId: TabId, groupId: string | null) => {
+    if (
+      groupId &&
+      !prefs.tabGroups.groups.some((group) => group.id === groupId)
+    ) {
+      announce(
+        dual(
+          "That group no longer exists. Nothing changed.",
+          "嗰個群組已經唔存在；冇任何變更。",
+          language,
+        ),
+        "warning",
+        "Tab groups",
+      );
+      closeMovePicker();
+      return;
+    }
     if (groupId && prefs.pinnedTabs.includes(tabId)) {
       announce(
         dual(
@@ -2514,8 +2541,8 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
           language,
         )
       : dual(
-          "Enter a name from 1 to 48 characters without control characters.",
-          "輸入 1 至 48 個字元嘅名稱，唔可以有控制字元。",
+          "Enter a trimmed name from 1 to 48 characters without control characters or leading/trailing whitespace.",
+          "輸入 1 至 48 個字元、前後冇空白嘅名稱，亦唔可以有控制字元。",
           language,
         );
   const orderedTabs = [...pinnedTabs, ...ordinaryTabs];
@@ -3221,6 +3248,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
           onClick={(event) => openMovePicker(tab.id, event.currentTarget)}
           aria-haspopup="dialog"
           aria-expanded={movePickerTab === tab.id}
+          aria-controls="move-group-picker"
           aria-label={dual(
             `Move ${tab.en} into group`,
             `移動${tab.yue}去群組`,
@@ -4242,6 +4270,15 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                 language,
               )}
             />
+            {!persistenceAvailable && (
+              <p className="supporting-copy" role="status">
+                {dual(
+                  "Browser storage is unavailable or full; this page remains usable, but changes may last only until reload.",
+                  "瀏覽器儲存用唔到或者已滿；頁面仍然用得，但改動可能只維持到重新載入。",
+                  language,
+                )}
+              </p>
+            )}
             <div className="settings-search-region">
               <div className="settings-search-row">
                 <label className="search-field" htmlFor="settings-search">
