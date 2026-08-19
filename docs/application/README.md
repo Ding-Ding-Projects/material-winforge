@@ -12,6 +12,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Global defaults and project overrides](project-settings-overrides.md)
 - [Personal vocabulary JSON](personal-vocabulary.md)
 - [Message emoji preference](message-emoji-preference.md)
+- [Scheduled settings and external sources](scheduled-settings.md)
 - [Changelog viewer](changelog-viewer.md)
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)
