@@ -33,4 +33,4 @@ The main process owns the private snapshot and journal directories. Listing acce
 
 ## Verification boundary
 
-The source and unsigned package build may be exercised for this change. Git discovery, journal initialization, remote refusal, append-only commit creation, bounded journal-log parsing, search, unavailable/failure rendering, snapshot listing, confirmation, backup, schema-version 1 compatibility, atomic schema-version 2 ownership restore, cancellation, and state application remain runtime-unverified until a separate packaged-artifact session drives them. Tests, lint, type checking, installer execution, and screenshots were not part of this ultra-speed slice.
+The c144163 packaged artifact verified snapshot creation, journal entry/listing, Light alteration, restore confirmation, safety-snapshot-first execution, schema-version 2 ownership restore, and return to the recorded Dark project state. Git absence, configured-remote refusal, bounded journal parsing/search variants, schema-version 1 compatibility, malformed/timeout paths, cancellation, tests, lint, type checking, installer execution, and screenshots remain unverified.

@@ -26,4 +26,4 @@ Legacy schema-version 1 snapshots remain readable. They restore only effective p
 
 ## Verification boundary
 
-The c144163 packaged artifact was driven through the approved hidden desktop route. Project creation, Light override, Global defaults, reset-to-global, and same-profile persistence were verified at 1480×940 with two fresh process/desktop lifecycles. Invalid-record omission, schema-version 1 compatibility, atomic schema-version 2 ownership restore, accessibility variants, tests, lint, type checking, installer execution, and screenshots remain unverified.
+The c144163 packaged artifact was driven through the approved hidden desktop route. Project creation, Light override, Global defaults, reset-to-global, same-profile persistence, and schema-version 2 ownership restore were verified at 1480×940 across fresh process/desktop lifecycles. Invalid-record omission, schema-version 1 compatibility, timeout paths, accessibility variants, tests, lint, type checking, installer execution, and screenshots remain unverified.
