@@ -9,6 +9,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Read-only system metrics](read-only-system-metrics.md)
 - [External app launch](external-app-launch.md)
 - [Package engine discovery](package-engine-discovery.md)
+- [Global defaults and project overrides](project-settings-overrides.md)
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)
 - [Local snapshot](local-snapshot.md)

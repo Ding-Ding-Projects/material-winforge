@@ -564,6 +564,15 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         <p style="margin:6px 0 24px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Appearance, language and tone. Everything here is persisted locally.</p>
 
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Global defaults and project overrides</h2>
+          <p style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ projectScopeLine }}</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px" role="listbox" aria-label="Active project picker"><sc-for list="{{ projectChoices }}" as="p" hint-placeholder-count="3"><button onClick="{{ p.select }}" aria-selected="{{ p.active }}" style="height:36px;padding:0 16px;border:1px solid {{ p.border }};border-radius:999px;background:{{ p.bg }};color:{{ p.fg }};font-weight:500">{{ p.label }}</button></sc-for></div>
+          <sc-if value="{{ projectsEmpty }}" hint-placeholder-val="{{ true }}"><div style="margin-bottom:14px;padding:12px 14px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)">No local projects exist. Create one to store sparse overrides; no sample projects are seeded.</div></sc-if>
+          <div style="display:flex;gap:8px"><input value="{{ projectNameInput }}" onInput="{{ setProjectNameInput }}" maxlength="64" placeholder="New local project name" aria-label="New local project name" style="flex:1;min-width:0;height:40px;padding:0 14px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-small);background:var(--md-sys-color-surface-container-high);color:inherit"><button onClick="{{ createProject }}" disabled="{{ projectCreateDisabled }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Create project</button></div>
+          <sc-if value="{{ hasActiveProject }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--md-sys-color-outline-variant)"><span style="font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ inheritanceLine }}</span><button onClick="{{ resetProjectOverrides }}" style="height:36px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-weight:500">Reset project to global</button></div></sc-if>
+        </section>
+
+        <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <h2 style="margin:0 0 16px;font-size:16px;font-weight:500">Appearance</h2>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:16px">
             <div>
@@ -1865,14 +1874,23 @@ class Component extends DCLogic {
     this.recycleSubmitActive = false;
     this.snapshotQuery = '';
     this.journalQuery = '';
+    const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
+    const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3 };
+    this.settingsGlobal = L && L.settingsGlobal && ['theme', 'lang', 'funnyEn', 'funnyZh'].every(key => validSetting(key, L.settingsGlobal[key])) ? { theme: L.settingsGlobal.theme, lang: L.settingsGlobal.lang, funnyEn: L.settingsGlobal.funnyEn, funnyZh: L.settingsGlobal.funnyZh } : fallbackGlobal;
+    const seenProjects = new Set();
+    this.settingsProjects = (L && Array.isArray(L.settingsProjects) ? L.settingsProjects : []).slice(0, 50).filter(project => project && typeof project.id === 'string' && /^project-[a-z0-9-]{6,48}$/.test(project.id) && !seenProjects.has(project.id) && typeof project.name === 'string' && project.name.trim().length >= 1 && project.name.trim().length <= 64 && project.overrides && typeof project.overrides === 'object' && !Array.isArray(project.overrides) && Object.keys(project.overrides).every(key => ['theme', 'lang', 'funnyEn', 'funnyZh'].includes(key) && validSetting(key, project.overrides[key])) && (seenProjects.add(project.id) || true)).map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
+    this.activeProjectId = L && typeof L.activeProjectId === 'string' && this.settingsProjects.some(project => project.id === L.activeProjectId) ? L.activeProjectId : null;
+    const activeSettingsProject = this.settingsProjects.find(project => project.id === this.activeProjectId);
+    const effectiveSettings = { ...this.settingsGlobal, ...(activeSettingsProject ? activeSettingsProject.overrides : {}) };
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
       tick: 0,
-      theme: (L && L.theme) || 'dark',
-      lang: (L && L.lang) || 'English',
-      funnyEn: (L && L.funnyEn) || 3,
-      funnyZh: (L && L.funnyZh) || 3,
+      theme: effectiveSettings.theme,
+      lang: effectiveSettings.lang,
+      funnyEn: effectiveSettings.funnyEn,
+      funnyZh: effectiveSettings.funnyZh,
+      projectNameInput: '',
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
       recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
@@ -1930,6 +1948,7 @@ class Component extends DCLogic {
         tweaks: this.tweaks, notifs: this.notifs.slice(0, 200), tabs: this.tabs,
         theme: this.state.theme, lang: this.state.lang, funnyEn: this.state.funnyEn,
         funnyZh: this.state.funnyZh, route: this.state.route,
+        settingsGlobal: this.settingsGlobal, settingsProjects: this.settingsProjects, activeProjectId: this.activeProjectId,
         reactor: this.rx.snapshot(), rlog: this.rlogLines.slice(0, 60), ship: this.ship || this.savedShip,
       }));
     } catch (e) {}
@@ -2821,17 +2840,57 @@ class Component extends DCLogic {
     V.rxClearLog = () => { this.rlogLines = []; this.setState(st => ({ tick: st.tick + 1 })); };
 
     // settings
+    const activeProject = this.settingsProjects.find(project => project.id === this.activeProjectId) || null;
+    const applyScope = () => {
+      const values = { ...this.settingsGlobal, ...(activeProject ? activeProject.overrides : {}) };
+      this.setState(values, () => this.persist());
+    };
+    const writeSetting = (key, value) => {
+      if (activeProject) {
+        if (value === this.settingsGlobal[key]) delete activeProject.overrides[key]; else activeProject.overrides[key] = value;
+      } else this.settingsGlobal[key] = value;
+      this.setState({ [key]: value }, () => this.persist());
+    };
+    V.projectChoices = [{ id: null, name: 'Global defaults' }, ...this.settingsProjects].map(project => {
+      const active = project.id === this.activeProjectId;
+      return { label: project.name, active, select: () => { this.activeProjectId = project.id; const selected = this.settingsProjects.find(item => item.id === project.id); const values = { ...this.settingsGlobal, ...(selected ? selected.overrides : {}) }; this.setState(values, () => this.persist()); }, bg: active ? prim : 'transparent', fg: active ? 'var(--md-sys-color-on-primary)' : onVar, border: active ? prim : 'var(--md-sys-color-outline)' };
+    });
+    V.projectsEmpty = this.settingsProjects.length === 0;
+    V.hasActiveProject = !!activeProject;
+    const overrideCount = activeProject ? Object.keys(activeProject.overrides).length : 0;
+    V.projectScopeLine = activeProject ? ('Editing ' + activeProject.name + ' · effective values apply live and sparse overrides stay local-only.') : 'Editing global defaults · projects inherit these values unless they override one.';
+    V.inheritanceLine = overrideCount + ' override' + (overrideCount === 1 ? '' : 's') + ' · ' + (4 - overrideCount) + ' inherited global value' + (4 - overrideCount === 1 ? '' : 's') + '.';
+    V.projectNameInput = s.projectNameInput;
+    V.setProjectNameInput = event => this.setState({ projectNameInput: String(event.target.value || '').slice(0, 64) });
+    V.projectCreateDisabled = !s.projectNameInput.trim() || s.projectNameInput.trim().length > 64 || this.settingsProjects.length >= 50;
+    V.createProject = () => {
+      const name = s.projectNameInput.trim();
+      if (!name || name.length > 64 || this.settingsProjects.length >= 50) { this.notify('Local project', 'Project name must be 1–64 characters and the local limit is 50 projects.', 'warning', true); return; }
+      let id;
+      do { id = 'project-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); } while (this.settingsProjects.some(project => project.id === id));
+      if (!/^project-[a-z0-9-]{6,48}$/.test(id)) { this.notify('Local project', 'A bounded project identifier could not be created. Retry is available.', 'error', true); return; }
+      this.settingsProjects.push({ id, name, overrides: {} });
+      this.activeProjectId = id;
+      this.setState({ ...this.settingsGlobal, projectNameInput: '' }, () => this.persist());
+      this.notify('Local project', name + ' was created locally with all four settings inherited.', 'success', true);
+    };
+    V.resetProjectOverrides = () => {
+      if (!activeProject) return;
+      activeProject.overrides = {};
+      applyScope();
+      this.notify('Project settings', activeProject.name + ' now inherits all four global defaults.', 'success', true);
+    };
     V.themeOptions = ['Dark', 'Light'].map(l => {
       const act = s.theme === l.toLowerCase();
-      return { label: l, set: () => { this.setState({ theme: l.toLowerCase() }); setTimeout(() => this.persist(), 0); }, bg: act ? prim : 'transparent', fg: act ? 'var(--md-sys-color-on-primary)' : onVar };
+      return { label: l, set: () => writeSetting('theme', l.toLowerCase()), bg: act ? prim : 'transparent', fg: act ? 'var(--md-sys-color-on-primary)' : onVar };
     });
     V.langOptions = ['English', 'Cantonese', 'Bilingual'].map(l => {
       const act = s.lang === l;
-      return { label: l === 'Cantonese' ? '粵語' : l, set: () => { this.setState({ lang: l }); setTimeout(() => this.persist(), 0); }, bg: act ? prim : 'transparent', fg: act ? 'var(--md-sys-color-on-primary)' : onVar };
+      return { label: l === 'Cantonese' ? '粵語' : l, set: () => writeSetting('lang', l), bg: act ? prim : 'transparent', fg: act ? 'var(--md-sys-color-on-primary)' : onVar };
     });
     V.funnySliders = [
-      { label: 'English funny level', value: s.funnyEn, preview: FUNNY_EN[s.funnyEn], change: e => { this.setState({ funnyEn: Number(e.target.value) }); } },
-      { label: '粵語 funny level', value: s.funnyZh, preview: FUNNY_ZH[s.funnyZh], change: e => { this.setState({ funnyZh: Number(e.target.value) }); } },
+      { label: 'English funny level', value: s.funnyEn, preview: FUNNY_EN[s.funnyEn], change: e => writeSetting('funnyEn', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
+      { label: '粵語 funny level', value: s.funnyZh, preview: FUNNY_ZH[s.funnyZh], change: e => writeSetting('funnyZh', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
     ];
     // package manager
     V.isPackages = r.view === 'packages';

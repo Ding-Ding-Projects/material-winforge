@@ -30,6 +30,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Preview Data now lists up to 50 validated private local snapshots and can restore presentation state only after creating a fresh current-state safety snapshot; identifiers, paths, and raw bytes stay behind the main-process boundary.
 - Snapshot creation now appends redacted metadata to a private local Git journal when an existing `git.exe` is discoverable. The journal refuses configured remotes, never uses network commands, and degrades visibly without blocking snapshots when Git is absent or journaling fails.
 - Preview Data now exposes a separate read-only journal list with its own search and regex builder. The no-input bridge returns at most 50 validated commit SHAs, timestamps, bounded subjects, and snapshot identifiers; it exposes no restore action, paths, diffs, or raw state.
+- Settings now supports validated local global defaults plus up to 50 user-created, path-free project records with sparse theme, language, and tone overrides, live effective values, inheritance counts, and reset-to-global.
 
 ## Verification state
 
@@ -75,3 +76,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Snapshot history listing, searching, confirmation, safety backup, restore, and refreshed-state behavior were built but not exercised in the packaged runtime.
 - Git discovery, private journal creation, remote refusal, append-only commits, and unavailable/failure states were built but not exercised in the packaged runtime.
 - Read-only journal-log parsing, list rendering, search, regex filtering, empty/invalid/truncated states, and remote refusal were built but not exercised in the packaged runtime.
+- Global-default editing, project creation and switching, sparse inheritance, live effective values, reset, reload persistence, and invalid-record omission were built but not exercised. Snapshots capture effective presentation values only and do not restore the project/default ownership records.
