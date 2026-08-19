@@ -10,6 +10,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 ## Implemented source
 
+- The Pages command palette now renders real bounded inline controls for language, separate English and Cantonese funny levels, theme, all four tab edges, density, accent color, message emoji, app-logo preset, and shared confirmed reset. Each control reuses its owning Settings setter; a separate result action clears the Settings filter and focuses the exact owning card.
 - Material Design 3 site shell with tabs dockable to the left, right, top, or bottom for Home, Feature map, Documentation, Settings, Changelog, and Status. Vertical and horizontal keyboard direction follows the rendered orientation; narrow widths use a top horizontal fallback without changing the persisted edge.
 - Local English, playful Hong Kong-style Cantonese, and bilingual presentation.
 - Separate five-level English and Cantonese tone controls.
@@ -39,6 +40,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 ## Verification state
 
+- Rich command-palette Settings slice: Sites and Pages builds plus vocabulary-currency, publication, and diff preflights are the only requested verification. Tests, lint, reviews, audits, runtime interaction, and captures were not run.
 - Tests: not run in the initial ultra-speed pass.
 - Lint and static analysis: not run.
 - Desktop runtime interaction: one bounded cheap headless session exercised the packaged `b52cf34` banner, live read-only metrics, and metrics-summary action; destructive and package-mutation actions were not invoked.
