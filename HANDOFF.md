@@ -1,5 +1,12 @@
 # Handoff
 
+## Scheduled-settings lane — checkpoint `6b33a58`
+
+- Added the browser-local scheduled-settings editor and lifecycle in `pages/app/SiteShell.tsx`, including bounded rule persistence, local-time date/time/weekday semantics, deterministic last-match precedence, temporary override application, restoration of base settings and ownership, Settings search, and command-palette routing.
+- Added responsive schedule-editor styling in `pages/app/globals.css` and the categorized article `docs/site/scheduled-settings.md`; updated the site index, completeness inventory, and Unreleased changelog.
+- The site explicitly remains local-only: external APIs and Home Assistant sources are not wired on this landing surface.
+- No tests, lint, reviews, runtime interaction, captures, release, or publication were run in this lane. A build/preflight result is recorded by the owning agent after integration.
+
 ## Release-trigger repair
 
 The release workflow now responds to pushes on `main` and manual dispatch only. The prior bare `push` trigger also matched generated tags, causing releases v1.0.2 through v1.0.4 to start subsequent workflow runs. Run `32213126094` was cancelled while active. The already published releases and tags were preserved because deleting release history was not authorized.

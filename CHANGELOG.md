@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a bounded browser-local scheduled-settings editor with local-time date, time, and weekday matching, deterministic last-match precedence, temporary overrides that restore base ownership/settings, Settings search and command-palette routing, and explicit no-external-source disclosure.
+
 - Added an opt-in browser-local narrator Settings card with English, Cantonese, and serialized bilingual speech, runtime voice enumeration by stable voice ID, bounded rate and pitch controls, unavailable-browser reporting, and automatic fallback when a saved voice is not installed.
 - Added the separate master-tab search in Settings with its own bounded query/regex builder, contextual group and pinned-state results, and exact tab focus routing.
 - Added bounded per-group appearance editing from the strip and Settings: a persisted icon, text color, background color, live preview, and per-group reset, with full typography/color translation remaining explicitly separate.

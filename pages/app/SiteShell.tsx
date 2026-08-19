@@ -710,6 +710,19 @@ const DEFAULT_NARRATION: NarrationSettings = {
   pitch: 1,
 };
 const DEFAULT_SCHEDULE: ScheduleState = { schemaVersion: 1, rules: [] };
+const DEFAULT_SCHEDULE_RULE: ScheduleRule = {
+  schemaVersion: 1,
+  id: "schedule-new",
+  label: "New local schedule",
+  enabled: true,
+  startDate: "",
+  endDate: "",
+  startTime: "09:00",
+  endTime: "17:00",
+  weekdays: [0, 1, 2, 3, 4, 5, 6],
+  source: "local",
+  settings: { theme: "light" },
+};
 function normalizeNarration(value: unknown): NarrationSettings | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const root = value as Record<string, unknown>;
@@ -1275,11 +1288,15 @@ export default function SiteShell({
   const [narration, setNarration] = useState<NarrationSettings>(DEFAULT_NARRATION);
   const [schedule, setSchedule] = useState<ScheduleState>(DEFAULT_SCHEDULE);
   const [scheduleTick, setScheduleTick] = useState(0);
+  const [scheduleDraft, setScheduleDraft] = useState<ScheduleRule>(DEFAULT_SCHEDULE_RULE);
+  const [scheduleDraftKey, setScheduleDraftKey] = useState<SiteSettingKey>("theme");
+  const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
   const scheduleBaseSettings = useRef<{
     values: SiteSettingValues;
     ownership: SiteSettingsOwnership;
   } | null>(null);
   const appliedScheduleId = useRef<string | null>(null);
+  const appliedScheduleSignature = useRef<string | null>(null);
   const [speechVoices, setSpeechVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [narrationStatus, setNarrationStatus] = useState<"available" | "unavailable">("available");
   const speechQueue = useRef<Array<{ text: string; language: "en" | "yue" }>>([]);
@@ -1657,6 +1674,42 @@ export default function SiteShell({
     if (hydrated && !writeLocalRecord(SCHEDULE_KEY, schedule, SCHEDULE_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, schedule]);
   useEffect(() => {
+    if (!hydrated) return;
+    const timer = window.setInterval(() => setScheduleTick((value) => value + 1), 30_000);
+    setScheduleTick((value) => value + 1);
+    return () => window.clearInterval(timer);
+  }, [hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    const matching = schedule.rules.filter((rule) => scheduleRuleMatches(rule, new Date()));
+    const nextRule = matching.length ? matching[matching.length - 1] : null;
+    if (!nextRule) {
+      if (scheduleBaseSettings.current) {
+        const base = scheduleBaseSettings.current;
+        setPrefs((current) => ({ ...current, ...base.values, settingsOwnership: base.ownership }));
+        scheduleBaseSettings.current = null;
+      }
+      appliedScheduleId.current = null;
+      appliedScheduleSignature.current = null;
+      setActiveScheduleId(null);
+      return;
+    }
+    if (!scheduleBaseSettings.current) {
+      scheduleBaseSettings.current = {
+        values: Object.fromEntries(SITE_SETTING_KEYS.map((key) => [key, prefs[key]])) as SiteSettingValues,
+        ownership: prefs.settingsOwnership,
+      };
+    }
+    const signature = `${nextRule.id}:${JSON.stringify(nextRule.settings)}:${nextRule.enabled}`;
+    if (appliedScheduleSignature.current === signature) return;
+    const base = scheduleBaseSettings.current;
+    const effective = { ...base.values, ...nextRule.settings };
+    setPrefs((current) => ({ ...current, ...effective, settingsOwnership: base.ownership }));
+    appliedScheduleId.current = nextRule.id;
+    appliedScheduleSignature.current = signature;
+    setActiveScheduleId(nextRule.id);
+  }, [hydrated, schedule, scheduleTick]);
+  useEffect(() => {
     const media = matchMedia("(max-width: 760px)");
     const sync = () => setNarrowTabs(media.matches);
     sync();
@@ -1706,6 +1759,7 @@ export default function SiteShell({
     const timer = setTimeout(() => {
       const grid = document.querySelector("#panel-settings .settings-grid");
       [
+        "scheduled-settings",
         "setting-language",
         "setting-funny-en",
         "setting-funny-yue",
@@ -2333,6 +2387,46 @@ export default function SiteShell({
     );
     announce(note);
   };
+  const scheduleSettingOptions: Array<[SiteSettingKey, string, string]> = [
+    ["language", "Language", "語言"],
+    ["funnyEnglish", "English funny level", "英文玩味程度"],
+    ["funnyCantonese", "Cantonese funny level", "廣東話玩味程度"],
+    ["theme", "Theme", "主題"],
+    ["dock", "Tab position", "分頁位置"],
+    ["density", "Density", "密度"],
+    ["accent", "Accent color", "重點色"],
+    ["showEmojis", "Show emojis", "顯示表情符號"],
+  ];
+  const updateScheduleDraftSetting = (key: SiteSettingKey, value: SiteSettingValues[SiteSettingKey]) =>
+    setScheduleDraft((current) => ({ ...current, settings: { ...current.settings, [key]: value } }));
+  const saveScheduleDraft = () => {
+    const candidate: ScheduleRule = {
+      ...scheduleDraft,
+      id: scheduleDraft.id === "schedule-new"
+        ? `schedule-${Date.now().toString(36)}`
+        : scheduleDraft.id,
+      label: scheduleDraft.label.trim(),
+      weekdays: [...new Set(scheduleDraft.weekdays)].sort((a, b) => a - b),
+    };
+    const normalized = normalizeSchedule({ schemaVersion: 1, rules: [...schedule.rules.filter((rule) => rule.id !== candidate.id), candidate] });
+    if (!normalized) {
+      announce(dual("Schedule needs a label, valid local times, at least one weekday, and one setting.", "排程要有名稱、有效本機時間、至少一日同一項設定。", language), "warning", "Schedule");
+      return;
+    }
+    setSchedule(normalized);
+    setScheduleDraft(DEFAULT_SCHEDULE_RULE);
+    setScheduleDraftKey("theme");
+    announce(dual("Local schedule saved; matching rules temporarily override the base settings.", "本機排程已儲存；符合時會暫時覆蓋基本設定。", language), "success", "Schedule");
+  };
+  const editSchedule = (rule: ScheduleRule) => {
+    setScheduleDraft({ ...rule, settings: { ...rule.settings }, weekdays: [...rule.weekdays] });
+    setScheduleDraftKey((Object.keys(rule.settings)[0] as SiteSettingKey) ?? "theme");
+  };
+  const removeSchedule = (id: string) => {
+    setSchedule((current) => ({ schemaVersion: 1, rules: current.rules.filter((rule) => rule.id !== id) }));
+    if (scheduleDraft.id === id) setScheduleDraft(DEFAULT_SCHEDULE_RULE);
+    announce(dual("Local schedule removed.", "本機排程已移除。", language), "success", "Schedule");
+  };
   const personalText = (original: string) =>
     prefs.personalVocabulary?.replacements[original] ?? original;
   const clearVocabulary = () => {
@@ -2650,6 +2744,10 @@ export default function SiteShell({
     [
       "narration",
       `Narrator speech voice English Cantonese both rate pitch ${narration.enabled ? "enabled" : "off"}`,
+    ],
+    [
+      "schedule",
+      `Scheduled settings local timezone date time weekdays temporary override ${schedule.rules.length} rules ${activeScheduleId ?? "inactive"}`,
     ],
     ["density", `Density comfortable compact ${prefs.density}`],
     ["accent", `Accent color ${prefs.accent}`],
@@ -3549,6 +3647,16 @@ export default function SiteShell({
       language,
     ),
     action: () => openSetting("narration"),
+  });
+  commands.push({
+    id: "scheduled-settings",
+    label: dual("Scheduled settings", "排程設定", language),
+    detail: dual(
+      "Schedule local language, theme, density, accent, and tone overrides with local-time rules",
+      "用本機時間排程語言、主題、密度、重點色同語氣嘅暫時覆蓋",
+      language,
+    ),
+    action: () => openSetting("scheduled-settings"),
   });
   let palettePattern: RegExp | null = null;
   let palettePatternError = "";
@@ -5323,6 +5431,48 @@ export default function SiteShell({
               </div>
             )}
             <div className="settings-grid">
+              <SettingCard
+                id="scheduled-settings"
+                hidden={!settingsVisible("schedule")}
+                title={dual("Scheduled settings", "排程設定", language)}
+                description={dual(
+                  "Apply temporary presentation overrides using the browser's local timezone. This site uses local data only; external APIs and Home Assistant are deliberately unavailable here.",
+                  "用瀏覽器本機時區暫時覆蓋外觀設定。呢個網站只用本機資料；外部 API 同 Home Assistant 喺呢度刻意唔提供。",
+                  language,
+                )}
+                provenance={activeScheduleId
+                  ? dual(`Active temporary rule: ${activeScheduleId}`, `目前暫時排程：${activeScheduleId}`, language)
+                  : dual(`${schedule.rules.length} local rules · base settings restore when no rule matches`, `${schedule.rules.length} 個本機排程 · 冇符合時會回復基本設定`, language)}
+              >
+                <div className="schedule-editor">
+                  <p className="supporting-copy">
+                    {dual("Precedence is deterministic: when several local rules match, the last rule in the list wins. Date and time fields use this browser's local timezone; end times may cross midnight.", "優先次序固定：多個本機排程符合時，清單最後一項勝出。日期同時間用瀏覽器本機時區；結束時間可以跨午夜。", language)}
+                  </p>
+                  <div className="schedule-form-grid">
+                    <label><span>{dual("Label", "名稱", language)}</span><input value={scheduleDraft.label} maxLength={64} onChange={(event) => setScheduleDraft((current) => ({ ...current, label: event.target.value }))} /></label>
+                    <label><span>{dual("Start date (optional)", "開始日期（可選）", language)}</span><input type="date" value={scheduleDraft.startDate} onChange={(event) => setScheduleDraft((current) => ({ ...current, startDate: event.target.value }))} /></label>
+                    <label><span>{dual("End date (optional)", "結束日期（可選）", language)}</span><input type="date" value={scheduleDraft.endDate} onChange={(event) => setScheduleDraft((current) => ({ ...current, endDate: event.target.value }))} /></label>
+                    <label><span>{dual("Start time", "開始時間", language)}</span><input type="time" value={scheduleDraft.startTime} onChange={(event) => setScheduleDraft((current) => ({ ...current, startTime: event.target.value }))} /></label>
+                    <label><span>{dual("End time", "結束時間", language)}</span><input type="time" value={scheduleDraft.endTime} onChange={(event) => setScheduleDraft((current) => ({ ...current, endTime: event.target.value }))} /></label>
+                    <label><span>{dual("Setting to override", "要覆蓋嘅設定", language)}</span><select value={scheduleDraftKey} onChange={(event) => setScheduleDraftKey(event.target.value as SiteSettingKey)}>{scheduleSettingOptions.map(([key, en, yue]) => <option key={key} value={key}>{dual(en, yue, language)}</option>)}</select></label>
+                  </div>
+                  <div className="schedule-weekdays" role="group" aria-label={dual("Schedule weekdays", "排程星期", language)}>
+                    {[[0,"Sun","日"],[1,"Mon","一"],[2,"Tue","二"],[3,"Wed","三"],[4,"Thu","四"],[5,"Fri","五"],[6,"Sat","六"]].map(([day, en, yue]) => <label key={day as number}><input type="checkbox" checked={scheduleDraft.weekdays.includes(day as number)} onChange={(event) => setScheduleDraft((current) => ({ ...current, weekdays: event.target.checked ? [...current.weekdays, day as number] : current.weekdays.filter((item) => item !== day) }))} /><span>{dual(en as string, yue as string, language)}</span></label>)}
+                  </div>
+                  <div className="schedule-setting-value">
+                    {scheduleDraftKey === "theme" && <Segments label="Scheduled theme" value={(scheduleDraft.settings.theme as string) ?? "light"} options={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} onChange={(value) => updateScheduleDraftSetting("theme", value as SiteSettingValues["theme"])} />}
+                    {(scheduleDraftKey === "language" || scheduleDraftKey === "dock" || scheduleDraftKey === "density") && <select value={String(scheduleDraft.settings[scheduleDraftKey] ?? "")} onChange={(event) => updateScheduleDraftSetting(scheduleDraftKey, event.target.value as SiteSettingValues[SiteSettingKey])}>{(scheduleDraftKey === "language" ? [["en","English"],["yue","廣東話"],["both","English · 廣東話"]] : scheduleDraftKey === "dock" ? [["left","Left"],["right","Right"],["top","Top"],["bottom","Bottom"]] : [["comfortable","Comfortable"],["compact","Compact"]]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}
+                    {(scheduleDraftKey === "funnyEnglish" || scheduleDraftKey === "funnyCantonese") && <Range label={scheduleDraftKey} value={Number(scheduleDraft.settings[scheduleDraftKey] ?? 3)} onChange={(value) => updateScheduleDraftSetting(scheduleDraftKey, value)} />}
+                    {scheduleDraftKey === "accent" && <input type="color" value={String(scheduleDraft.settings.accent ?? "#2f7d45")} onChange={(event) => updateScheduleDraftSetting("accent", event.target.value)} aria-label={dual("Scheduled accent color", "排程重點色", language)} />}
+                    {scheduleDraftKey === "showEmojis" && <label className="narration-toggle"><span>{dual("Show emojis", "顯示表情符號", language)}</span><input type="checkbox" checked={Boolean(scheduleDraft.settings.showEmojis)} onChange={(event) => updateScheduleDraftSetting("showEmojis", event.target.checked)} /></label>}
+                  </div>
+                  <div className="schedule-actions"><label className="narration-toggle"><span>{dual("Enabled", "啟用", language)}</span><input type="checkbox" checked={scheduleDraft.enabled} onChange={(event) => setScheduleDraft((current) => ({ ...current, enabled: event.target.checked }))} /></label><button type="button" className="filled-button" onClick={saveScheduleDraft}>{dual(scheduleDraft.id === "schedule-new" ? "Add local rule" : "Save rule", scheduleDraft.id === "schedule-new" ? "加入本機排程" : "儲存排程", language)}</button><button type="button" className="tonal-button" onClick={() => { setScheduleDraft(DEFAULT_SCHEDULE_RULE); setScheduleDraftKey("theme"); }}>{dual("Clear editor", "清除編輯器", language)}</button></div>
+                  <div className="schedule-rule-list">
+                    {schedule.rules.map((rule) => <div className={`schedule-rule ${activeScheduleId === rule.id ? "active" : ""}`} key={rule.id}><div><strong>{rule.label}</strong><small>{rule.startDate || "Any date"} → {rule.endDate || "Any date"} · {rule.startTime}–{rule.endTime} · {rule.weekdays.length}/7 days · {Object.keys(rule.settings).join(", ")}</small></div><button type="button" onClick={() => editSchedule(rule)}>{dual("Edit", "編輯", language)}</button><button type="button" onClick={() => removeSchedule(rule.id)}>{dual("Remove", "移除", language)}</button></div>)}
+                    {!schedule.rules.length && <p className="empty-state">{dual("No local schedules yet.", "暫時未有本機排程。", language)}</p>}
+                  </div>
+                </div>
+              </SettingCard>
               <SettingCard
                 hidden={!settingsVisible("language")}
                 title={dual("Language mode", "語言模式", language)}
