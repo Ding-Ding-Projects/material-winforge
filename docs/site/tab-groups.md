@@ -6,6 +6,8 @@ The Pages site can create up to eight ordered local groups for its six known des
 
 Each tab exposes **Move… into group…**. The anchored picker lists current groups with their color and member count, offers an ungrouped destination and create-new path, starts with local plain-text search, and provides an adjacent full JavaScript regex builder. Arrow keys traverse choices, Escape cancels, and closure returns focus to the initiating control.
 
+Every rendered group has its own local tab search with an independent anchored JavaScript regex builder. Search state is transient, plain text is the default, and filtering never collapses the group or changes stored membership. The Settings group-management card has a separate group-name/member-count search and builder with an explicit no-match state.
+
 Pinned tabs remain exclusively in the stable pinned region. Pinning a grouped tab removes its group membership, persisted records discard pinned membership during normalization, and move attempts cannot place a pinned tab into a group. Group member counts therefore describe exactly the members rendered in the ordinary region.
 
 ## Configuration
@@ -26,7 +28,7 @@ Group state and picker input remain local to the browser. Group persistence cont
 
 This bounded lane compiles the Sites Worker and Pages static export and runs the repository vocabulary, publication, and diff preflights. Source also binds overflow measurement to group-state changes, gives group controls exact localized accessible names/relationships, localizes the picker RegexBuilder, traps focus in the bounded move dialog, and provides at least 44-by-44-pixel group actions. It does not claim tests, lint, browser interaction, accessibility review, visual review, or captures.
 
-Per-group appearance editing, group bulk-close, and the remaining group/window discovery searches are explicitly incomplete.
+Per-group appearance editing, group bulk-close, and the remaining cross-window/master discovery searches are explicitly incomplete.
 
 ## Suggested articles
 

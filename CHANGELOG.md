@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added independent plain-text-first tab searches with anchored JavaScript regex builders inside every rendered group and a separate group-management search in Settings; filtering is transient and preserves membership and collapse state.
+
 - Repaired Pages tab groups so overflow measurement follows group state, group names share strict validation, generated IDs retry collisions safely, pinned tabs cannot retain hidden group membership, group controls expose complete localized relationships and 44-pixel targets, picker RegexBuilder copy follows the active language, and disabled creation explains its blocker.
 - Hardened the tab-group repair with atomic group insertion, known-group checks, canonical colors, modal picker focus containment and Escape recovery, named search controls, narrow scroll reachability, 44-pixel picker controls, bounded preference/history storage, safe browser-storage degradation, 1–5 tone normalization, and an allowlisted preference root.
 - Added bounded schema-versioned Pages tab groups with persistent names, colors, collapsed state, six-tab membership, localized group management, and a searchable anchored Move… into group… picker; per-group appearance editing and group bulk-close remain incomplete.

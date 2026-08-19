@@ -17,6 +17,13 @@ type TabGroup = {
   collapsed: boolean;
   tabs: TabId[];
 };
+type GroupSearchState = {
+  query: string;
+  regex: boolean;
+  flags: { i: boolean; m: boolean };
+  sample: string;
+  builderOpen: boolean;
+};
 type TabGroupsState = { schemaVersion: 1; groups: TabGroup[] };
 type LanguageMode = "en" | "yue" | "both";
 type VocabularyCache = {
@@ -1023,10 +1030,11 @@ function normalizeSettingsHistory(value: unknown): SettingsHistory | null {
       )
     )
       return null;
-    const logo = legacy
+    const normalizedLogo = legacy
       ? { logoPreset: "forge" as LogoPreset, customLogo: null }
       : normalizeLogoState(candidate.logo);
-    if (!logo) return null;
+    if (!normalizedLogo) return null;
+    const logo = { logoPreset: normalizedLogo.logoPreset, customLogo: null };
     seen.add(candidate.id);
     records.push({
       ...candidate,
@@ -1087,6 +1095,9 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   );
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("#2f7d45");
+  const [groupSearches, setGroupSearches] = useState<
+    Record<string, GroupSearchState>
+  >({});
   const movePickerOrigin = useRef<HTMLElement | null>(null);
   const movePickerDialog = useRef<HTMLElement | null>(null);
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
@@ -1129,6 +1140,17 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const [settingsFlags, setSettingsFlags] = useState({ i: true, m: false });
   const [settingsSample, setSettingsSample] = useState(
     "Theme\nTab position\nPersonal vocabulary\nApp logo",
+  );
+  const [groupSettingsQuery, setGroupSettingsQuery] = useState("");
+  const [groupSettingsRegex, setGroupSettingsRegex] = useState(false);
+  const [groupSettingsBuilderOpen, setGroupSettingsBuilderOpen] =
+    useState(false);
+  const [groupSettingsFlags, setGroupSettingsFlags] = useState({
+    i: true,
+    m: false,
+  });
+  const [groupSettingsSample, setGroupSettingsSample] = useState(
+    "Work\nReference\nLater",
   );
   const [changelogQuery, setChangelogQuery] = useState("");
   const [changelogRegex, setChangelogRegex] = useState(false);
@@ -1249,6 +1271,26 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     setMoveGroupQuery("");
     setTimeout(() => movePickerOrigin.current?.focus(), 0);
   }, []);
+  const defaultGroupSearch = (group: TabGroup): GroupSearchState => ({
+    query: "",
+    regex: false,
+    flags: { i: true, m: false },
+    sample: group.tabs
+      .map((tabId) => TABS.find((tab) => tab.id === tabId)?.en ?? "")
+      .join("\n"),
+    builderOpen: false,
+  });
+  const updateGroupSearch = (
+    group: TabGroup,
+    patch: Partial<GroupSearchState>,
+  ) =>
+    setGroupSearches((current) => ({
+      ...current,
+      [group.id]: {
+        ...(current[group.id] ?? defaultGroupSearch(group)),
+        ...patch,
+      },
+    }));
 
   useEffect(() => {
     const preferenceRecord = readLocalRecord(STORAGE_KEY, PREFERENCES_MAX_BYTES);
@@ -1568,23 +1610,13 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
       closeMovePicker();
       return;
     }
-    const generatedId = `group-${crypto
-      .getRandomValues(new Uint32Array(4))
-      .reduce((value, part) => value + part.toString(36).padStart(7, "0"), "")
-      .slice(0, 20)}`;
-    const group: TabGroup = {
-      id: generatedId,
-      name,
-      color: newGroupColor.toLowerCase(),
-      collapsed: false,
-      tabs: assignTab ? [assignTab] : [],
-    };
+    const candidates = Array.from({ length: 8 }, () => `group-${crypto.getRandomValues(new Uint32Array(4)).reduce((value, part) => value + part.toString(36).padStart(7, "0"), "").slice(0, 20)}`);
+    if (!candidates.some((candidate) => !prefs.tabGroups.groups.some((group) => group.id === candidate))) { announce(dual("A unique group identifier could not be created. Nothing changed.", "建立唔到唯一群組識別碼；冇任何變更。", language), "error", "Tab groups"); return; }
     setPrefs((current) => {
-      if (
-        current.tabGroups.groups.length >= 8 ||
-        current.tabGroups.groups.some((item) => item.id === generatedId)
-      )
-        return current;
+      if (current.tabGroups.groups.length >= 8 || (assignTab && current.pinnedTabs.includes(assignTab))) return current;
+      const generatedId = candidates.find((candidate) => !current.tabGroups.groups.some((item) => item.id === candidate));
+      if (!generatedId) return current;
+      const group: TabGroup = { id: generatedId, name, color: newGroupColor.toLowerCase(), collapsed: false, tabs: assignTab ? [assignTab] : [] };
       const withoutTab = assignTab
         ? current.tabGroups.groups.map((item) => ({
             ...item,
@@ -1803,12 +1835,9 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
           overrides: { ...project.overrides },
         })),
       },
-      logo: { logoPreset: next.logoPreset, customLogo: next.customLogo },
+      logo: { logoPreset: next.logoPreset, customLogo: null },
     };
-    setSettingsHistory((history) => ({
-      schemaVersion: 2,
-      records: [record, ...history.records].slice(0, 100),
-    }));
+    setSettingsHistory((history) => boundSettingsHistory({ schemaVersion: 2, records: [record, ...history.records] }));
   };
   const resetAllSettings = () => {
     const next: Preferences = {
@@ -2154,6 +2183,41 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     } catch {
       settingsMatches = [];
     }
+  let groupSettingsPattern: RegExp | null = null;
+  let groupSettingsPatternError = "";
+  if (groupSettingsRegex && groupSettingsQuery)
+    try {
+      groupSettingsPattern = new RegExp(
+        groupSettingsQuery,
+        `${groupSettingsFlags.i ? "i" : ""}${groupSettingsFlags.m ? "m" : ""}`,
+      );
+    } catch (error) {
+      groupSettingsPatternError =
+        error instanceof Error ? error.message : "Invalid regular expression";
+    }
+  let groupSettingsMatches: RegExpMatchArray[] = [];
+  if (groupSettingsRegex && groupSettingsQuery && groupSettingsPattern)
+    try {
+      groupSettingsMatches = Array.from(
+        groupSettingsSample.matchAll(
+          new RegExp(
+            groupSettingsQuery,
+            `${groupSettingsFlags.i ? "i" : ""}${groupSettingsFlags.m ? "m" : ""}g`,
+          ),
+        ),
+      ).slice(0, 50);
+    } catch {
+      groupSettingsMatches = [];
+    }
+  const visibleGroupSettings = prefs.tabGroups.groups.filter((group) => {
+    const text = `${group.name} ${group.id} ${group.tabs.length} members`;
+    return (
+      !groupSettingsQuery ||
+      (groupSettingsRegex
+        ? !!groupSettingsPattern?.test(text)
+        : text.toLocaleLowerCase().includes(groupSettingsQuery.toLocaleLowerCase()))
+    );
+  });
   const settingsSearchRows = [
     [
       "ownership",
@@ -2473,7 +2537,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     const markdown = filteredSettingsHistory
       .map(
         (record) =>
-          `## ${record.label}\n\n- Action: ${record.action}\n- Time: ${record.timestamp}\n- Language: ${record.effective.language}\n- Theme: ${record.effective.theme}\n- Dock: ${record.effective.dock}\n- Density: ${record.effective.density}\n- Accent: ${record.effective.accent}\n- English tone: ${record.effective.funnyEnglish}\n- Cantonese tone: ${record.effective.funnyCantonese}\n- Message emoji: ${record.effective.showEmojis ? "on" : "off"}\n- Logo preset: ${record.logo.logoPreset}\n- Custom logo: ${record.logo.customLogo ? "stored locally; bytes omitted from export" : "none"}`,
+          `## ${record.label}\n\n- Action: ${record.action}\n- Time: ${record.timestamp}\n- Language: ${record.effective.language}\n- Theme: ${record.effective.theme}\n- Dock: ${record.effective.dock}\n- Density: ${record.effective.density}\n- Accent: ${record.effective.accent}\n- English tone: ${record.effective.funnyEnglish}\n- Cantonese tone: ${record.effective.funnyCantonese}\n- Message emoji: ${record.effective.showEmojis ? "on" : "off"}\n- Logo preset: ${record.logo.logoPreset}\n- Custom logo: omitted from history and export`,
       )
       .join("\n\n");
     const url = URL.createObjectURL(
@@ -2497,12 +2561,12 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     const next = {
       ...prefs,
       ...record.effective,
-      ...record.logo,
+      logoPreset: record.logo.logoPreset,
       settingsOwnership: record.ownership,
     };
     setPrefs(next);
     appendSettingsHistory("restored", `Restored ${record.label}`, next);
-    setLogoStatus(record.logo.customLogo ? "loaded" : "no-custom");
+    setLogoStatus(prefs.customLogo ? "loaded" : "no-custom");
     setLogoMessage("");
     setSettingsRestoreId(null);
     setToast("Settings history record restored.");
@@ -3249,6 +3313,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
           aria-haspopup="dialog"
           aria-expanded={movePickerTab === tab.id}
           aria-controls="move-group-picker"
+          aria-controls="move-group-picker"
           aria-label={dual(
             `Move ${tab.en} into group`,
             `移動${tab.yue}去群組`,
@@ -3286,6 +3351,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
+      {!persistenceAvailable && <div className="persistence-warning" role="status">{dual("Local persistence is unavailable. The site remains usable, but changes may not survive reload.", "本機保存暫時用唔到；網站仍然可用，但重新載入後變更可能唔會保留。", language)}</div>}
       <header className="top-app-bar">
         <button
           className="brand"
@@ -3349,7 +3415,46 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
           )}
           <div ref={tabItemsRef} className="tab-items">
             <div className="ungrouped-tab-items" role="tablist" aria-orientation={tabOrientation} aria-label={dual("Ungrouped tabs", "未分組分頁", language)} onKeyDown={handleTabKeyDown}>{ungroupedTabs.map((tab) => renderStripTab(tab, false))}</div>
-            {renderedGroups.map((group) => (
+            {renderedGroups.map((group) => {
+              const search =
+                groupSearches[group.id] ?? defaultGroupSearch(group);
+              let groupPattern: RegExp | null = null;
+              let groupPatternError = "";
+              if (search.regex && search.query)
+                try {
+                  groupPattern = new RegExp(
+                    search.query,
+                    `${search.flags.i ? "i" : ""}${search.flags.m ? "m" : ""}`,
+                  );
+                } catch (error) {
+                  groupPatternError =
+                    error instanceof Error
+                      ? error.message
+                      : "Invalid regular expression";
+                }
+              const visibleGroupMembers = group.members.filter((tab) => {
+                const text = `${tab.en} ${tab.yue}`;
+                return (
+                  !search.query ||
+                  (search.regex
+                    ? !!groupPattern?.test(text)
+                    : text
+                        .toLocaleLowerCase()
+                        .includes(search.query.toLocaleLowerCase()))
+                );
+              });
+              const groupMatches =
+                search.regex && !groupPatternError && search.query
+                  ? Array.from(
+                      search.sample.matchAll(
+                        new RegExp(
+                          search.query,
+                          `${search.flags.i ? "i" : ""}${search.flags.m ? "m" : ""}g`,
+                        ),
+                      ),
+                    ).slice(0, 50)
+                  : [];
+              return (
               <section
                 className="tab-group"
                 role="group"
@@ -3421,6 +3526,79 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                     {dual("Remove", "移除", language)}
                   </button>
                 </div>
+                <div className="tab-group-search">
+                  <label>
+                    <span aria-hidden="true">⌕</span>
+                    <input
+                      maxLength={128}
+                      value={search.query}
+                      onChange={(event) =>
+                        updateGroupSearch(group, { query: event.target.value })
+                      }
+                      placeholder={dual(
+                        `Search ${group.name} tabs`,
+                        `搜尋${group.name}分頁`,
+                        language,
+                      )}
+                      aria-label={dual(
+                        `Search ${group.name} tabs`,
+                        `搜尋${group.name}分頁`,
+                        language,
+                      )}
+                      aria-invalid={Boolean(groupPatternError)}
+                    />
+                  </label>
+                  <div className="builder-anchor">
+                    <button
+                      type="button"
+                      className={search.regex ? "active" : ""}
+                      onClick={() =>
+                        updateGroupSearch(group, {
+                          builderOpen: !search.builderOpen,
+                        })
+                      }
+                      aria-expanded={search.builderOpen}
+                      aria-controls={`group-regex-${group.id}`}
+                    >
+                      {dual("Regex builder", "正規表示式工具", language)}
+                    </button>
+                    {search.builderOpen && (
+                      <RegexBuilder
+                        builderId={`group-regex-${group.id}`}
+                        language={language}
+                        query={search.query}
+                        setQuery={(value) =>
+                          updateGroupSearch(group, {
+                            query: value.slice(0, 128),
+                            regex: true,
+                          })
+                        }
+                        regexMode={search.regex}
+                        setRegexMode={(value) =>
+                          updateGroupSearch(group, { regex: value })
+                        }
+                        flags={search.flags}
+                        setFlags={(value) =>
+                          updateGroupSearch(group, { flags: value })
+                        }
+                        error={groupPatternError}
+                        sample={search.sample}
+                        setSample={(value) =>
+                          updateGroupSearch(group, { sample: value })
+                        }
+                        matches={groupMatches}
+                        announce={announce}
+                        close={() =>
+                          updateGroupSearch(group, { builderOpen: false })
+                        }
+                      />
+                    )}
+                  </div>
+                </div>
+                <p className="tab-group-search-meta" aria-live="polite">
+                  {groupPatternError ||
+                    `${visibleGroupMembers.length} ${dual("matching tabs", "個符合分頁", language)}`}
+                </p>
                 <div
                   id={`group-tabs-${group.id}`}
                   className="tab-group-members"
@@ -3430,10 +3608,11 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   onKeyDown={handleTabKeyDown}
                   hidden={group.collapsed}
                 >
-                  {group.members.map((tab) => renderStripTab(tab, false))}
+                  {visibleGroupMembers.map((tab) => renderStripTab(tab, false))}
                 </div>
               </section>
-            ))}
+              );
+            })}
           </div>
         </div>
         {tabOverflow && (
@@ -4495,8 +4674,65 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   language,
                 )}
               >
+                <div className="tab-group-settings-search">
+                  <label className="search-field" htmlFor="tab-group-settings-search">
+                    <span aria-hidden="true">⌕</span>
+                    <input
+                      id="tab-group-settings-search"
+                      maxLength={128}
+                      value={groupSettingsQuery}
+                      onChange={(event) =>
+                        setGroupSettingsQuery(event.target.value)
+                      }
+                      placeholder={dual(
+                        "Search groups by name or membership",
+                        "搜尋群組名稱或者成員",
+                        language,
+                      )}
+                      aria-invalid={Boolean(groupSettingsPatternError)}
+                    />
+                  </label>
+                  <div className="builder-anchor">
+                    <button
+                      type="button"
+                      className={groupSettingsRegex ? "active" : ""}
+                      onClick={() =>
+                        setGroupSettingsBuilderOpen((value) => !value)
+                      }
+                      aria-expanded={groupSettingsBuilderOpen}
+                      aria-controls="tab-group-settings-regex"
+                    >
+                      {dual("Regex builder", "正規表示式工具", language)}
+                    </button>
+                    {groupSettingsBuilderOpen && (
+                      <RegexBuilder
+                        builderId="tab-group-settings-regex"
+                        language={language}
+                        query={groupSettingsQuery}
+                        setQuery={(value) => {
+                          setGroupSettingsQuery(value.slice(0, 128));
+                          setGroupSettingsRegex(true);
+                        }}
+                        regexMode={groupSettingsRegex}
+                        setRegexMode={setGroupSettingsRegex}
+                        flags={groupSettingsFlags}
+                        setFlags={setGroupSettingsFlags}
+                        error={groupSettingsPatternError}
+                        sample={groupSettingsSample}
+                        setSample={setGroupSettingsSample}
+                        matches={groupSettingsMatches}
+                        announce={announce}
+                        close={() => setGroupSettingsBuilderOpen(false)}
+                      />
+                    )}
+                  </div>
+                  <p className="tab-group-search-meta" aria-live="polite">
+                    {groupSettingsPatternError ||
+                      `${visibleGroupSettings.length} ${dual("matching groups", "個符合群組", language)}`}
+                  </p>
+                </div>
                 <div className="tab-group-settings-list">
-                  {prefs.tabGroups.groups.map((group) => (
+                  {visibleGroupSettings.map((group) => (
                     <div key={group.id}>
                       <span
                         className="group-swatch"
@@ -4543,6 +4779,17 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                       </button>
                     </div>
                   ))}
+                  {prefs.tabGroups.groups.length > 0 &&
+                    !visibleGroupSettings.length &&
+                    !groupSettingsPatternError && (
+                      <p className="empty-state" role="status">
+                        {dual(
+                          "No groups match this search; the stored groups and active project are unchanged.",
+                          "冇群組符合呢個搜尋；已保存群組同目前 project 都冇改。",
+                          language,
+                        )}
+                      </p>
+                    )}
                   {!prefs.tabGroups.groups.length && (
                     <p className="empty-state">
                       {dual(
