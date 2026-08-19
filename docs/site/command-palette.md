@@ -10,6 +10,8 @@ Logo preset, custom-logo upload, and logo reset share one bounded history-aware 
 
 Each rich result retains a separate destination action. Settings destinations clear any filter that could hide the owner, open Settings, scroll to the exact owning card, and focus it. Other commands retain their visible action-specific label and detail instead of being described as Settings-card routes.
 
+Tab grouping adds two factual commands: **Manage tab groups** teleports to the owning Settings card, and **Move current tab into group** opens the same anchored searchable picker used by the tab strip. Neither command invents a second group state.
+
 Search is literal and case-insensitive by default. It evaluates the combined command label and description without changing command order or behavior.
 
 ## Regular expressions

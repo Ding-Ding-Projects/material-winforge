@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added bounded schema-versioned Pages tab groups with persistent names, colors, collapsed state, six-tab membership, localized group management, and a searchable anchored Move… into group… picker; per-group appearance editing and group bulk-close remain incomplete.
 - Added real inline controls to Pages command-palette results for all existing app-wide presentation Settings, reusing the Settings cards' persistence, history, and notification paths while retaining exact owning-card teleport.
 - Repaired the rich Pages command palette with bounded logo history and restore, Escape propagation, correct reset modal transfer, truthful destination semantics, focus containment/opener restoration, background inerting, and short-viewport scrolling.
 - Repaired Pages tab reordering with allowlisted preference persistence, focused-tab arrow navigation, overflow move controls, localized accessible names and positional announcements, and 44-pixel reorder targets.
