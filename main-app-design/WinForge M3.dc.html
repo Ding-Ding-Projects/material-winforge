@@ -562,7 +562,10 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       <div style="padding:20px 32px 48px;max-width:880px;animation:wf-in .32s var(--emph) both">
         <h1 style="margin:0;font-size:32px;font-weight:400">Settings</h1>
         <p style="margin:6px 0 24px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Appearance, language and tone. Everything here is persisted locally.</p>
+        <div style="display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;margin-bottom:16px;border-radius:999px;background:var(--md-sys-color-surface-container-high)" role="search"><span class="ms" aria-hidden="true">search</span><input value="{{ settingsQuery }}" onInput="{{ setSettingsQuery }}" maxlength="128" aria-label="Search Settings sections" placeholder="Search Settings sections and current values" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbSettings }}" title="Advanced regex builder" aria-label="Open Settings regex builder" style="width:36px;height:36px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:17px">regular_expression</span></button></div>
+        <sc-if value="{{ settingsNoMatch }}" hint-placeholder-val="{{ false }}"><div style="margin-bottom:16px;padding:14px 16px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)" role="status">No Settings section matches this search. Persisted values and the active project are unchanged.</div></sc-if>
 
+        <sc-if value="{{ showSettingsProjects }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Global defaults and project overrides</h2>
           <p style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ projectScopeLine }}</p>
@@ -573,7 +576,9 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
           <div style="display:flex;gap:8px"><input value="{{ projectNameInput }}" onInput="{{ setProjectNameInput }}" maxlength="64" placeholder="New local project name" aria-label="New local project name" style="flex:1;min-width:0;height:40px;padding:0 14px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-small);background:var(--md-sys-color-surface-container-high);color:inherit"><button onClick="{{ createProject }}" disabled="{{ projectCreateDisabled }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Create project</button></div>
           <sc-if value="{{ hasActiveProject }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--md-sys-color-outline-variant)"><span style="font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ inheritanceLine }}</span><button onClick="{{ resetProjectOverrides }}" style="height:36px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-weight:500">Reset project to global</button></div></sc-if>
         </section>
+        </sc-if>
 
+        <sc-if value="{{ showSettingsAppearance }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <h2 style="margin:0 0 16px;font-size:16px;font-weight:500">Appearance</h2>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:16px">
@@ -599,8 +604,9 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             </div>
           </div>
         </section>
+        </sc-if>
 
-        <sc-if value="{{ shipFunny }}" hint-placeholder-val="{{ true }}">
+        <sc-if value="{{ showSettingsFunny }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <h2 style="margin:0 0 4px;font-size:16px;font-weight:500">Funny levels</h2>
           <p style="margin:0 0 18px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">Errors, security, destructive actions and accessibility wording stay exact at every level.</p>
@@ -619,6 +625,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         </section>
         </sc-if>
 
+        <sc-if value="{{ showSettingsLocal }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
           <h2 style="margin:0 0 16px;font-size:16px;font-weight:500">Local state</h2>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
@@ -626,6 +633,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             <button onClick="{{ wipeState }}" style="height:36px;padding:0 20px;flex-shrink:0;border:1px solid var(--md-sys-color-error);border-radius:999px;background:transparent;color:var(--md-sys-color-error);font-size:13.5px;font-weight:500" style-hover="background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)">Wipe local state</button>
           </div>
         </section>
+        </sc-if>
       </div>
       </sc-if>
 
@@ -1877,6 +1885,7 @@ class Component extends DCLogic {
     this.snapshotQuery = '';
     this.journalQuery = '';
     this.projectQuery = '';
+    this.settingsQuery = '';
     const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : Number.isInteger(value) && value >= 1 && value <= 5;
     const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3 };
     this.settingsGlobal = L && L.settingsGlobal && ['theme', 'lang', 'funnyEn', 'funnyZh'].every(key => validSetting(key, L.settingsGlobal[key])) ? { theme: L.settingsGlobal.theme, lang: L.settingsGlobal.lang, funnyEn: L.settingsGlobal.funnyEn, funnyZh: L.settingsGlobal.funnyZh } : fallbackGlobal;
@@ -2117,6 +2126,7 @@ class Component extends DCLogic {
       snapshots: { label: 'Local snapshot history', get: () => this.snapshotQuery || '', set: v => { this.snapshotQuery = v; this.bump(); } },
       journal: { label: 'Snapshot revision journal', get: () => this.journalQuery || '', set: v => { this.journalQuery = v; this.bump(); } },
       projects: { label: 'Active project picker', get: () => this.projectQuery || '', set: v => { this.projectQuery = v; this.bump(); } },
+      settings: { label: 'Settings sections', get: () => this.settingsQuery || '', set: v => { this.settingsQuery = v; this.bump(); } },
       extapps: { label: 'External apps', get: () => this.extQuery || '', set: v => { this.extQuery = v; this.bump(); } },
       dev: { label: 'Developer workflows', get: () => this.devQuery || '', set: v => { this.devQuery = v; this.bump(); } },
       log: { label: 'Control-room log', get: () => this.logQuery || '', set: v => { this.logQuery = v; this.bump(); } },
@@ -2313,7 +2323,7 @@ class Component extends DCLogic {
     V.rbPalette = mk('palette'); V.rbRows = mk('rows'); V.rbAllApps = mk('allapps');
     V.rbCats = mk('cats'); V.rbPackages = mk('packages'); V.rbDimSum = mk('dimsum');
     V.rbNotifs = mk('notifs'); V.rbRps = mk('rps'); V.rbLoads = mk('loads');
-    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbProjects = mk('projects'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
+    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbProjects = mk('projects'); V.rbSettings = mk('settings'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
     V.rbShown = !!rb.target && this.isShipped('feat.regex');
     V.rbLabel = rb.label;
     const rbField = fields[rb.target] || { get: () => '', set: () => {} };
@@ -2378,6 +2388,7 @@ class Component extends DCLogic {
     V.snapshotQuery = this.snapshotQuery || ''; V.setSnapshotQuery = e => { this.snapshotQuery = e.target.value; this.bump(); };
     V.journalQuery = this.journalQuery || ''; V.setJournalQuery = e => { this.journalQuery = e.target.value; this.bump(); };
     V.projectQuery = this.projectQuery || ''; V.setProjectQuery = e => { this.projectQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
+    V.settingsQuery = this.settingsQuery || ''; V.setSettingsQuery = e => { this.settingsQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
     V.extQuery = this.extQuery || ''; V.setExtQuery = e => { this.extQuery = e.target.value; this.bump(); };
     V.devQuery = this.devQuery || ''; V.setDevQuery = e => { this.devQuery = e.target.value; this.bump(); };
     V.logQuery = this.logQuery || ''; V.setLogQuery = e => { this.logQuery = e.target.value; this.bump(); };
@@ -2462,6 +2473,14 @@ class Component extends DCLogic {
           hits.push({ kind: 'module', title: m.en, sub: '--page ' + m.page + ' · ' + m.zh, icon: this.iconForModule(m), route, label: m.en });
         }
       }
+      const settingsCommands = [
+        { title: 'Search Settings', sub: 'Top-level Settings section search', query: '' },
+        { title: 'Global defaults and project overrides', sub: 'Projects, inheritance and active scope', query: 'global project overrides inheritance' },
+        { title: 'Appearance and language', sub: 'Theme and language mode', query: 'appearance theme language' },
+        { title: 'Funny levels', sub: 'English and Cantonese tone', query: 'funny tone English Cantonese' },
+        { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
+      ];
+      for (const command of settingsCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'settings', route: { view: 'settings' }, label: 'Settings', settingsQuery: command.query });
       if (q) {
         for (const c of this.D.categories || []) {
           for (const f of c.features) {
@@ -2478,6 +2497,7 @@ class Component extends DCLogic {
         if (!h.route) { this.notify(h.title, 'Module not part of this design round yet', 'warning'); this.setState({ paletteOpen: false }); return; }
         this.go(h.route, h.label, h.icon);
         if (h.feature) this.setState({ rowFilter: h.feature.en });
+        if (Object.hasOwn(h, 'settingsQuery')) { this.settingsQuery = h.settingsQuery; this.bump(); }
       },
     }));
 
@@ -2845,6 +2865,12 @@ class Component extends DCLogic {
     V.rxClearLog = () => { this.rlogLines = []; this.setState(st => ({ tick: st.tick + 1 })); };
 
     // settings
+    const settingsSearch = this.settingsQuery || '';
+    V.showSettingsProjects = this.match(settingsSearch, 'global defaults project overrides active project picker inherited values reset project create local project');
+    V.showSettingsAppearance = this.match(settingsSearch, 'appearance theme dark light language mode English Cantonese bilingual current ' + s.theme + ' ' + s.lang);
+    V.showSettingsFunny = this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
+    V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
+    V.settingsNoMatch = !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsLocal;
     const activeProject = this.settingsProjects.find(project => project.id === this.activeProjectId) || null;
     const applyScope = () => {
       const values = { ...this.settingsGlobal, ...(activeProject ? activeProject.overrides : {}) };
