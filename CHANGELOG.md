@@ -35,6 +35,7 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 - Added reviewed sequential Winget upgrades for three explicitly updatable allowlisted IDs, with fixed arguments, bounded progress, cancellation, completed-item queue removal, and retryable per-item results.
 - Added a real Windows-only Empty Recycle Bin action behind two independent acknowledgements and a full-range authorization slider, with bounded no-input execution and truthful completion or retry states.
 - Added bounded local snapshot history with private metadata listing, dedicated search and regex builder, safety-snapshot-first restore, strict state validation, and truthful invalid, empty, stale, truncated, and retry states.
+- Added an optional append-only private Git revision journal for redacted snapshot metadata, using only discovered local `git.exe`, fixed no-shell commands, remote refusal, and explicit unavailable or failed states.
 
 ### Verification boundary
 

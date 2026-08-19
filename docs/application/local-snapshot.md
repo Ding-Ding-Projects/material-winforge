@@ -34,3 +34,5 @@ The accelerated pass built and packaged the Electron application. Tests, actual 
 - [Preview boundary](preview-boundary.md)
 - [Read-only system metrics](read-only-system-metrics.md)
 Snapshot creation now feeds the bounded local history and restore surface described in [Local snapshot history and restore](local-snapshot-history.md). A restore first creates a new safety snapshot of the current presentation state and stops without applying anything when that backup fails.
+
+When an existing Git installation is discoverable, creation also appends a redacted metadata entry to a private local revision journal. Git absence or journal failure is reported but never prevents the snapshot itself from succeeding.

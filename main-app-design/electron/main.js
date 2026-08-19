@@ -21,6 +21,8 @@ let flushDnsActive = false;
 let restartExplorerActive = false;
 let emptyRecycleBinActive = false;
 let snapshotActive = false;
+let snapshotJournalStatus = 'unknown';
+let gitExecutablePromise = null;
 let wingetUpgradeActive = null;
 const externalAppLaunches = new Map();
 const EXTERNAL_APP_EXECUTABLES = Object.freeze({
@@ -352,6 +354,54 @@ async function renameSnapshotWithRetry(source, destination) {
   }
 }
 
+async function discoverGitExecutable() {
+  if (!gitExecutablePromise) {
+    gitExecutablePromise = (async () => {
+      if (process.platform !== 'win32') return null;
+      const controller = new AbortController();
+      const result = await discoverExecutable('git.exe', controller.signal);
+      return result.status === 'found' ? result.executable : null;
+    })();
+  }
+  const executable = await gitExecutablePromise;
+  snapshotJournalStatus = executable ? (snapshotJournalStatus === 'failed' ? 'failed' : 'available') : 'unavailable';
+  return executable;
+}
+
+function runLocalGit(executable, args, cwd) {
+  return new Promise((resolve) => {
+    execFile(executable, args, { cwd, windowsHide: true, timeout: 10_000, maxBuffer: 128 * 1024, encoding: 'utf8', shell: false }, (error, stdout) => {
+      if (error) { resolve({ ok: false, output: '' }); return; }
+      resolve({ ok: true, output: String(stdout || '').slice(0, 4096) });
+    });
+  });
+}
+
+async function appendSnapshotJournal(id, createdAt, state, bytes) {
+  const executable = await discoverGitExecutable();
+  if (!executable) return 'unavailable';
+  const journal = path.join(app.getPath('userData'), 'snapshot-journal');
+  const entries = path.join(journal, 'entries');
+  try {
+    await fs.promises.mkdir(entries, { recursive: true });
+    if (!(await runLocalGit(executable, ['init', '--quiet'], journal)).ok) throw new Error('init');
+    const remotes = await runLocalGit(executable, ['remote'], journal);
+    if (!remotes.ok || remotes.output.trim()) throw new Error('remote');
+    const entry = path.join(entries, `${id.slice(0, -5)}.journal.json`);
+    const metadata = `${JSON.stringify({ schemaVersion: 1, snapshotId: id, createdAt, bytes, theme: state.theme, lang: state.lang, routeView: state.route.view }, null, 2)}\n`;
+    await fs.promises.writeFile(entry, metadata, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    const relative = path.posix.join('entries', path.basename(entry));
+    if (!(await runLocalGit(executable, ['add', '--', relative], journal)).ok) throw new Error('add');
+    const committed = await runLocalGit(executable, ['-c', 'user.name=WinForge Snapshot Journal', '-c', 'user.email=local@winforge.invalid', 'commit', '--quiet', '-m', `Record local snapshot ${createdAt}`, '--', relative], journal);
+    if (!committed.ok) throw new Error('commit');
+    snapshotJournalStatus = 'available';
+    return 'recorded';
+  } catch {
+    snapshotJournalStatus = 'failed';
+    return 'failed';
+  }
+}
+
 async function createLocalSnapshot(payload) {
   if (snapshotActive) return { schemaVersion: 1, status: 'failed', message: 'A local snapshot is already being written. Wait, then retry.' };
   const encoded = validateSnapshotPayload(payload);
@@ -366,16 +416,19 @@ async function createLocalSnapshot(payload) {
     const filename = `snapshot-${timestamp}-${nonce}.json`;
     const destination = path.join(directory, filename);
     temporary = path.join(directory, `.${filename}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`);
+    const createdAt = new Date().toISOString();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5_000);
     timer.unref();
     try {
-      const record = `${JSON.stringify({ schemaVersion: 1, createdAt: new Date().toISOString(), state: JSON.parse(encoded) }, null, 2)}\n`;
+      const record = `${JSON.stringify({ schemaVersion: 1, createdAt, state: JSON.parse(encoded) }, null, 2)}\n`;
       await fs.promises.writeFile(temporary, record, { encoding: 'utf8', flag: 'wx', mode: 0o600, signal: controller.signal });
     } finally { clearTimeout(timer); }
     await renameSnapshotWithRetry(temporary, destination);
     temporary = null;
-    return { schemaVersion: 1, status: 'created', message: 'A new local JSON snapshot was created.' };
+    const bytes = (await fs.promises.stat(destination)).size;
+    const journalStatus = await appendSnapshotJournal(filename, createdAt, JSON.parse(encoded), bytes);
+    return { schemaVersion: 1, status: 'created', journalStatus, message: journalStatus === 'recorded' ? 'A new local JSON snapshot and revision-journal entry were created.' : journalStatus === 'unavailable' ? 'A new local JSON snapshot was created. Revision journaling is unavailable because Git is not installed.' : 'A new local JSON snapshot was created, but its revision-journal entry failed.' };
   } catch (error) {
     if (temporary) { try { await fs.promises.unlink(temporary); } catch {} }
     if (error && error.name === 'AbortError') return { schemaVersion: 1, status: 'timeout', message: 'Writing the local snapshot timed out. Retry is available.' };
@@ -406,10 +459,11 @@ async function readSnapshotRecord(directory, id) {
 async function listLocalSnapshots() {
   const directory = path.join(app.getPath('userData'), 'snapshots');
   try {
+    await discoverGitExecutable();
     let names;
     try { names = await fs.promises.readdir(directory); }
     catch (error) {
-      if (error && error.code === 'ENOENT') return { schemaVersion: 1, status: 'listed', snapshots: [], invalidCount: 0, truncated: false };
+      if (error && error.code === 'ENOENT') return { schemaVersion: 1, status: 'listed', snapshots: [], invalidCount: 0, truncated: false, journalStatus: snapshotJournalStatus };
       throw error;
     }
     const candidates = names.filter((name) => SNAPSHOT_BASENAME.test(name)).sort().reverse();
@@ -424,10 +478,10 @@ async function listLocalSnapshots() {
         if (snapshots.length < 50) snapshots.push({ id: record.id, createdAt: record.createdAt, bytes: record.bytes, theme: record.state.theme, lang: record.state.lang, routeView: record.state.route.view });
       } catch { invalidCount += 1; }
     }
-    return { schemaVersion: 1, status: 'listed', snapshots, invalidCount: Math.min(10_000, invalidCount), truncated: validCount > snapshots.length };
+    return { schemaVersion: 1, status: 'listed', snapshots, invalidCount: Math.min(10_000, invalidCount), truncated: validCount > snapshots.length, journalStatus: snapshotJournalStatus };
   } catch (error) {
-    if (error && ['ENOSYS', 'ENOTSUP'].includes(error.code)) return { schemaVersion: 1, status: 'unsupported', snapshots: [], invalidCount: 0, truncated: false };
-    return { schemaVersion: 1, status: 'failed', snapshots: [], invalidCount: 0, truncated: false };
+    if (error && ['ENOSYS', 'ENOTSUP'].includes(error.code)) return { schemaVersion: 1, status: 'unsupported', snapshots: [], invalidCount: 0, truncated: false, journalStatus: snapshotJournalStatus };
+    return { schemaVersion: 1, status: 'failed', snapshots: [], invalidCount: 0, truncated: false, journalStatus: snapshotJournalStatus };
   }
 }
 

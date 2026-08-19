@@ -28,6 +28,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - The persistent top banner now distinguishes bounded live integrations from sample and preview-only controls, while stating that build and packaging do not establish runtime verification.
 - The Preview Data attestation now mirrors that boundary and distinguishes `localStorage` preferences from private bounded local JSON snapshots; this copy repair was discovered and checked in source only.
 - Preview Data now lists up to 50 validated private local snapshots and can restore presentation state only after creating a fresh current-state safety snapshot; identifiers, paths, and raw bytes stay behind the main-process boundary.
+- Snapshot creation now appends redacted metadata to a private local Git journal when an existing `git.exe` is discoverable. The journal refuses configured remotes, never uses network commands, and degrades visibly without blocking snapshots when Git is absent or journaling fails.
 
 ## Verification state
 
@@ -71,3 +72,4 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - The first packaged runtime capture at `c0a5d72` exposed the stale all-sample banner. The follow-up `b52cf34` package replaced it, and a fresh cheap headless session visually confirmed the repaired banner and live read-only metrics. This evidence does not verify the destructive or package-mutation actions.
 - Source inspection subsequently found stale Preview Data rows still claiming preview-only actions and `localStorage`-only persistence. Their copy was repaired without a new packaged runtime session, so the corrected attestation remains runtime-unverified.
 - Snapshot history listing, searching, confirmation, safety backup, restore, and refreshed-state behavior were built but not exercised in the packaged runtime.
+- Git discovery, private journal creation, remote refusal, append-only commits, and unavailable/failure states were built but not exercised in the packaged runtime.
