@@ -1,0 +1,41 @@
+{
+  "name": "winforge-m3",
+  "productName": "WinForge",
+  "version": "1.0.0",
+  "description": "WinForge · Material 3 — Windows 11 control center",
+  "author": "WinForge",
+  "license": "MIT",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check electron/main.js && node --check electron/preload.js",
+    "pack": "electron-builder --win --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "38.2.0",
+    "electron-builder": "26.0.12",
+    "electron-builder-squirrel-windows": "26.15.3"
+  },
+  "build": {
+    "appId": "com.winforge.m3",
+    "productName": "WinForge",
+    "artifactName": "WinForge-Setup-${version}.${ext}",
+    "directories": { "output": "dist" },
+    "files": [
+      "electron/**/*",
+      "WinForge M3.dc.html",
+      "winforge-m3-data.js",
+      "support.js"
+    ],
+    "win": {
+      "target": ["squirrel"],
+      "forceCodeSigning": false,
+      "signAndEditExecutable": false
+    },
+    "squirrelWindows": {
+      "iconUrl": "https://raw.githubusercontent.com/Ding-Ding-Projects/WinForge/main/Assets/AppIcon.ico",
+      "msi": false
+    }
+  }
+}
