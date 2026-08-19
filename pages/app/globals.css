@@ -910,6 +910,45 @@ kbd {
   background: var(--primary-container);
   color: var(--on-primary-container);
 }
+.narration-controls {
+  display: grid;
+  gap: 14px;
+}
+.narration-toggle,
+.narration-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+.narration-toggle > span,
+.narration-field > span {
+  font-weight: 650;
+}
+.narration-toggle input[type="checkbox"] {
+  width: 44px;
+  height: 24px;
+  accent-color: var(--primary);
+}
+.narration-field select {
+  min-width: min(360px, 58%);
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--outline);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+}
+.narration-range {
+  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1fr) auto;
+  min-height: 44px;
+}
+.narration-range output {
+  width: 52px;
+  height: 36px;
+  border-radius: 12px;
+}
 .master-tab-results > button > span:last-child {
   display: grid;
   gap: 2px;
@@ -2883,6 +2922,17 @@ footer {
   .master-tab-search-controls {
     align-items: stretch;
     flex-direction: column;
+  }
+  .narration-field {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .narration-field select {
+    width: 100%;
+    min-width: 0;
+  }
+  .narration-range {
+    grid-template-columns: minmax(92px, 0.7fr) minmax(0, 1fr) auto;
   }
   .bulk-close-actions {
     flex-direction: column;

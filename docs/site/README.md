@@ -10,6 +10,7 @@
 - [Tab pinning](tab-pinning.md) — persistent local pins, a stable pinned region, and future bulk-close protection.
 - [Tab reordering](tab-reordering.md) — persistent six-tab ordering with axis-aware accessible move controls.
 - [Tab groups](tab-groups.md) — bounded local grouping, group management, and the searchable Move… into group… picker.
+- [Site narrator](narration.md) — opt-in local speech, runtime voice pickers, serialized bilingual narration, and bounded rate/pitch controls.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 

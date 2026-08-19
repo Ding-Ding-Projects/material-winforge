@@ -31,6 +31,16 @@ type GroupSearchState = {
   builderOpen: boolean;
 };
 type BulkCloseMode = "contains" | "not-contains";
+type NarrationLanguage = "en" | "yue" | "both";
+type NarrationSettings = {
+  schemaVersion: 1;
+  enabled: boolean;
+  language: NarrationLanguage;
+  englishVoice: string;
+  cantoneseVoice: string;
+  rate: number;
+  pitch: number;
+};
 type TabGroupsState = { schemaVersion: 2; groups: TabGroup[] };
 type LanguageMode = "en" | "yue" | "both";
 type VocabularyCache = {
@@ -130,9 +140,11 @@ type CatalogItem = {
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
 const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
 const SETTINGS_HISTORY_KEY = "winforge-material-preview-settings-history-v1";
+const NARRATION_KEY = "winforge-material-preview-narration-v1";
 const PREFERENCES_MAX_BYTES = 512 * 1024;
 const NOTIFICATION_MAX_BYTES = 128 * 1024;
 const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
+const NARRATION_MAX_BYTES = 16 * 1024;
 const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
@@ -672,6 +684,46 @@ function validSiteSetting(key: SiteSettingKey, value: unknown): boolean {
   if (key === "showEmojis") return typeof value === "boolean";
   return Number.isFinite(value) && Number(value) >= 1 && Number(value) <= 5;
 }
+const DEFAULT_NARRATION: NarrationSettings = {
+  schemaVersion: 1,
+  enabled: false,
+  language: "en",
+  englishVoice: "auto",
+  cantoneseVoice: "auto",
+  rate: 1,
+  pitch: 1,
+};
+function normalizeNarration(value: unknown): NarrationSettings | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Record<string, unknown>;
+  if (
+    Object.keys(root).length !== 7 ||
+    root.schemaVersion !== 1 ||
+    typeof root.enabled !== "boolean" ||
+    !["en", "yue", "both"].includes(String(root.language)) ||
+    typeof root.englishVoice !== "string" ||
+    root.englishVoice.length > 256 ||
+    typeof root.cantoneseVoice !== "string" ||
+    root.cantoneseVoice.length > 256 ||
+    !Number.isFinite(root.rate) ||
+    Number(root.rate) < 0.5 ||
+    Number(root.rate) > 2 ||
+    !Number.isFinite(root.pitch) ||
+    Number(root.pitch) < 0.5 ||
+    Number(root.pitch) > 2 ||
+    /[\u0000-\u001f\u007f]/.test(`${root.englishVoice}${root.cantoneseVoice}`)
+  )
+    return null;
+  return {
+    schemaVersion: 1,
+    enabled: root.enabled,
+    language: root.language as NarrationLanguage,
+    englishVoice: root.englishVoice,
+    cantoneseVoice: root.cantoneseVoice,
+    rate: Math.round(Number(root.rate) * 10) / 10,
+    pitch: Math.round(Number(root.pitch) * 10) / 10,
+  };
+}
 function validGroupName(value: unknown): string | null {
   if (
     typeof value !== "string" ||
@@ -1114,6 +1166,11 @@ export default function SiteShell({
 }) {
   const bootManifest = validManifest(initialManifest) ? initialManifest : null;
   const [prefs, setPrefs] = useState(DEFAULTS);
+  const [narration, setNarration] = useState<NarrationSettings>(DEFAULT_NARRATION);
+  const [speechVoices, setSpeechVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [narrationStatus, setNarrationStatus] = useState<"available" | "unavailable">("available");
+  const speechQueue = useRef<Array<{ text: string; language: "en" | "yue" }>>([]);
+  const speechRunning = useRef(false);
   const [hydrated, setHydrated] = useState(false);
   const [narrowTabs, setNarrowTabs] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("home");
@@ -1293,6 +1350,53 @@ export default function SiteShell({
   );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const language = prefs.language;
+  const drainSpeech = useCallback(() => {
+    if (speechRunning.current || !narration.enabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const next = speechQueue.current.shift();
+    if (!next) return;
+    const utterance = new SpeechSynthesisUtterance(next.text);
+    utterance.lang = next.language === "en" ? "en-US" : "zh-HK";
+    const voiceId = next.language === "en" ? narration.englishVoice : narration.cantoneseVoice;
+    const voice = speechVoices.find((item) => item.voiceURI === voiceId);
+    if (voice) utterance.voice = voice;
+    utterance.rate = narration.rate;
+    utterance.pitch = narration.pitch;
+    speechRunning.current = true;
+    const finish = () => {
+      speechRunning.current = false;
+      drainSpeech();
+    };
+    utterance.onend = finish;
+    utterance.onerror = finish;
+    window.speechSynthesis.speak(utterance);
+  }, [narration, speechVoices]);
+  const enqueueSpeech = useCallback((message: string) => {
+    if (!narration.enabled || !message.trim()) return;
+    const parts = narration.language === "both" ? message.split(/\s·\s/, 2) : [message];
+    const languages: Array<"en" | "yue"> = narration.language === "both" ? ["en", "yue"] : [narration.language];
+    parts.forEach((text, index) => {
+      if (text.trim()) speechQueue.current.push({ text: text.trim(), language: languages[index] ?? languages[0] });
+    });
+    while (speechQueue.current.length > 4) speechQueue.current.shift();
+    drainSpeech();
+  }, [drainSpeech, narration.enabled, narration.language]);
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setNarrationStatus("unavailable");
+      return;
+    }
+    const loadVoices = () => setSpeechVoices(window.speechSynthesis.getVoices());
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+  }, []);
+  useEffect(() => {
+    if (narration.enabled && narrationStatus === "available" && toast) enqueueSpeech(toast);
+  }, [enqueueSpeech, narration.enabled, narrationStatus, toast]);
+  useEffect(() => () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    speechQueue.current = [];
+  }, []);
   const announce = useCallback(
     (
       message: string,
@@ -1406,11 +1510,25 @@ export default function SiteShell({
       } catch {
         removeLocalRecord(SETTINGS_HISTORY_KEY);
       }
+    const narrationRecord = readLocalRecord(NARRATION_KEY, NARRATION_MAX_BYTES);
+    if (!narrationRecord.available) setPersistenceAvailable(false);
+    if (narrationRecord.oversized) removeLocalRecord(NARRATION_KEY);
+    if (narrationRecord.raw)
+      try {
+        const parsed = normalizeNarration(JSON.parse(narrationRecord.raw));
+        if (parsed) setNarration(parsed);
+        else removeLocalRecord(NARRATION_KEY);
+      } catch {
+        removeLocalRecord(NARRATION_KEY);
+      }
     setHydrated(true);
   }, []);
   useEffect(() => {
     if (hydrated && !writeLocalRecord(STORAGE_KEY, prefs, PREFERENCES_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, prefs]);
+  useEffect(() => {
+    if (hydrated && !writeLocalRecord(NARRATION_KEY, narration, NARRATION_MAX_BYTES)) setPersistenceAvailable(false);
+  }, [hydrated, narration]);
   useEffect(() => {
     const media = matchMedia("(max-width: 760px)");
     const sync = () => setNarrowTabs(media.matches);
@@ -2291,6 +2409,34 @@ export default function SiteShell({
     heroYue[Math.max(1, Math.min(5, prefs.funnyCantonese)) - 1],
     language,
   );
+  const englishVoices = speechVoices.filter((voice) => /^en([_-]|$)/i.test(voice.lang));
+  const cantoneseVoices = speechVoices.filter((voice) => /^(zh[-_]HK|yue)/i.test(voice.lang));
+  const voiceOptionLabel = (voice: SpeechSynthesisVoice) => `${voice.name} · ${voice.lang}`;
+  const updateNarration = (patch: Partial<NarrationSettings>) =>
+    setNarration((current) => normalizeNarration({ ...current, ...patch }) ?? current);
+  const narrationVoiceStatus = narrationStatus === "unavailable"
+    ? dual("Speech synthesis is unavailable in this browser.", "呢個瀏覽器用唔到語音合成。", language)
+    : speechVoices.length
+      ? dual(`${speechVoices.length} voices detected. Voice choices use stable voice IDs.`, `偵測到 ${speechVoices.length} 把聲音；選擇會保存穩定 voice ID。`, language)
+      : dual("Waiting for the browser to enumerate voices.", "等緊瀏覽器列出聲音。", language);
+  const englishVoiceInstalled =
+    narration.englishVoice === "auto" ||
+    englishVoices.some((voice) => voice.voiceURI === narration.englishVoice);
+  const cantoneseVoiceInstalled =
+    narration.cantoneseVoice === "auto" ||
+    cantoneseVoices.some((voice) => voice.voiceURI === narration.cantoneseVoice);
+  const voiceFallbackNotice =
+    englishVoiceInstalled && cantoneseVoiceInstalled
+      ? dual(
+          "Choose automatically follows the browser's best installed voice. A saved voice ID is retained if that voice is not installed and speech falls back automatically.",
+          "選擇自動會跟瀏覽器最佳已安裝聲音；如果保存嘅 voice ID 未有安裝，會保留選擇並自動使用後備聲音。",
+          language,
+        )
+      : dual(
+          "A selected voice is not installed on this computer; the saved choice stays in place while speech falls back automatically.",
+          "選擇嘅聲音未有喺呢部電腦安裝；保存選擇會保留，語音會自動使用後備聲音。",
+          language,
+        );
   const ownership = prefs.settingsOwnership;
   const activeSettingsProject = ownership.projects.find(
     (project) => project.id === ownership.activeProjectId,
@@ -2373,6 +2519,10 @@ export default function SiteShell({
     [
       "master-tabs",
       `Master tab search all open tabs windows groups pinned ${prefs.tabOrder.join(" ")}`,
+    ],
+    [
+      "narration",
+      `Narrator speech voice English Cantonese both rate pitch ${narration.enabled ? "enabled" : "off"}`,
     ],
     ["density", `Density comfortable compact ${prefs.density}`],
     ["accent", `Accent color ${prefs.accent}`],
@@ -3262,6 +3412,16 @@ export default function SiteShell({
       language,
     ),
     action: () => openSetting("master-tab-search"),
+  });
+  commands.push({
+    id: "narration-settings",
+    label: dual("Narrator settings", "旁白設定", language),
+    detail: dual(
+      "Choose speech language, installed voices, rate, pitch, and the local on/off state",
+      "選擇語音語言、已安裝聲音、速度、音調同本機開關狀態",
+      language,
+    ),
+    action: () => openSetting("narration"),
   });
   let palettePattern: RegExp | null = null;
   let palettePatternError = "";
@@ -5492,6 +5652,120 @@ export default function SiteShell({
                       {dual("No open tabs match this search.", "冇開啟中分頁符合呢個搜尋。", language)}
                     </p>
                   )}
+                </div>
+              </SettingCard>
+              <SettingCard
+                id="narration-setting"
+                hidden={!settingsVisible("narration")}
+                title={dual("Narrator", "旁白", language)}
+                description={dual(
+                  "Speech is off until you turn it on. When enabled, local notifications are spoken in the selected language without leaving this browser.",
+                  "語音預設關閉；開啟後，本機通知會用你揀嘅語言讀出，唔會離開呢個瀏覽器。",
+                  language,
+                )}
+                provenance={dual(
+                  narration.enabled ? "Saved in this browser's local storage." : "Built-in default: narration off.",
+                  narration.enabled ? "保存喺呢個瀏覽器嘅本機儲存。" : "內置預設：旁白關閉。",
+                  language,
+                )}
+              >
+                <div className="narration-controls">
+                  <label className="narration-toggle">
+                    <span>{dual("Enable narrator speech", "開啟旁白語音", language)}</span>
+                    <input
+                      type="checkbox"
+                      checked={narration.enabled}
+                      disabled={narrationStatus === "unavailable"}
+                      onChange={(event) =>
+                        updateNarration({ enabled: event.target.checked })
+                      }
+                      aria-describedby="narration-status narration-fallback"
+                    />
+                  </label>
+                  <p id="narration-status" className="supporting-copy" aria-live="polite">
+                    {narrationVoiceStatus}
+                  </p>
+                  <label className="narration-field">
+                    <span>{dual("Narration language", "旁白語言", language)}</span>
+                    <select
+                      value={narration.language}
+                      onChange={(event) =>
+                        updateNarration({ language: event.target.value as NarrationLanguage })
+                      }
+                      aria-label={dual("Narration language", "旁白語言", language)}
+                    >
+                      <option value="en">English</option>
+                      <option value="yue">廣東話</option>
+                      <option value="both">English · 廣東話</option>
+                    </select>
+                  </label>
+                  <label className="narration-field">
+                    <span>{dual("English voice", "英文聲音", language)}</span>
+                    <select
+                      value={narration.englishVoice}
+                      onChange={(event) =>
+                        updateNarration({ englishVoice: event.target.value })
+                      }
+                      aria-label={dual("English narrator voice", "英文旁白聲音", language)}
+                    >
+                      <option value="auto">
+                        {dual("Choose automatically", "選擇自動", language)}
+                      </option>
+                      {englishVoices.map((voice) => (
+                        <option key={voice.voiceURI} value={voice.voiceURI}>
+                          {voiceOptionLabel(voice)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="narration-field">
+                    <span>{dual("Cantonese voice", "廣東話聲音", language)}</span>
+                    <select
+                      value={narration.cantoneseVoice}
+                      onChange={(event) =>
+                        updateNarration({ cantoneseVoice: event.target.value })
+                      }
+                      aria-label={dual("Cantonese narrator voice", "廣東話旁白聲音", language)}
+                    >
+                      <option value="auto">
+                        {dual("Choose automatically", "選擇自動", language)}
+                      </option>
+                      {cantoneseVoices.map((voice) => (
+                        <option key={voice.voiceURI} value={voice.voiceURI}>
+                          {voiceOptionLabel(voice)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="range-control narration-range">
+                    <span>{dual("Speech rate", "語速", language)}</span>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2"
+                      step="0.1"
+                      value={narration.rate}
+                      onChange={(event) => updateNarration({ rate: Number(event.target.value) })}
+                      aria-label={dual("Narrator speech rate", "旁白語速", language)}
+                    />
+                    <output>{narration.rate.toFixed(1)}×</output>
+                  </label>
+                  <label className="range-control narration-range">
+                    <span>{dual("Speech pitch", "音調", language)}</span>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2"
+                      step="0.1"
+                      value={narration.pitch}
+                      onChange={(event) => updateNarration({ pitch: Number(event.target.value) })}
+                      aria-label={dual("Narrator speech pitch", "旁白音調", language)}
+                    />
+                    <output>{narration.pitch.toFixed(1)}×</output>
+                  </label>
+                  <p id="narration-fallback" className="supporting-copy" aria-live="polite">
+                    {voiceFallbackNotice}
+                  </p>
                 </div>
               </SettingCard>
               <SettingCard

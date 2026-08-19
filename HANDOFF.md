@@ -10,6 +10,7 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 ## Implemented source
 
+- Pages now includes a browser-local Narrator Settings card: opt-in speech synthesis, English/Cantonese/bilingual mode, runtime voice enumeration with stable voice IDs, automatic fallback for missing voices, bounded rate/pitch controls, a four-item serialized queue, and explicit unavailable/waiting states. See [`docs/site/narration.md`](docs/site/narration.md).
 - The Pages command palette now renders real bounded inline controls for language, separate English and Cantonese funny levels, theme, all four tab edges, density, accent color, message emoji, app-logo preset, and shared confirmed reset. Each control reuses its owning Settings setter; a separate result action clears the Settings filter and focuses the exact owning card.
 - Follow-up repairs add version-2 bounded logo snapshots and restore, shared history-aware preset/upload/reset mutations, palette-to-reset modal ownership transfer, Escape propagation from inline controls, action-accurate destination semantics, opener restoration with a contained focus loop and inert background, and flexible nested scrolling for short or magnified viewports. Personal vocabulary and logo bytes in Markdown exports remain excluded.
 - Material Design 3 site shell with tabs dockable to the left, right, top, or bottom for Home, Feature map, Documentation, Settings, Changelog, and Status. Vertical and horizontal keyboard direction follows the rendered orientation; narrow widths use a top horizontal fallback without changing the persisted edge.
@@ -61,10 +62,11 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 ## Next owner actions
 
-1. Keep future builds pinned to their exact candidate commit and record the resulting release evidence.
-2. The private Sites mirror still needs an independently verified deployment; do not infer it from the successful Pages run.
-3. Upload `social-preview.png` through **Settings → General → Social preview → Upload an image** and keep this step open until a person confirms it.
-4. Schedule separate runtime and capture work; do not reinterpret source builds as installation or visual proof.
+1. Exercise the packaged or browser Narrator flow with actual voice enumeration, unavailable speech synthesis, missing saved voice fallback, keyboard navigation, and bilingual queue behavior; the source and build are present but runtime interaction remains unverified.
+2. Keep future builds pinned to their exact candidate commit and record the resulting release evidence.
+3. The private Sites mirror still needs an independently verified deployment; do not infer it from the successful Pages run.
+4. Upload `social-preview.png` through **Settings → General → Social preview → Upload an image** and keep this step open until a person confirms it.
+5. Schedule separate runtime and capture work; do not reinterpret source builds as installation or visual proof.
 
 ## Known limitations
 
