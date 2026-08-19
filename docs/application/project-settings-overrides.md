@@ -26,4 +26,4 @@ Legacy schema-version 1 snapshots remain readable. They restore only effective p
 
 ## Verification boundary
 
-The source and unsigned package build may be exercised for this slice. Project creation, switching, inheritance, sparse override removal, reset, persistence across reload, invalid-record omission, schema-version 1 compatibility, and atomic schema-version 2 ownership restore remain runtime-unverified. Tests, lint, type checking, installer execution, and screenshots were not part of this ultra-speed slice.
+The c144163 packaged artifact was driven through the approved hidden desktop route. Project creation, Light override, Global defaults, reset-to-global, and same-profile persistence were verified at 1480×940 with two fresh process/desktop lifecycles. Invalid-record omission, schema-version 1 compatibility, atomic schema-version 2 ownership restore, accessibility variants, tests, lint, type checking, installer execution, and screenshots remain unverified.
