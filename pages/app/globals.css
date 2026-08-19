@@ -440,8 +440,8 @@ kbd {
   right: 5px;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -456,11 +456,11 @@ kbd {
 .tab-move-toggle {
   position: absolute;
   z-index: 2;
-  right: 41px;
+  right: 48px;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -475,7 +475,7 @@ kbd {
 .tab-reorder-controls {
   position: absolute;
   z-index: 1;
-  right: 75px;
+  right: 92px;
   display: flex;
   gap: 2px;
 }
@@ -533,6 +533,7 @@ kbd {
   flex-direction: column;
   gap: 6px;
 }
+.ungrouped-tab-items { display: flex; flex-direction: column; gap: 8px; }
 .dock-top .tab-group,
 .dock-bottom .tab-group,
 .dock-top .tab-group-members,
@@ -544,10 +545,12 @@ kbd {
 .dock-bottom .tab-group-header {
   grid-template-columns: 12px minmax(72px, 130px) 36px auto auto;
 }
+.dock-top .ungrouped-tab-items, .dock-bottom .ungrouped-tab-items { flex-direction: row; }
+.move-group-scrim { z-index: 108; display: grid; place-items: start end; padding: max(calc(var(--header-height) + 16px), 16px) 16px 16px; overflow: auto; }
 .move-group-picker {
-  position: fixed;
+  position: relative;
   z-index: 110;
-  inset: max(calc(var(--header-height) + 16px), 16px) 16px auto auto;
+  inset: auto;
   width: min(520px, calc(100vw - 32px));
   max-height: calc(100vh - var(--header-height) - 32px);
   overflow: auto;
@@ -657,6 +660,7 @@ kbd {
 .overflow-move-group {
   min-height: 44px;
 }
+.overflow-manage-groups { width: 100%; min-height: 44px; margin: 4px 0 10px; }
 .tab-group-settings-list {
   display: grid;
   gap: 8px;
@@ -1284,7 +1288,7 @@ kbd {
 .segmented-control button {
   flex: 1;
   min-width: max-content;
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 12px;
   border: 0;
   border-radius: 12px;
@@ -2617,6 +2621,8 @@ footer {
     flex-direction: row;
     align-items: center;
   }
+  .tab-items { overflow-x: auto; overflow-y: hidden; }
+  .tab-group, .ungrouped-tab-items { flex: 0 0 auto; }
   .tab-group-header {
     grid-template-columns: 12px minmax(64px, 100px) 44px minmax(
         44px,

@@ -116,6 +116,9 @@ type CatalogItem = {
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
 const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
 const SETTINGS_HISTORY_KEY = "winforge-material-preview-settings-history-v1";
+const PREFERENCES_MAX_BYTES = 512 * 1024;
+const NOTIFICATION_MAX_BYTES = 128 * 1024;
+const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
 const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
@@ -487,6 +490,20 @@ const CHANGELOG_ENTRIES = [
 function dual(en: string, yue: string, mode: LanguageMode) {
   return mode === "yue" ? yue : mode === "both" ? `${en} · ${yue}` : en;
 }
+function serializedBytes(value: string): number { return new TextEncoder().encode(value).length; }
+function readLocalRecord(key: string, maxBytes: number): { raw: string | null; available: boolean; oversized: boolean } {
+  try { const raw = localStorage.getItem(key); return { raw: raw && serializedBytes(raw) <= maxBytes ? raw : null, available: true, oversized: Boolean(raw && serializedBytes(raw) > maxBytes) }; }
+  catch { return { raw: null, available: false, oversized: false }; }
+}
+function removeLocalRecord(key: string): boolean { try { localStorage.removeItem(key); return true; } catch { return false; } }
+function writeLocalRecord(key: string, value: unknown, maxBytes: number): boolean {
+  try { const serialized = JSON.stringify(value); if (serializedBytes(serialized) > maxBytes) return false; localStorage.setItem(key, serialized); return true; } catch { return false; }
+}
+function boundSettingsHistory(history: SettingsHistory): SettingsHistory {
+  const records: SettingsHistoryRecord[] = [];
+  for (const record of history.records.slice(0, 100)) { const next = { schemaVersion: 2 as const, records: [...records, record] }; if (serializedBytes(JSON.stringify(next)) > SETTINGS_HISTORY_MAX_BYTES) break; records.push(record); }
+  return { schemaVersion: 2, records };
+}
 function normalizeVocabularyCache(value: unknown): VocabularyCache | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const root = value as Record<string, unknown>;
@@ -822,8 +839,8 @@ function normalizePreferences(value: unknown): Preferences | null {
     ["system", "light", "dark"].includes(v.theme ?? "") &&
     ["left", "right", "top", "bottom"].includes(v.dock ?? "") &&
     ["comfortable", "compact"].includes(v.density ?? "") &&
-    Number.isFinite(v.funnyEnglish) &&
-    Number.isFinite(v.funnyCantonese) &&
+    validSiteSetting("funnyEnglish", v.funnyEnglish) &&
+    validSiteSetting("funnyCantonese", v.funnyCantonese) &&
     typeof v.accent === "string" &&
     /^#[0-9a-f]{6}$/i.test(v.accent) &&
     (v.schemaVersion === undefined || v.schemaVersion === 1) &&
@@ -1054,6 +1071,8 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("#2f7d45");
   const movePickerOrigin = useRef<HTMLElement | null>(null);
+  const movePickerDialog = useRef<HTMLElement | null>(null);
+  const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [query, setQuery] = useState("");
   const [regexMode, setRegexMode] = useState(false);
   const [flags, setFlags] = useState({ i: true, m: false });
@@ -1207,46 +1226,58 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     setPaletteBuilderOpen(false);
     if (restoreFocus) setTimeout(() => paletteOpener.current?.focus(), 0);
   }, []);
+  const closeMovePicker = useCallback(() => {
+    setMovePickerTab(null);
+    setMoveGroupBuilderOpen(false);
+    setMoveGroupQuery("");
+    setTimeout(() => movePickerOrigin.current?.focus(), 0);
+  }, []);
 
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw)
+    const preferenceRecord = readLocalRecord(STORAGE_KEY, PREFERENCES_MAX_BYTES);
+    if (!preferenceRecord.available) setPersistenceAvailable(false);
+    if (preferenceRecord.oversized) removeLocalRecord(STORAGE_KEY);
+    if (preferenceRecord.raw)
       try {
-        const parsed = normalizePreferences(JSON.parse(raw));
+        const parsed = normalizePreferences(JSON.parse(preferenceRecord.raw));
         if (parsed) {
           setPrefs(parsed);
           setVocabStatus(parsed.personalVocabulary ? "loaded" : "no-file");
           setLogoStatus(parsed.customLogo ? "loaded" : "no-custom");
-        } else localStorage.removeItem(STORAGE_KEY);
+        } else removeLocalRecord(STORAGE_KEY);
       } catch {
-        localStorage.removeItem(STORAGE_KEY);
+        removeLocalRecord(STORAGE_KEY);
       }
     const hash = location.hash.slice(1) as TabId;
     if (TABS.some((tab) => tab.id === hash)) setActiveTab(hash);
-    const notificationRaw = localStorage.getItem(NOTIFICATION_KEY);
-    if (notificationRaw)
+    const notificationRecord = readLocalRecord(NOTIFICATION_KEY, NOTIFICATION_MAX_BYTES);
+    if (!notificationRecord.available) setPersistenceAvailable(false);
+    if (notificationRecord.oversized) removeLocalRecord(NOTIFICATION_KEY);
+    if (notificationRecord.raw)
       try {
         const parsed = normalizeNotificationHistory(
-          JSON.parse(notificationRaw),
+          JSON.parse(notificationRecord.raw),
         );
         if (parsed) setNotificationHistory(parsed);
-        else localStorage.removeItem(NOTIFICATION_KEY);
+        else removeLocalRecord(NOTIFICATION_KEY);
       } catch {
-        localStorage.removeItem(NOTIFICATION_KEY);
+        removeLocalRecord(NOTIFICATION_KEY);
       }
-    const settingsHistoryRaw = localStorage.getItem(SETTINGS_HISTORY_KEY);
-    if (settingsHistoryRaw)
+    const settingsRecord = readLocalRecord(SETTINGS_HISTORY_KEY, SETTINGS_HISTORY_MAX_BYTES);
+    if (!settingsRecord.available) setPersistenceAvailable(false);
+    if (settingsRecord.oversized) removeLocalRecord(SETTINGS_HISTORY_KEY);
+    if (settingsRecord.raw)
       try {
-        const parsed = normalizeSettingsHistory(JSON.parse(settingsHistoryRaw));
+        const parsed = normalizeSettingsHistory(JSON.parse(settingsRecord.raw));
         if (parsed) setSettingsHistory(parsed);
-        else localStorage.removeItem(SETTINGS_HISTORY_KEY);
+        else removeLocalRecord(SETTINGS_HISTORY_KEY);
       } catch {
-        localStorage.removeItem(SETTINGS_HISTORY_KEY);
+        removeLocalRecord(SETTINGS_HISTORY_KEY);
       }
     setHydrated(true);
   }, []);
   useEffect(() => {
-    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    if (hydrated && !writeLocalRecord(STORAGE_KEY, prefs, PREFERENCES_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, prefs]);
   useEffect(() => {
     const media = matchMedia("(max-width: 760px)");
@@ -1285,18 +1316,10 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     }
   }, [tabOverflow]);
   useEffect(() => {
-    if (hydrated)
-      localStorage.setItem(
-        NOTIFICATION_KEY,
-        JSON.stringify(notificationHistory),
-      );
+    if (hydrated && !writeLocalRecord(NOTIFICATION_KEY, notificationHistory, NOTIFICATION_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, notificationHistory]);
   useEffect(() => {
-    if (hydrated)
-      localStorage.setItem(
-        SETTINGS_HISTORY_KEY,
-        JSON.stringify(settingsHistory),
-      );
+    if (hydrated) { const bounded = boundSettingsHistory(settingsHistory); if (bounded.records.length !== settingsHistory.records.length) setSettingsHistory(bounded); if (!writeLocalRecord(SETTINGS_HISTORY_KEY, bounded, SETTINGS_HISTORY_MAX_BYTES)) setPersistenceAvailable(false); }
   }, [hydrated, settingsHistory]);
   useEffect(() => {
     if (activeTab !== "settings") {
@@ -1376,12 +1399,12 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         child instanceof HTMLElement &&
         !child.classList.contains("dialog-scrim")
       )
-        child.inert = paletteOpen || resetConfirmOpen;
+        child.inert = paletteOpen || resetConfirmOpen || movePickerTab !== null;
     return () => {
       for (const child of Array.from(shell.children))
         if (child instanceof HTMLElement) child.inert = false;
     };
-  }, [paletteOpen, resetConfirmOpen]);
+  }, [paletteOpen, resetConfirmOpen, movePickerTab]);
   useEffect(() => {
     if (!paletteOpen) return;
     const dialog = paletteDialog.current;
@@ -1415,12 +1438,27 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     return () => dialog?.removeEventListener("keydown", trap);
   }, [paletteOpen, paletteBuilderOpen]);
   useEffect(() => {
+    if (!movePickerTab) return;
+    const dialog = movePickerDialog.current;
+    const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? []).filter((element) => !element.hidden && element.getClientRects().length > 0);
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const items = focusable(); if (!items.length) { event.preventDefault(); dialog?.focus(); return; }
+      const first = items[0]; const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", trap);
+    return () => document.removeEventListener("keydown", trap);
+  }, [closeMovePicker, moveGroupBuilderOpen, movePickerTab]);
+  useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "f") {
         event.preventDefault();
         openPalette();
       }
       if (event.key === "Escape") {
+        if (movePickerTab) closeMovePicker();
         if (paletteOpen) closePalette();
         setBuilderOpen(false);
         setSettingsBuilderOpen(false);
@@ -1442,7 +1480,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     };
     addEventListener("keydown", handler);
     return () => removeEventListener("keydown", handler);
-  }, [closePalette, openPalette, paletteOpen, resetConfirmOpen]);
+  }, [closeMovePicker, closePalette, movePickerTab, openPalette, paletteOpen, resetConfirmOpen]);
 
   const selectTab = useCallback((tab: TabId, focus?: string) => {
     setPrefs((current) => ({
@@ -1652,12 +1690,6 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     );
     closeMovePicker();
   };
-  function closeMovePicker() {
-    setMovePickerTab(null);
-    setMoveGroupBuilderOpen(false);
-    setMoveGroupQuery("");
-    setTimeout(() => movePickerOrigin.current?.focus(), 0);
-  }
   const openMovePicker = (tabId: TabId, opener: HTMLElement) => {
     movePickerOrigin.current = opener;
     setMovePickerTab(tabId);
@@ -3274,24 +3306,25 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
       >
         <div
           className="tab-collection"
-          role="tablist"
           aria-label={dual("Site destinations", "網站目的地", language)}
-          aria-orientation={tabOrientation}
-          onKeyDown={handleTabKeyDown}
         >
           {pinnedTabs.length > 0 && (
             <div
               className="pinned-tab-items"
+              role="tablist"
+              aria-orientation={tabOrientation}
+              onKeyDown={handleTabKeyDown}
               aria-label={dual("Pinned tabs", "已釘選分頁", language)}
             >
               {pinnedTabs.map((tab) => renderStripTab(tab, true))}
             </div>
           )}
           <div ref={tabItemsRef} className="tab-items">
-            {ungroupedTabs.map((tab) => renderStripTab(tab, false))}
+            <div className="ungrouped-tab-items" role="tablist" aria-orientation={tabOrientation} aria-label={dual("Ungrouped tabs", "未分組分頁", language)} onKeyDown={handleTabKeyDown}>{ungroupedTabs.map((tab) => renderStripTab(tab, false))}</div>
             {renderedGroups.map((group) => (
               <section
                 className="tab-group"
+                role="group"
                 key={group.id}
                 style={{ "--group-color": group.color } as CSSProperties}
                 aria-label={dual(
@@ -3363,6 +3396,10 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                 <div
                   id={`group-tabs-${group.id}`}
                   className="tab-group-members"
+                  role="tablist"
+                  aria-orientation={tabOrientation}
+                  aria-label={dual(`${group.name} tabs`, `${group.name} 分頁`, language)}
+                  onKeyDown={handleTabKeyDown}
                   hidden={group.collapsed}
                 >
                   {group.members.map((tab) => renderStripTab(tab, false))}
@@ -3475,6 +3512,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                       `${filteredOverflowTabs.length} ${dual("tabs", "個分頁", language)}`}
                   </strong>
                 </p>
+                <button type="button" className="overflow-manage-groups" onClick={() => { setTabOverflowOpen(false); setTabOverflowBuilderOpen(false); openSetting("tab-group-settings"); }}>{dual("Manage tab groups", "管理分頁群組", language)}</button>
                 <div className="tab-overflow-list">
                   {filteredOverflowTabs.map((tab) => {
                     const pinned = prefs.pinnedTabs.includes(tab.id);
@@ -3609,20 +3647,23 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
             )}
           </div>
         )}
-        {movePickerTab && (
+        {movePickerTab && createPortal(
+          <div className="dialog-scrim move-group-scrim" role="presentation">
           <section
             id="move-group-picker"
+            ref={movePickerDialog}
             className="move-group-picker"
             role="dialog"
-            aria-modal="false"
+            aria-modal="true"
             aria-labelledby="move-group-title"
+            tabIndex={-1}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
                 closeMovePicker();
                 return;
               }
-              if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+              if (!["ArrowDown", "ArrowUp"].includes(event.key) || !(event.target instanceof HTMLElement) || !event.target.matches("[data-group-choice]")) return;
               const choices = Array.from(
                 event.currentTarget.querySelectorAll<HTMLButtonElement>(
                   "[data-group-choice]:not([disabled])",
@@ -3666,6 +3707,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   value={moveGroupQuery}
                   onChange={(event) => setMoveGroupQuery(event.target.value)}
                   placeholder={dual("Search groups", "搜尋群組", language)}
+                  aria-label={dual("Search tab groups", "搜尋分頁群組", language)}
                   aria-invalid={Boolean(moveGroupPatternError)}
                 />
               </label>
@@ -3675,11 +3717,13 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
                   className={moveGroupRegex ? "active" : ""}
                   onClick={() => setMoveGroupBuilderOpen((value) => !value)}
                   aria-expanded={moveGroupBuilderOpen}
+                  aria-controls="move-group-regex-builder"
                 >
                   {dual("Regex builder", "正規表示式工具", language)}
                 </button>
                 {moveGroupBuilderOpen && (
                   <RegexBuilder
+                    builderId="move-group-regex-builder"
                     language={language}
                     query={moveGroupQuery}
                     setQuery={setMoveGroupQuery}
@@ -3811,6 +3855,8 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
               </button>
             </footer>
           </section>
+          </div>,
+          document.body,
         )}
       </nav>
       <div id="main-content" className="content-stage">
@@ -6337,6 +6383,7 @@ function Row({
 }
 
 function RegexBuilder({
+  builderId = "regex-builder",
   language = "en",
   query,
   setQuery,
@@ -6351,6 +6398,7 @@ function RegexBuilder({
   announce,
   close,
 }: {
+  builderId?: string;
   language?: LanguageMode;
   query: string;
   setQuery: (v: string) => void;
@@ -6399,7 +6447,7 @@ function RegexBuilder({
   ];
   return (
     <section
-      id="regex-builder"
+      id={builderId}
       className="regex-builder"
       aria-label={dual(
         "Regular expression builder",
