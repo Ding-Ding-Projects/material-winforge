@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a persistent, schema-versioned Pages notification center with an unread count, bounded local history, dedicated plain-text/regex search, accessible bulk selection and dismissal, and filtered Markdown export.
+
 ### Fixed
 
 - Restrict the release workflow's push trigger to `main`, preventing each generated release tag from recursively starting another release.

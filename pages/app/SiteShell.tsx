@@ -20,6 +20,9 @@ type SiteSettingValues = {
 type SiteSettingKey = keyof SiteSettingValues;
 type SiteProject = { id: string; name: string; overrides: Partial<SiteSettingValues> };
 type SiteSettingsOwnership = { schemaVersion: 1; global: SiteSettingValues; projects: SiteProject[]; activeProjectId: string | null };
+type NotificationKind = "info" | "success" | "warning" | "error";
+type NotificationRecord = { id: string; kind: NotificationKind; title: string; body: string; timestamp: string };
+type NotificationHistory = { schemaVersion: 1; records: NotificationRecord[]; readThrough: string | null };
 type Preferences = SiteSettingValues & {
   schemaVersion: 1;
   personalVocabulary: VocabularyCache | null;
@@ -50,6 +53,7 @@ type CatalogItem = {
 };
 
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
+const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
 const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
@@ -208,6 +212,17 @@ function normalizePreferences(value: unknown): Preferences | null {
   const effective = { ...settingsOwnership.global, ...(active?.overrides ?? {}) };
   return { ...DEFAULTS, ...v, ...effective, schemaVersion: 1, personalVocabulary, settingsOwnership } as Preferences;
 }
+function normalizeNotificationHistory(value: unknown): NotificationHistory | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Partial<NotificationHistory>;
+  if (Object.keys(root).length !== 3 || root.schemaVersion !== 1 || !Array.isArray(root.records) || root.records.length > 100 || !(root.readThrough === null || (typeof root.readThrough === "string" && new Date(root.readThrough).toISOString() === root.readThrough))) return null;
+  const seen = new Set<string>(); const records: NotificationRecord[] = [];
+  for (const record of root.records) {
+    if (!record || typeof record !== "object" || Object.keys(record).length !== 5 || !/^notification-[a-z0-9-]{8,64}$/.test(record.id) || seen.has(record.id) || !["info", "success", "warning", "error"].includes(record.kind) || typeof record.title !== "string" || !record.title || record.title.length > 80 || typeof record.body !== "string" || !record.body || record.body.length > 512 || typeof record.timestamp !== "string" || new Date(record.timestamp).toISOString() !== record.timestamp || /[\u0000-\u001f\u007f]/.test(record.title + record.body)) return null;
+    seen.add(record.id); records.push({ ...record });
+  }
+  return { schemaVersion: 1, records, readThrough: root.readThrough ?? null };
+}
 function validManifest(value: unknown): value is Manifest {
   if (!value || typeof value !== "object") return false;
   const v = value as Partial<Manifest>;
@@ -250,10 +265,23 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const [projectFlags, setProjectFlags] = useState({ i: true, m: false });
   const [projectSample, setProjectSample] = useState("Global defaults\nExample local project");
   const [projectBuilderTarget, setProjectBuilderTarget] = useState<Element | null>(null);
+  const [notificationHistory, setNotificationHistory] = useState<NotificationHistory>({ schemaVersion: 1, records: [], readThrough: null });
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationQuery, setNotificationQuery] = useState("");
+  const [notificationRegex, setNotificationRegex] = useState(false);
+  const [notificationBuilderOpen, setNotificationBuilderOpen] = useState(false);
+  const [notificationFlags, setNotificationFlags] = useState({ i: true, m: false });
+  const [notificationSample, setNotificationSample] = useState("Site preferences reset.\nInstaller unavailable");
+  const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const language = prefs.language;
-  const announce = useCallback((message: string) => {
+  const announce = useCallback((message: string, kind: NotificationKind = "info", title = "Site notification", recordBody = message) => {
     setToast(message);
+    const timestamp = new Date().toISOString();
+    const id = `notification-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const safeTitle = title.slice(0, 80).replace(/[\u0000-\u001f\u007f]/g, " ").trim() || "Site notification";
+    const safeBody = recordBody.slice(0, 512).replace(/[\u0000-\u001f\u007f]/g, " ").trim() || "Site event recorded.";
+    setNotificationHistory((history) => ({ ...history, records: [{ id, kind, title: safeTitle, body: safeBody, timestamp }, ...history.records].slice(0, 100) }));
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(null), 4200);
   }, []);
@@ -263,9 +291,12 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
     if (raw) try { const parsed = normalizePreferences(JSON.parse(raw)); if (parsed) { setPrefs(parsed); setVocabStatus(parsed.personalVocabulary ? "loaded" : "no-file"); } else localStorage.removeItem(STORAGE_KEY); } catch { localStorage.removeItem(STORAGE_KEY); }
     const hash = location.hash.slice(1) as TabId;
     if (TABS.some((tab) => tab.id === hash)) setActiveTab(hash);
+    const notificationRaw = localStorage.getItem(NOTIFICATION_KEY);
+    if (notificationRaw) try { const parsed = normalizeNotificationHistory(JSON.parse(notificationRaw)); if (parsed) setNotificationHistory(parsed); else localStorage.removeItem(NOTIFICATION_KEY); } catch { localStorage.removeItem(NOTIFICATION_KEY); }
     setHydrated(true);
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); }, [hydrated, prefs]);
+  useEffect(() => { if (hydrated) localStorage.setItem(NOTIFICATION_KEY, JSON.stringify(notificationHistory)); }, [hydrated, notificationHistory]);
   useEffect(() => {
     if (activeTab !== "settings") { setSettingsGridTarget(null); return; }
     const timer = setTimeout(() => { setSettingsGridTarget(document.querySelector("#panel-settings .settings-grid")); setProjectBuilderTarget(document.querySelector("#site-project-settings .project-search")); }, 0);
@@ -287,7 +318,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "f") { event.preventDefault(); setPaletteOpen(true); }
-      if (event.key === "Escape") { setPaletteOpen(false); setBuilderOpen(false); }
+      if (event.key === "Escape") { setPaletteOpen(false); setBuilderOpen(false); setNotificationOpen(false); setNotificationBuilderOpen(false); }
     };
     addEventListener("keydown", handler); return () => removeEventListener("keydown", handler);
   }, []);
@@ -310,7 +341,7 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const loadVocabularyFile = (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.target; const file = input.files?.[0]; if (!file) return;
     if (file.size > 64 * 1024) { setVocabStatus("invalid"); setVocabMessage("Invalid vocabulary file: file must be 64 KiB or smaller. The last valid cache is unchanged."); input.value = ""; return; }
-    file.text().then((source) => { const cache = parseVocabularyJson(source); setPrefs((p) => ({ ...p, personalVocabulary: cache })); setVocabStatus("loaded"); setVocabMessage(""); announce(cache.replacements["Vocabulary loaded locally."] ?? "Vocabulary loaded locally."); }).catch((error) => { setVocabStatus("invalid"); setVocabMessage(`Invalid vocabulary file: ${error instanceof Error ? error.message : "validation failed"} The last valid cache is unchanged.`); }).finally(() => { input.value = ""; });
+    file.text().then((source) => { const cache = parseVocabularyJson(source); setPrefs((p) => ({ ...p, personalVocabulary: cache })); setVocabStatus("loaded"); setVocabMessage(""); announce(cache.replacements["Vocabulary loaded locally."] ?? "Vocabulary loaded locally.", "success", "Personal vocabulary", "Vocabulary loaded locally."); }).catch((error) => { setVocabStatus("invalid"); setVocabMessage(`Invalid vocabulary file: ${error instanceof Error ? error.message : "validation failed"} The last valid cache is unchanged.`); }).finally(() => { input.value = ""; });
   };
   const regexResult = useMemo(() => {
     if (!regexMode || !query) return { expression: null as RegExp | null, error: "" };
@@ -343,7 +374,21 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
   const createSettingsProject = () => { const name = projectName.trim(); if (!name || name.length > 64 || ownership.projects.length >= 50) { announce(dual("Project name must be 1–64 characters and the limit is 50.", "Project 名稱要 1–64 個字元，上限係 50 個。", language)); return; } let id = ""; do { id = `project-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`; } while (ownership.projects.some((project) => project.id === id)); if (!/^project-[a-z0-9-]{6,48}$/.test(id)) return; setPrefs((p) => ({ ...p, ...p.settingsOwnership.global, settingsOwnership: { ...p.settingsOwnership, projects: [...p.settingsOwnership.projects, { id, name, overrides: {} }], activeProjectId: id } })); setProjectName(""); announce(dual("Local project created with all eight values inherited.", "本機 project 已建立，八個值全部繼承。", language)); };
   const resetProjectOverrides = () => { if (!activeSettingsProject) return; setPrefs((p) => { const projects = p.settingsOwnership.projects.map((project) => project.id === activeSettingsProject.id ? { ...project, overrides: {} } : project); return { ...p, ...p.settingsOwnership.global, settingsOwnership: { ...p.settingsOwnership, projects } }; }); announce(dual("Project reset to Global defaults.", "Project 已重設做全域預設。", language)); };
   const overrideCount = activeSettingsProject ? Object.keys(activeSettingsProject.overrides).length : 0;
+  let notificationPattern: RegExp | null = null; let notificationPatternError = "";
+  if (notificationRegex && notificationQuery) try { notificationPattern = new RegExp(notificationQuery, `${notificationFlags.i ? "i" : ""}${notificationFlags.m ? "m" : ""}`); } catch (error) { notificationPatternError = error instanceof Error ? error.message : "Invalid regular expression"; }
+  let notificationMatches: RegExpMatchArray[] = [];
+  if (notificationRegex && notificationQuery && notificationPattern) try { notificationMatches = Array.from(notificationSample.matchAll(new RegExp(notificationQuery, `${notificationFlags.i ? "i" : ""}${notificationFlags.m ? "m" : ""}g`))).slice(0, 50); } catch { notificationMatches = []; }
+  const filteredNotifications = notificationHistory.records.filter((record) => { const text = `${record.kind} ${record.title} ${record.body} ${record.timestamp}`; return !notificationQuery || (notificationRegex ? !!notificationPattern?.test(text) : text.toLocaleLowerCase().includes(notificationQuery.toLocaleLowerCase())); });
+  const filteredNotificationIds = new Set(filteredNotifications.map((record) => record.id));
+  const selectedFilteredNotifications = selectedNotifications.filter((id) => filteredNotificationIds.has(id));
+  const unreadCount = notificationHistory.records.filter((record) => !notificationHistory.readThrough || record.timestamp > notificationHistory.readThrough).length;
+  const openNotifications = () => { setNotificationOpen(true); setNotificationHistory((history) => ({ ...history, readThrough: history.records[0]?.timestamp ?? history.readThrough })); };
+  const selectFilteredNotifications = () => setSelectedNotifications(filteredNotifications.map((record) => record.id));
+  const invertFilteredNotifications = () => setSelectedNotifications((selected) => { const current = new Set(selected.filter((id) => filteredNotificationIds.has(id))); return filteredNotifications.filter((record) => !current.has(record.id)).map((record) => record.id); });
+  const dismissSelectedNotifications = () => { const selected = new Set(selectedFilteredNotifications); setNotificationHistory((history) => ({ ...history, records: history.records.filter((record) => !selected.has(record.id)) })); setSelectedNotifications([]); setToast("Selected notifications dismissed."); };
+  const exportNotifications = () => { const markdown = filteredNotifications.map((record) => `## ${record.title}\n\n- Kind: ${record.kind}\n- Time: ${record.timestamp}\n\n${record.body}`).join("\n\n"); const url = URL.createObjectURL(new Blob([`${markdown}\n`], { type: "text/markdown;charset=utf-8" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "winforge-notifications.md"; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0); setToast("Filtered notification history exported locally."); };
   const commands = [...TABS.map((tab) => ({ id: tab.id, label: dual(tab.en, tab.yue, language), detail: dual("Open site destination", "開啟網站目的地", language), action: () => selectTab(tab.id, `panel-${tab.id}`) })), { id: "search", label: dual("Focus site search", "跳去網站搜尋", language), detail: dual("Search features and articles", "搜尋功能同文章", language), action: () => selectTab("features", "site-search") }, { id: "emoji-preference", label: dual("Show emojis in dialogs and message boxes", "喺對話框同訊息框顯示 emoji", language), detail: dual("Open the persisted decoration preference", "開啟已保存嘅裝飾偏好", language), action: () => selectTab("settings", "emoji-preference") }, { id: "vocabulary-upload", label: dual("Upload personal vocabulary", "上載個人詞彙", language), detail: dual("Choose or replace the local JSON file", "揀選或取代本機 JSON 檔案", language), action: () => { selectTab("settings", "site-vocabulary-file"); setTimeout(() => document.getElementById("site-vocabulary-file")?.click(), 60); } }, { id: "vocabulary-status", label: dual("Personal vocabulary status", "個人詞彙狀態", language), detail: dual("Open the loaded, invalid, or no-file state", "開啟已載入、無效或未有檔案狀態", language), action: () => selectTab("settings", "site-vocabulary-status") }, { id: "vocabulary-clear", label: dual("Clear personal vocabulary", "清除個人詞彙", language), detail: dual("Purge the local cache and restore shipped wording", "清除本機快取並回復原裝文字", language), action: () => { selectTab("settings", "site-vocabulary-status"); clearVocabulary(); } }, { id: "reset", label: dual("Reset site preferences", "重設網站偏好", language), detail: dual("Restore documented defaults", "回復文件列明嘅預設值", language), action: () => { setPrefs(DEFAULTS); setVocabStatus("no-file"); setVocabMessage(""); announce("Site preferences reset."); } }];
+  commands.push({ id: "notifications", label: dual("Notification center", "通知中心", language), detail: dual("Open persistent local notification history", "開啟持久本機通知記錄", language), action: openNotifications });
   const filteredCommands = commands.filter((c) => `${c.label} ${c.detail}`.toLocaleLowerCase().includes(paletteQuery.toLocaleLowerCase()));
   let changelogPattern: RegExp | null = null;
   let changelogPatternError = "";
@@ -383,6 +428,8 @@ export default function SiteShell({ assetBase }: { assetBase: string }) {
         {projectBuilderTarget && createPortal(<div className="builder-anchor"><button type="button" className={projectBuilderOpen ? "active" : ""} onClick={() => setProjectBuilderOpen((value) => !value)} aria-expanded={projectBuilderOpen} aria-controls="regex-builder">{dual("Regex builder", "正規表示式工具", language)}</button>{projectBuilderOpen && <RegexBuilder query={projectQuery} setQuery={setProjectQuery} regexMode={projectRegex} setRegexMode={setProjectRegex} flags={projectFlags} setFlags={setProjectFlags} error={projectPatternError} sample={projectSample} setSample={setProjectSample} matches={projectMatches} announce={announce} close={() => setProjectBuilderOpen(false)} />}</div>, projectBuilderTarget)}
       </div>
       <footer><span>WinForge · Material 3 Preview</span><span>{dual("Site preferences stay in this browser.", "網站偏好留喺呢個瀏覽器。", language)}</span><a href="https://github.com/Ding-Ding-Projects/material-winforge">GitHub</a></footer>
+      <button className="notification-center-button" type="button" onClick={openNotifications} aria-label={dual(`Open notification center, ${unreadCount} unread`, `開啟通知中心，${unreadCount} 個未讀`, language)}><span aria-hidden="true">●</span><span>{dual("Notifications", "通知", language)}</span>{unreadCount > 0 && <strong>{unreadCount}</strong>}</button>
+      {notificationOpen && <NotificationCenter language={language} showEmojis={prefs.showEmojis} records={filteredNotifications} total={notificationHistory.records.length} query={notificationQuery} setQuery={setNotificationQuery} regexMode={notificationRegex} setRegexMode={setNotificationRegex} builderOpen={notificationBuilderOpen} setBuilderOpen={setNotificationBuilderOpen} flags={notificationFlags} setFlags={setNotificationFlags} error={notificationPatternError} sample={notificationSample} setSample={setNotificationSample} matches={notificationMatches} selected={selectedFilteredNotifications} setSelected={setSelectedNotifications} selectAll={selectFilteredNotifications} invert={invertFilteredNotifications} dismiss={dismissSelectedNotifications} exportMarkdown={exportNotifications} close={() => setNotificationOpen(false)} announce={announce} />}
       {paletteOpen && <div className="dialog-scrim" role="presentation" onMouseDown={(e) => { if (e.currentTarget === e.target) setPaletteOpen(false); }}><section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="palette-title"><header><div><span className="eyebrow">Ctrl+Shift+F</span><h2 id="palette-title">{dual("Command palette", "指令選單", language)}</h2></div><button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close command palette">×</button></header><label className="palette-search"><span aria-hidden="true">⌕</span><input autoFocus value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder={dual("Search destinations and settings", "搜尋目的地同設定", language)} /></label><div className="command-list">{filteredCommands.map((c) => <button key={c.id} type="button" onClick={() => { c.action(); setPaletteOpen(false); }}><span><strong>{c.label}</strong><small>{c.detail}</small></span><span aria-hidden="true">↵</span></button>)}{!filteredCommands.length && <p className="palette-empty">{dual("No commands match.", "冇相符指令。", language)}</p>}</div></section></div>}
       <div className={`snackbar ${toast ? "visible" : ""}`} role="status" aria-live="polite">{prefs.showEmojis && <span aria-hidden="true">✅</span>}<span>{toast}</span>{toast && <button type="button" onClick={() => setToast(null)} aria-label="Dismiss notification">×</button>}</div>
     </main>
@@ -396,6 +443,11 @@ function DocSection({ title, children }: { title: string; children: ReactNode })
 function SettingCard({ title, description, provenance, children }: { title: string; description: string; provenance: string; children: ReactNode }) { return <article className="setting-card"><div><h2>{title}</h2><p>{description}</p><small>{provenance}</small></div>{children}</article>; }
 function Segments({ label, options, value, onChange }: { label: string; options: string[][]; value: string; onChange: (v: string) => void }) { return <div className="segmented-control" role="radiogroup" aria-label={label}>{options.map(([v, text]) => <button key={v} type="button" role="radio" aria-checked={value === v} className={value === v ? "selected" : ""} onClick={() => onChange(v)}>{text}</button>)}</div>; }
 function Range({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) { return <label className="range-control"><span>1 · Serious</span><input type="range" min="1" max="5" step="1" value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} /><span>5 · Playful</span><output>{value}</output></label>; }
+function NotificationCenter({ language, showEmojis, records, total, query, setQuery, regexMode, setRegexMode, builderOpen, setBuilderOpen, flags, setFlags, error, sample, setSample, matches, selected, setSelected, selectAll, invert, dismiss, exportMarkdown, close, announce }: { language: LanguageMode; showEmojis: boolean; records: NotificationRecord[]; total: number; query: string; setQuery: (value: string) => void; regexMode: boolean; setRegexMode: (value: boolean) => void; builderOpen: boolean; setBuilderOpen: (value: boolean) => void; flags: { i: boolean; m: boolean }; setFlags: (value: { i: boolean; m: boolean }) => void; error: string; sample: string; setSample: (value: string) => void; matches: RegExpMatchArray[]; selected: string[]; setSelected: (value: string[]) => void; selectAll: () => void; invert: () => void; dismiss: () => void; exportMarkdown: () => void; close: () => void; announce: (value: string) => void }) {
+  const selectedSet = new Set(selected); const emoji = { info: "ℹ️", success: "✅", warning: "⚠️", error: "❌" } as const;
+  return <div className="dialog-scrim notification-scrim" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><section className="notification-center" role="dialog" aria-modal="true" aria-labelledby="notification-center-title"><header><div><span className="eyebrow">{dual("Local browser history", "本機瀏覽器記錄", language)}</span><h2 id="notification-center-title">{dual("Notification center", "通知中心", language)}</h2></div><button type="button" onClick={close} aria-label={dual("Close notification center", "關閉通知中心", language)}>×</button></header><div className="notification-search"><label htmlFor="notification-search"><span aria-hidden="true">⌕</span><input id="notification-search" autoFocus maxLength={128} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={dual("Search notification history", "搜尋通知記錄", language)} /></label><div className="builder-anchor"><button type="button" className={regexMode ? "active" : ""} onClick={() => setBuilderOpen(!builderOpen)} aria-expanded={builderOpen} aria-controls="regex-builder">{dual("Regex builder", "正規表示式工具", language)}</button>{builderOpen && <RegexBuilder query={query} setQuery={setQuery} regexMode={regexMode} setRegexMode={setRegexMode} flags={flags} setFlags={setFlags} error={error} sample={sample} setSample={setSample} matches={matches} announce={announce} close={() => setBuilderOpen(false)} />}</div></div><div className="notification-bulk" aria-label={dual("Notification bulk actions", "通知批量操作", language)}><button type="button" onClick={selectAll} disabled={!records.length}>{dual("Select all this page", "揀晒呢頁", language)}</button><button type="button" onClick={invert} disabled={!records.length}>{dual("Inverse selection", "反轉選擇", language)}</button><button type="button" onClick={dismiss} disabled={!selected.length}>{dual(`Dismiss selected (${selected.length})`, `移除已選 (${selected.length})`, language)}</button><button type="button" onClick={exportMarkdown} disabled={!records.length}>{dual("Export filtered Markdown", "匯出已篩選 Markdown", language)}</button></div><p className="notification-count" aria-live="polite">{dual(`${records.length} shown · ${total} stored locally`, `顯示 ${records.length} 個 · 本機儲存 ${total} 個`, language)}</p><div className="notification-list">{total === 0 ? <div className="empty-state" role="status">{dual("No notifications have been recorded yet.", "暫時未有通知記錄。", language)}</div> : records.length === 0 ? <div className="empty-state" role="status">{dual("No notification matches this search.", "冇通知符合呢個搜尋。", language)}</div> : records.map((record) => <label className={`notification-row ${record.kind}`} key={record.id}><input type="checkbox" checked={selectedSet.has(record.id)} onChange={(event) => setSelected(event.target.checked ? [...selected, record.id] : selected.filter((id) => id !== record.id))} aria-label={dual(`Select ${record.title}`, `選擇 ${record.title}`, language)} />{showEmojis && <span className="notification-emoji" aria-hidden="true">{emoji[record.kind]}</span>}<span><strong>{record.title}</strong><small>{new Date(record.timestamp).toLocaleString()}</small><span>{record.body}</span></span></label>)}</div><footer><span>{dual("History is capped at 100 local records.", "記錄最多保留 100 個本機項目。", language)}</span><button type="button" className="outlined-button" onClick={close}>{dual("Close", "關閉", language)}</button></footer></section></div>;
+}
+
 function StatusCard({ state, label, value, detail }: { state: "success" | "waiting" | "error" | "info"; label: string; value: string; detail: string }) { const symbol = { success: "✓", waiting: "○", error: "!", info: "i" }[state]; const emoji = { success: "✅", waiting: "⏳", error: "❌", info: "ℹ️" }[state]; return <article className={`status-card ${state}`}><span className="status-symbol" aria-hidden="true">{symbol}</span><span className="emoji-decoration" aria-hidden="true">{emoji}</span><div><small>{label}</small><h2>{value}</h2><p>{detail}</p></div></article>; }
 function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) { return <div><dt>{label}</dt><dd className={mono ? "mono" : ""}>{value}</dd></div>; }
 

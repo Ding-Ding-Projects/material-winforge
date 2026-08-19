@@ -301,6 +301,28 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
 .snackbar { position: fixed; z-index: 300; right: 24px; bottom: 24px; display: flex; align-items: center; gap: 12px; min-width: min(380px, calc(100vw - 32px)); max-width: 520px; min-height: 54px; padding: 12px 14px; border-radius: 17px; background: var(--on-surface); color: var(--surface); box-shadow: 0 15px 42px var(--shadow); transform: translateY(150%); opacity: 0; pointer-events: none; transition: 180ms ease; }
 .snackbar.visible { transform: none; opacity: 1; pointer-events: auto; }
 .snackbar button { margin-left: auto; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.notification-center-button { position: fixed; z-index: 120; right: 24px; bottom: 90px; display: flex; align-items: center; gap: 9px; min-height: 48px; padding: 9px 14px; border: 1px solid var(--outline-variant); border-radius: 18px; background: var(--surface-bright); color: var(--on-surface); box-shadow: 0 10px 32px var(--shadow); cursor: pointer; }
+.notification-center-button > span:first-child { color: var(--primary); }
+.notification-center-button strong { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--primary); color: var(--on-primary); font-size: .74rem; }
+.notification-scrim { align-items: center; padding-block: 24px; }
+.notification-center { display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; width: min(860px, 100%); max-height: calc(100vh - 48px); padding: 22px; border: 1px solid var(--outline-variant); border-radius: 30px; background: var(--surface-bright); box-shadow: 0 32px 90px rgba(0, 0, 0, .32); }
+.notification-center > header, .notification-center > footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.notification-center > header button { width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--surface-container); color: inherit; cursor: pointer; }
+.notification-center > footer { padding: 14px 0 0; border: 0; background: transparent; }
+.notification-search { display: flex; align-items: start; gap: 10px; margin-top: 18px; }
+.notification-search > label { display: flex; align-items: center; flex: 1; gap: 10px; min-height: 48px; padding: 0 15px; border: 1px solid var(--outline); border-radius: 16px; }
+.notification-search input { width: 100%; border: 0; outline: 0; background: transparent; color: inherit; }
+.notification-bulk { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.notification-bulk button { min-height: 42px; padding: 8px 12px; border: 1px solid var(--outline-variant); border-radius: 14px; background: var(--surface-container); color: inherit; cursor: pointer; }
+.notification-bulk button:disabled { opacity: .48; cursor: not-allowed; }
+.notification-count { margin: 12px 0 8px; color: var(--on-surface-variant); font-size: .82rem; }
+.notification-list { min-height: 150px; overflow-y: auto; border-block: 1px solid var(--outline-variant); }
+.notification-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: start; gap: 12px; min-height: 72px; padding: 13px 8px; border-bottom: 1px solid var(--outline-variant); cursor: pointer; }
+.notification-row:last-child { border-bottom: 0; }
+.notification-row input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--primary); }
+.notification-row > span:last-child { display: grid; gap: 3px; }
+.notification-row small { color: var(--on-surface-variant); }
+.notification-emoji { font-size: 1.15rem; }
 
 @media (max-width: 1080px) {
   .hero-card { grid-template-columns: 1fr; min-height: auto; }
@@ -342,6 +364,11 @@ footer { grid-area: footer; display: flex; flex-wrap: wrap; justify-content: spa
   .manifest-card dl > div { grid-template-columns: 1fr; gap: 4px; }
   footer { flex-direction: column; }
   .snackbar { right: 16px; bottom: 16px; }
+  .notification-center-button { right: 16px; bottom: 86px; }
+  .notification-center { padding: 16px; border-radius: 24px; }
+  .notification-search { flex-direction: column; }
+  .notification-search > label, .notification-search .builder-anchor, .notification-search .builder-anchor > button { width: 100%; }
+  .notification-center > footer { align-items: stretch; flex-direction: column; }
 }
 
 @media (max-width: 430px) {

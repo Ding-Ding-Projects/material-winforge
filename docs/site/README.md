@@ -1,5 +1,7 @@
 # Site documentation
 
+- [Notification history](notifications.md) — persistent local history, search, bulk dismissal, and filtered Markdown export.
+
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 
 - [Landing page](landing-page.md)
