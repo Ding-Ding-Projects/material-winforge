@@ -6,11 +6,14 @@ node_modules/
 main-app-design/node_modules/
 main-app-design/vendor/
 main-app-design/dist/
+main-app-design/assets/generated/
+main-app-design/node_modules/.material-winforge-lock.sha256
 pages/node_modules/
 pages/dist/
 pages/.next/
 pages/.wrangler/
 pages/public/vendor/
+pages/node_modules/.material-winforge-lock.sha256
 
 release/
 out/

@@ -3,15 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>WinForge · Material 3 Preview</title>
+<link href="./vendor/fonts.css" rel="stylesheet">
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 <script src="winforge-m3-data.js"></script>
 <style>
 :root{
@@ -91,19 +90,17 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 <div class="{{ themeClass }}" style="height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font-size:14px">
 
   <div style="height:48px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding-left:12px;background:var(--md-sys-color-surface-container-low);-webkit-app-region:drag">
-    <div style="width:26px;height:26px;border-radius:var(--md-sys-shape-corner-small);background:var(--md-sys-color-primary-container);display:grid;place-items:center;flex-shrink:0">
-      <span class="ms" style="font-size:17px;color:var(--md-sys-color-on-primary-container)">hardware</span>
-    </div>
-    <span style="font-size:14px;font-weight:500;letter-spacing:.1px;white-space:nowrap">WinForge</span>
+    <img src="./assets/app-icon.svg" alt="" width="26" height="26" style="border-radius:var(--md-sys-shape-corner-small);flex-shrink:0">
+    <span style="font-size:14px;font-weight:500;letter-spacing:.1px;white-space:nowrap">WinForge · Material 3 Preview</span>
     <button onClick="{{ goReactor }}" title="Reactor status" style="-webkit-app-region:no-drag;display:flex;align-items:center;gap:7px;height:28px;padding:0 12px 0 10px;border:none;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);margin-left:6px" style-hover="filter:brightness(1.15)">
       <span style="width:7px;height:7px;border-radius:999px;background:{{ reactorDotColor }};animation:wf-pulse 2s ease-in-out infinite"></span>
       <span style="font-family:'Roboto Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.4px">{{ reactorPill }}</span>
     </button>
     <div style="flex:1;display:flex;justify-content:center;min-width:0;padding:0 12px">
-      <button onClick="{{ openPalette }}" style="-webkit-app-region:no-drag;display:flex;align-items:center;gap:10px;width:100%;max-width:520px;height:34px;padding:0 14px;border:none;border-radius:999px;background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface-variant);text-align:left" style-hover="background:var(--md-sys-color-surface-container-highest)">
+      <button onClick="{{ openPalette }}" aria-label="Open command palette" aria-keyshortcuts="Control+Shift+F" style="-webkit-app-region:no-drag;display:flex;align-items:center;gap:10px;width:100%;max-width:520px;height:34px;padding:0 14px;border:none;border-radius:999px;background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface-variant);text-align:left" style-hover="background:var(--md-sys-color-surface-container-highest)">
         <span class="ms" style="font-size:19px">search</span>
         <span style="flex:1;font-size:13px">Search modules, tweaks, wiki…</span>
-        <span style="font-family:'Roboto Mono',monospace;font-size:10.5px;padding:2px 6px;border-radius:5px;border:1px solid var(--md-sys-color-outline-variant)">Ctrl K</span>
+        <span style="font-family:'Roboto Mono',monospace;font-size:10.5px;padding:2px 6px;border-radius:5px;border:1px solid var(--md-sys-color-outline-variant)">Ctrl Shift F</span>
       </button>
     </div>
     <sc-if value="{{ shipNotifs }}" hint-placeholder-val="{{ true }}">
@@ -124,6 +121,12 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       <button onClick="{{ winMaximise }}" title="Maximise" style="width:46px;height:48px;border:none;background:transparent;color:var(--md-sys-color-on-surface-variant);display:grid;place-items:center" style-hover="background:var(--md-sys-color-surface-container-high)"><span class="ms" style="font-size:15px">crop_square</span></button>
       <button onClick="{{ winClose }}" title="Close" style="width:46px;height:48px;border:none;background:transparent;color:var(--md-sys-color-on-surface-variant);display:grid;place-items:center" style-hover="background:#8c1d18;color:#ffffff"><span class="ms" style="font-size:18px">close</span></button>
     </div>
+  </div>
+
+  <div role="status" style="min-height:40px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:8px 18px;background:var(--dm-amber-container);color:var(--dm-amber-on-container);border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:12.5px;line-height:1.35">
+    <span class="ms" aria-hidden="true" style="font-size:19px;flex-shrink:0">science</span>
+    <strong>Preview only.</strong>
+    <span>Every meter, status, action, package, service, file, account, and hardware value is sample data. Controls do not change Windows, files, services, accounts, networks, or hardware.</span>
   </div>
 
   <sc-if value="{{ shipTabs }}" hint-placeholder-val="{{ true }}">
@@ -727,11 +730,11 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       <div style="padding:20px 32px 48px;max-width:1080px;animation:wf-in .32s var(--emph) both">
         <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px">
           <div>
-            <h1 style="margin:0;font-size:32px;font-weight:400">Memory Console</h1>
-            <p style="margin:6px 0 0;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Global instructions, skills, project profiles and sync attestation — read from the local memory repository.</p>
+            <h1 style="margin:0;font-size:32px;font-weight:400">Preview Data</h1>
+            <p style="margin:6px 0 0;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Sample datasets and local-only interface preferences used by this preview.</p>
           </div>
           <button onClick="{{ runSync }}" style="display:flex;align-items:center;gap:8px;height:40px;padding:0 24px 0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:14px;font-weight:500;flex-shrink:0" style-hover="filter:brightness(1.08)">
-            <span class="ms" style="font-size:18px">cloud_sync</span>Sync now
+            <span class="ms" style="font-size:18px">refresh</span>Refresh sample
           </button>
         </div>
 
@@ -746,10 +749,10 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
           <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
-            <h2 style="margin:0 0 12px;font-size:16px;font-weight:500">Skills</h2>
+            <h2 style="margin:0 0 12px;font-size:16px;font-weight:500">Bundled preview resources</h2>
             <div style="display:flex;align-items:center;gap:6px;height:40px;padding:0 4px 0 12px;margin-bottom:8px;border-radius:999px;background:var(--md-sys-color-surface-container-high)">
               <span class="ms" style="font-size:18px;color:var(--md-sys-color-on-surface-variant)">search</span>
-              <input value="{{ skillQuery }}" onInput="{{ setSkillQuery }}" placeholder="Search skills" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--md-sys-color-on-surface);font-size:13px">
+              <input value="{{ skillQuery }}" onInput="{{ setSkillQuery }}" placeholder="Search preview resources" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--md-sys-color-on-surface);font-size:13px">
               <button onClick="{{ rbSkills }}" title="Advanced regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center" style-hover="filter:brightness(1.12)"><span class="ms" style="font-size:16px">regular_expression</span></button>
             </div>
             <div style="display:flex;flex-direction:column">
@@ -764,7 +767,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
           </section>
           <div style="display:flex;flex-direction:column;gap:16px">
             <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
-              <h2 style="margin:0 0 12px;font-size:16px;font-weight:500">Sync attestation</h2>
+              <h2 style="margin:0 0 12px;font-size:16px;font-weight:500">Runtime declaration</h2>
               <div style="display:flex;flex-direction:column;gap:9px">
                 <sc-for list="{{ memAttest }}" as="a" hint-placeholder-count="4">
                   <div style="display:flex;align-items:baseline;gap:12px">
@@ -1107,8 +1110,8 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 
       <sc-if value="{{ isStatus }}" hint-placeholder-val="{{ false }}">
       <div style="padding:20px 32px 48px;max-width:1080px;animation:wf-in .32s var(--emph) both">
-        <h1 style="margin:0;font-size:32px;font-weight:400">Status Hub</h1>
-        <p style="margin:6px 0 20px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Live status of every memory source, build and companion service.</p>
+        <h1 style="margin:0;font-size:32px;font-weight:400">Preview Status</h1>
+        <p style="margin:6px 0 20px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Declared renderer and simulation states for this offline preview. No service health check is performed.</p>
         <div style="display:flex;flex-direction:column;gap:8px">
           <sc-for list="{{ statusRows }}" as="s" hint-placeholder-count="8">
             <div style="display:flex;align-items:center;gap:16px;padding:14px 18px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low)">
@@ -1562,7 +1565,7 @@ const RAIL = [
   { id: 'packages', label: 'Packages', icon: 'inventory_2' },
   { id: 'apps', label: 'Apps', icon: 'rocket_launch' },
   { id: 'terminal', label: 'Dev', icon: 'terminal' },
-  { id: 'memory', label: 'Memory', icon: 'neurology' },
+  { id: 'memory', label: 'Preview data', icon: 'dataset' },
   { id: 'handoff', label: 'Handoff', icon: 'checklist' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
@@ -1684,20 +1687,20 @@ const SHIP_ITEMS = [
   { id: 'nav.packages', group: 'Shell', label: 'Package Manager', dod: 'Nine review-first views, eleven engines, queue that installs nothing until run.', where: 'Navigation rail · Packages', def: true },
   { id: 'nav.apps', group: 'Shell', label: 'External App Launcher', dod: 'Fifteen data-only manifests with winget chains and manual executable locator.', where: 'Navigation rail · Apps', def: true },
   { id: 'nav.terminal', group: 'Shell', label: 'Developer workflow', dod: 'Embedded terminal with eight parameterised, argument-vector workflows.', where: 'Navigation rail · Dev', def: true },
-  { id: 'nav.memory', group: 'Local tools', label: 'Memory Console', dod: 'Skills, project profiles, attestation and vocabulary upload wired to the local repository.', where: 'Navigation rail · Memory', def: true },
+  { id: 'nav.memory', group: 'Local tools', label: 'Preview Data', dod: 'Sample datasets, bundled resources and local-only preferences are labelled as preview content.', where: 'Navigation rail · Preview data', def: true },
   { id: 'nav.settings', group: 'Shell', label: 'Settings', dod: 'Appearance, language mode, funny levels and local-state controls persist.', where: 'Navigation rail · Settings', def: true },
   { id: 'nav.handoff', group: 'Delivery', label: 'Handoff checklist', dod: 'Every feature lists its definition of done and only appears in the app once ticked off.', where: 'Navigation rail · Handoff', def: true },
   { id: 'surface.cake', group: 'Reactor family', label: 'Cake Factory & Farm', dod: 'Plant lines, herd telemetry, CIP, signed .cake minting, and the exact power-loss freeze rule.', where: 'Dashboard · Jump back in, command palette', def: false },
   { id: 'surface.fuel', group: 'Reactor family', label: 'Fuel Factory', dod: 'Enrichment cascade, assembly inventory, signed .fuel output, fresh-fuel core reset.', where: 'Dashboard · Jump back in, command palette', def: false },
   { id: 'surface.companions', group: 'Companions', label: 'Companion apps', dod: 'codeforge, diagramforge, imageforge and audioforge with bridge, prep and cache behaviour described.', where: 'Dashboard · Jump back in, command palette', def: false },
   { id: 'surface.dimsum', group: 'Local tools', label: 'Dim-sum catalog', dod: 'Searchable catalog with cached-image placeholders and exact English / Traditional Chinese names.', where: 'Dashboard · Jump back in, command palette', def: false },
-  { id: 'surface.statushub', group: 'Local tools', label: 'Status Hub', dod: 'Every memory source, engine and service reports a truthful live state.', where: 'Dashboard · Jump back in, command palette', def: false },
+  { id: 'surface.statushub', group: 'Local tools', label: 'Preview Status', dod: 'The status surface labels bundled, offline and simulated states without claiming live service checks.', where: 'Dashboard · Jump back in, command palette', def: false },
   { id: 'feat.regex', group: 'Universal features', label: 'Regex builder in every search field', dod: 'Guided builder with five flags, sample tester, live matches, captures and replacement preview, shared by every search bar.', where: 'Regex pill on all thirteen search bars', def: true },
   { id: 'feat.tabs', group: 'Universal features', label: 'Tabbed navigation', dod: 'Tabs open, close, restore from disk and survive a legacy icon migration.', where: 'Tab strip under the title bar', def: true },
   { id: 'feat.notifs', group: 'Universal features', label: 'Notification centre + history', dod: 'Bounded cards, 200-entry local history, searchable, information and success auto-dismiss.', where: 'Title bar · bell', def: true },
   { id: 'feat.appearance', group: 'Universal features', label: 'Appearance editor', dod: 'Working light and dark M3 schemes on the Google-blue seed, persisted.', where: 'Title bar · theme button, Settings', def: true },
   { id: 'feat.funny', group: 'Universal features', label: 'Funny levels', dod: 'Independent English and Cantonese 1–5 tone sliders with a live safe-copy preview.', where: 'Settings · Funny levels', def: true },
-  { id: 'feat.palette', group: 'Universal features', label: 'Command palette', dod: 'Ctrl-K over every category, module and tweak, routing to the right surface.', where: 'Title bar, rail FAB, Ctrl-K', def: true },
+  { id: 'feat.palette', group: 'Universal features', label: 'Command palette', dod: 'Ctrl+Shift+F searches every category, module and tweak and routes to the selected surface.', where: 'Title bar, rail button, Ctrl+Shift+F', def: true },
   { id: 'feat.persist', group: 'Universal features', label: 'Persistence', dod: 'Tweaks, tabs, reactor state, theme, language and notifications all survive reload.', where: 'Everywhere · localStorage', def: true },
   { id: 'feat.electron', group: 'Delivery', label: 'Electron packaging', dod: 'Frameless window, caption-button IPC, Squirrel.Windows target, unsigned by policy.', where: 'electron/ + package.json', def: true },
 ];
@@ -1794,7 +1797,7 @@ class Component extends DCLogic {
     this.saveTimer = setInterval(() => this.persist(), 4000);
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && k === 'k') { e.preventDefault(); this.openPalette(); }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
       else if (e.key === 'Escape') this.setState({ paletteOpen: false });
     };
     window.addEventListener('keydown', this.onKey);
@@ -1821,9 +1824,10 @@ class Component extends DCLogic {
     if (kind === 'err') this.notify('Reactor', msg, 'error');
   }
   notify(title, body, sev) {
-    this.notifs.unshift({ title, body, sev: sev || 'info', time: this.stamp() });
+    const safeBody = 'Preview sample — ' + body + ' No operating-system, file, service, account, network, or hardware change was made.';
+    this.notifs.unshift({ title, body: safeBody, sev: sev || 'info', time: this.stamp() });
     if (this.notifs.length > 200) this.notifs.pop();
-    const s = { msg: body, sev: sev || 'info' };
+    const s = { msg: safeBody, sev: sev || 'info' };
     this.snacks.push(s);
     setTimeout(() => {
       this.snacks = this.snacks.filter(x => x !== s);
@@ -2255,7 +2259,7 @@ class Component extends DCLogic {
       { title: 'Cake Factory & Farm', sub: 'Reactor-powered industrial load', icon: 'bakery_dining', route: { view: 'cake' }, go: () => this.go({ view: 'cake' }, 'Cake Factory', 'bakery_dining') },
       { title: 'Fuel Factory', sub: 'Signed .fuel assemblies', icon: 'electric_bolt', route: { view: 'fuel' }, go: () => this.go({ view: 'fuel' }, 'Fuel Factory', 'electric_bolt') },
       { title: 'Companion apps', sub: 'codeforge · diagramforge · imageforge · audioforge', icon: 'open_in_new', route: { view: 'companions' }, go: () => this.go({ view: 'companions' }, 'Companion apps', 'open_in_new') },
-      { title: 'Status Hub', sub: 'Live memory and service status', icon: 'monitor_heart', route: { view: 'statushub' }, go: () => this.go({ view: 'statushub' }, 'Status Hub', 'monitor_heart') },
+      { title: 'Preview Status', sub: 'Declared offline and simulation states', icon: 'monitor_heart', route: { view: 'statushub' }, go: () => this.go({ view: 'statushub' }, 'Preview Status', 'monitor_heart') },
       { title: 'Dim-sum catalog', sub: '3,011 entries', icon: 'restaurant', route: { view: 'dimsum' }, go: () => this.go({ view: 'dimsum' }, 'Dim-sum catalog', 'restaurant') },
     ].filter(x => this.routeShipped(x.route || { view: 'dashboard' }));
     V.reactorMwe = rx.mwe.toFixed(0);
@@ -2273,8 +2277,8 @@ class Component extends DCLogic {
       { label: 'Winget upgrade', icon: 'upgrade', run: () => this.notify('Package Manager', '7 upgrades queued for review', 'info') },
       { label: 'New snapshot', icon: 'history', run: () => this.notify('Local history', 'Workspace snapshotted into adjacent Git history', 'success') },
     ];
-    V.syncLine = 'Global instructions, 12 skills and 4 project profiles · last sync 6 min ago';
-    V.runSync = () => this.notify('Memory sync', 'Attestation verified · 12 skills, 4 profiles up to date', 'success');
+    V.syncLine = 'Bundled sample data · no external service or account is connected';
+    V.runSync = () => this.notify('Preview data', 'Sample values refreshed in memory', 'info');
 
     // catalog
     V.categoryCards = (this.D.categories || []).filter(c => this.match(this.catQuery, c.en + ' ' + c.zh)).map(c => ({
@@ -2570,27 +2574,27 @@ class Component extends DCLogic {
       { label: 'Defender exclusion audit', icon: 'shield', run: devRun('Get-MpPreference | Select ExclusionPath', ['C:\\src', 'C:\\Users\\dev\\.nuget'], true) },
     ].filter(t => this.match(this.devQuery, t.label));
 
-    // memory console
+    // preview data surface
     V.isMemory = r.view === 'memory';
     V.memStats = [
-      { value: 12, label: 'SKILLS INSTALLED', color: prim },
-      { value: 4, label: 'PROJECT PROFILES', color: onSurf },
-      { value: 3011, label: 'DIM-SUM CATALOG', color: green },
-      { value: 78, label: 'VOCABULARY TERMS', color: onSurf },
+      { value: 324, label: 'SAMPLE MODULES', color: prim },
+      { value: 22, label: 'SAMPLE CATEGORIES', color: onSurf },
+      { value: 3, label: 'LANGUAGE MODES', color: green },
+      { value: 2, label: 'LOCAL THEMES', color: onSurf },
     ];
     V.memSkills = [
-      { name: 'agent-global-memory', kind: 'global' }, { name: 'material-3', kind: 'vendor' },
-      { name: 'run-winforge', kind: 'project' }, { name: 'run-heapandyville', kind: 'project' },
-      { name: 'mat-day', kind: 'operations' }, { name: 'yum-lerng-cha', kind: 'operations' },
-      { name: 'yum-tong', kind: 'operations' }, { name: 'fun-gow', kind: 'operations' },
-      { name: 'line5-ride-counter', kind: 'misc' }, { name: 'heapandyville-world-ops', kind: 'project' },
-      { name: 'heapandyville-map-update', kind: 'project' }, { name: 'heapandyville-world-backup', kind: 'project' },
+      { name: 'React 18.3.1', kind: 'bundled runtime' },
+      { name: 'Roboto 5.3.0', kind: 'bundled font' },
+      { name: 'Roboto Mono 5.3.0', kind: 'bundled font' },
+      { name: 'Material Symbols 0.46.0', kind: 'bundled icon font' },
+      { name: 'WinForge sample catalog', kind: 'local data' },
+      { name: 'Material 3 tokens', kind: 'local styles' },
     ].filter(s => this.match(this.skillQuery, s.name + ' ' + s.kind));
     V.memAttest = [
-      { label: 'Last sync', value: new Date().toISOString().slice(0, 19) + 'Z' },
-      { label: 'Attestation', value: 'schema agent-memory-sync-attestation v1 · verified' },
-      { label: 'Backup', value: '7z header-encrypted · 4 partitions · hash matched' },
-      { label: 'Status', value: 'all sources reachable · 0 drift' },
+      { label: 'Mode', value: 'preview-only' },
+      { label: 'Network', value: 'remote renderer requests blocked' },
+      { label: 'Actions', value: 'sample interactions only' },
+      { label: 'Persistence', value: 'localStorage preferences only' },
     ];
     V.vocabLine = 'Preview only · no live dictionary or publication scan is connected.';
     V.uploadVocab = () => this.notify('Personal vocabulary', 'Preview only · no local file was loaded', 'info');
@@ -2830,7 +2834,7 @@ class Component extends DCLogic {
     if (this.dimQuery == null) this.dimQuery = '';
     V.dimQuery = this.dimQuery;
     V.setDimQuery = e => { this.dimQuery = e.target.value; this.setState(st => ({ tick: st.tick + 1 })); };
-    V.dimSumLine = '3,011 catalog entries across three verified catalog-v1 partitions. Images are cached only under application data.';
+    V.dimSumLine = 'A small bundled sample of dish names is shown for interface demonstration. No photo catalog is downloaded.';
     const dq = this.dimQuery.trim().toLowerCase();
     V.dimSumItems = DIM_SUM.filter(d => !dq || d.en.toLowerCase().includes(dq) || d.zh.includes(this.dimQuery.trim()));
 
@@ -2842,15 +2846,12 @@ class Component extends DCLogic {
       pillFg: ok === 'warn' ? 'var(--dm-amber-on-container)' : (ok ? 'var(--dm-green-on-container)' : 'var(--md-sys-color-on-error-container)'),
     });
     V.statusRows = [
-      st_('Global instructions', 'memory/SHARED_INSTRUCTIONS.md · in sync', 'ok', true),
-      st_('Skill installation', '12 skills installed, 0 drift', 'ok', true),
-      st_('Project profiles', '4 profiles · winforge, agent-global-memory, heapandyville, kaik-del', 'ok', true),
-      st_('Dim-sum catalog', '3,011 entries · 3 partitions verified', 'ok', true),
-      st_('Sync attestation', 'schema v1 · signature verified', 'ok', true),
-      st_('Backup', '7z header-encrypted · last 41 min ago', 'ok', true),
-      st_('Bun engine', 'not installed — shown as a setup dependency', 'setup', 'warn'),
-      st_('vcpkg engine', 'not installed — triplet validation idle', 'setup', 'warn'),
-      st_('Reactor status API', rx.p > 0.01 ? 'advancing · ' + rx.mwe.toFixed(0) + ' MWe on the bus' : 'advancing · subcritical', 'ok', true),
+      st_('Preview mode', 'sample data only · no system integration', 'ready', true),
+      st_('Renderer assets', 'React, fonts and symbols are bundled locally', 'ready', true),
+      st_('Renderer network', 'remote requests are blocked by the desktop shell', 'offline', true),
+      st_('Windows actions', 'disabled · controls demonstrate interaction design only', 'disabled', 'warn'),
+      st_('Package actions', 'disabled · no package manager is invoked', 'disabled', 'warn'),
+      st_('Reactor model', rx.p > 0.01 ? 'sample simulation advancing' : 'sample simulation subcritical', 'sample', true),
     ];
 
     // ── handoff checklist ─ a feature appears only once it is ticked off ────────

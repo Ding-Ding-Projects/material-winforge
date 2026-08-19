@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "jobs": {
+    "build-release": {
+      "runner": "windows-2025",
+      "dependencies": [
+        "Git",
+        "GitHub CLI",
+        "Node.js 22.23.2",
+        "npm lockfiles",
+        "Electron 38.2.0",
+        "electron-builder 26.15.3",
+        "electron-builder-squirrel-windows 26.15.3",
+        "PowerShell"
+      ],
+      "bootstrap": "actions/setup-node plus build.bat /s and build-installer.bat /s"
+    },
+    "deploy-pages": {
+      "runner": "ubuntu-24.04",
+      "dependencies": [
+        "Git",
+        "Node.js 22.23.2",
+        "npm lockfile",
+        "vinext",
+        "@openai/sites-vite-plugin",
+        "GitHub Pages deployment actions"
+      ],
+      "bootstrap": "actions/setup-node plus npm ci from pages/package-lock.json"
+    }
+  }
+}

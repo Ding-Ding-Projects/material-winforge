@@ -1,41 +1,73 @@
 {
-  "name": "winforge-m3",
-  "productName": "WinForge",
+  "name": "material-winforge",
+  "productName": "WinForge · Material 3 Preview",
   "version": "1.0.0",
-  "description": "WinForge · Material 3 — Windows 11 control center",
-  "author": "WinForge",
+  "description": "A truthful, offline Material 3 preview of the WinForge desktop interface.",
+  "author": "Ding Ding Projects",
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": "22.23.2"
+  },
   "main": "electron/main.js",
   "scripts": {
+    "stage:vendor": "node scripts/stage-vendor.mjs",
+    "generate:assets": "node scripts/generate-assets.mjs",
+    "prepare:runtime": "npm run stage:vendor && npm run generate:assets",
+    "prestart": "npm run prepare:runtime",
     "start": "electron .",
-    "check": "node --check electron/main.js && node --check electron/preload.js",
-    "pack": "electron-builder --win --x64 --publish never"
+    "prebuild": "npm run prepare:runtime",
+    "build": "electron-builder --dir --win --x64 --publish never",
+    "predist": "npm run prepare:runtime",
+    "dist": "electron-builder --win squirrel --x64 --publish never",
+    "pack": "npm run dist"
   },
   "devDependencies": {
+    "@babel/standalone": "7.29.0",
+    "@fontsource/roboto": "5.3.0",
+    "@fontsource/roboto-mono": "5.3.0",
     "electron": "38.2.0",
-    "electron-builder": "26.0.12",
-    "electron-builder-squirrel-windows": "26.15.3"
+    "electron-builder": "26.15.3",
+    "electron-builder-squirrel-windows": "26.15.3",
+    "material-symbols": "0.46.0",
+    "png-to-ico": "3.0.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "sharp": "0.35.3"
   },
   "build": {
     "appId": "com.winforge.m3",
-    "productName": "WinForge",
-    "artifactName": "WinForge-Setup-${version}.${ext}",
-    "directories": { "output": "dist" },
+    "productName": "WinForge Material 3 Preview",
+    "artifactName": "WinForge-Material-3-Preview-Setup-${version}.${ext}",
+    "forceCodeSigning": false,
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "electron/**/*",
+      "assets/app.ico",
+      "assets/app-icon.svg",
+      "assets/app-wide.svg",
+      "vendor/**/*",
       "WinForge M3.dc.html",
       "winforge-m3-data.js",
       "support.js"
     ],
     "win": {
-      "target": ["squirrel"],
-      "forceCodeSigning": false,
-      "signAndEditExecutable": false
+      "target": [
+        "squirrel"
+      ],
+      "icon": "assets/app.ico",
+      "signExecutable": false
     },
     "squirrelWindows": {
-      "iconUrl": "https://raw.githubusercontent.com/Ding-Ding-Projects/WinForge/main/Assets/AppIcon.ico",
+      "artifactName": "WinForge-Material-3-Preview-Setup-${version}.${ext}",
+      "iconUrl": "https://raw.githubusercontent.com/Ding-Ding-Projects/material-winforge/main/main-app-design/assets/app.ico",
       "msi": false
     }
+  },
+  "allowScripts": {
+    "electron@38.2.0": true,
+    "electron-winstaller@5.4.0": true
   }
 }

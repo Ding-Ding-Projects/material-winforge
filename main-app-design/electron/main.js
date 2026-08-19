@@ -1,12 +1,13 @@
 'use strict';
-// WinForge · Material 3 — Electron main process.
+// WinForge · Material 3 Preview — Electron main process.
 // Frameless window: the renderer draws the M3 title bar and Windows caption
 // buttons, and asks the main process to minimise / maximise / close over IPC.
 
-const { app, BrowserWindow, ipcMain, shell, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, nativeTheme, session } = require('electron');
 const path = require('path');
 
 const RENDERER = path.join(__dirname, '..', 'WinForge M3.dc.html');
+const ICON = path.join(__dirname, '..', 'assets', 'app.ico');
 let win = null;
 
 // Squirrel.Windows install/uninstall/update events: exit immediately so the
@@ -45,8 +46,10 @@ function createWindow() {
     minHeight: 620,
     show: false,
     frame: false,
+    autoHideMenuBar: true,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#131314' : '#ffffff',
-    title: 'WinForge',
+    title: 'WinForge · Material 3 Preview',
+    icon: ICON,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -74,6 +77,12 @@ function createWindow() {
     if (/^https?:/.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url !== win.webContents.getURL()) {
+      event.preventDefault();
+      if (/^https?:/.test(url)) shell.openExternal(url);
+    }
+  });
 }
 
 ipcMain.on('winforge:minimise', () => win && win.minimize());
@@ -83,7 +92,14 @@ ipcMain.on('winforge:maximise', () => {
 });
 ipcMain.on('winforge:close', () => win && win.close());
 ipcMain.handle('winforge:version', () => app.getVersion());
+ipcMain.handle('winforge:mode', () => 'preview');
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  app.setAppUserModelId('com.winforge.m3');
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    callback({ cancel: /^https?:/i.test(details.url) });
+  });
+  createWindow();
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
