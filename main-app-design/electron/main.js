@@ -364,7 +364,7 @@ async function discoverGitExecutable() {
     })();
   }
   const executable = await gitExecutablePromise;
-  snapshotJournalStatus = executable ? (snapshotJournalStatus === 'failed' ? 'failed' : 'available') : 'unavailable';
+  if (!executable) snapshotJournalStatus = 'unavailable';
   return executable;
 }
 
