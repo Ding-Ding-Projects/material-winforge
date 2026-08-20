@@ -8,6 +8,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Unsigned automatic updates](unsigned-automatic-updates.md)
 - [Read-only system metrics](read-only-system-metrics.md)
 - [External app launch](external-app-launch.md)
+- [External editor handoff](external-editor.md)
 - [Package engine discovery](package-engine-discovery.md)
 - [Global defaults and project overrides](project-settings-overrides.md)
 - [Personal vocabulary JSON](personal-vocabulary.md)
