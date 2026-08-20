@@ -5,6 +5,11 @@
 - Added explicit Local browser data, HTTPS API, and Home Assistant source choices to the Pages scheduled-settings editor, with bounded refresh intervals and persisted active/unavailable state.
 - The landing surface activates local data only. API and Home Assistant choices remain visibly unavailable because the site has no privileged credential or network boundary; no URL, token, request, redirect, or remote value is accepted. Matching unavailable rules cannot override the recoverable base settings. Tests, lint, runtime interaction, captures, release, and publication remain unrun/unverified for this lane.
 
+## Unreleased — desktop scheduled source depth
+
+- Extended desktop scheduled settings to schema version 2 with bounded HTTPS API and Home Assistant boolean-entity sources. The privileged bridge enforces HTTPS or loopback HTTP, rejects redirects and embedded credentials, caps JSON responses at 64 KiB, validates source payloads, and refuses renderer-supplied tokens.
+- Added 30–86,400 second refresh bounds, generation protection against stale responses, truthful offline/timeout/auth/malformed/oversized/off states, and retention of last-valid or global/project base values. Only non-secret URL, entity, refresh, and credential-vault reference metadata can persist. Tests, lint, packaged runtime interaction, and captures remain unrun/unverified for this lane.
+
 ## Unreleased — desktop destructive-action confirmation parity
 
 - Extended the desktop Restart Explorer confirmation to the shared destructive-action contract: exact impact and affected-data copy, two independent acknowledgements, a full-range slider, Emergency exit/scrim/Escape cancellation, focus return, readable progress, reduced-motion handling, and no bridge mutation before authorization completes.

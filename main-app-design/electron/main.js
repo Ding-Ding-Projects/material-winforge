@@ -86,6 +86,10 @@ const SNAPSHOT_BASENAME = /^snapshot-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-
 const SNAPSHOT_MAX_BYTES = 300 * 1024;
 const APP_SETTING_KEYS_V1 = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
 const APP_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS_V1, 'showEmojis']);
+const SCHEDULE_SOURCE_SETTING_KEYS = APP_SETTING_KEYS;
+const SCHEDULE_SOURCE_MAX_BYTES = 64 * 1024;
+const SCHEDULE_SOURCE_TIMEOUT_MS = 5_000;
+const SCHEDULE_SOURCE_REFRESH_SECONDS = Object.freeze({ min: 30, max: 86_400 });
 let updateState = {
   state: 'idle',
   currentVersion: app.getVersion(),
@@ -103,6 +107,82 @@ function publishUpdateState(patch) {
 
 function finiteNumber(value, minimum, maximum) {
   return Number.isFinite(value) ? Math.max(minimum, Math.min(maximum, value)) : null;
+}
+
+function validScheduledSettingValues(values) {
+  if (!values || typeof values !== 'object' || Array.isArray(values)) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (!SCHEDULE_SOURCE_SETTING_KEYS.includes(key)) return null;
+    const valid = key === 'theme' ? ['dark', 'light'].includes(value)
+      : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value)
+        : key === 'showEmojis' ? typeof value === 'boolean'
+          : Number.isInteger(value) && value >= 1 && value <= 5;
+    if (!valid) return null;
+    out[key] = value;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function validScheduleSourceUrl(raw, allowHomeAssistant = false) {
+  if (typeof raw !== 'string' || raw.length < 1 || raw.length > 1024 || /[\u0000-\u001f\u007f]/.test(raw)) return null;
+  let url;
+  try { url = new URL(raw); } catch { return null; }
+  if (url.username || url.password || url.hash) return null;
+  const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname.toLowerCase());
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) return null;
+  if (allowHomeAssistant && url.protocol === 'http:' && !loopback) return null;
+  url.username = ''; url.password = ''; url.hash = '';
+  return url;
+}
+
+function scheduleSourcePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const source = payload.source;
+  if (!['https-api', 'home-assistant'].includes(source)) return null;
+  const url = validScheduleSourceUrl(payload.url, source === 'home-assistant');
+  if (!url) return null;
+  const refreshSeconds = Number.isInteger(payload.refreshSeconds) ? Math.max(SCHEDULE_SOURCE_REFRESH_SECONDS.min, Math.min(SCHEDULE_SOURCE_REFRESH_SECONDS.max, payload.refreshSeconds)) : 300;
+  const credentialRef = typeof payload.credentialRef === 'string' && /^[a-z0-9._-]{1,96}$/i.test(payload.credentialRef) ? payload.credentialRef : '';
+  if (source === 'home-assistant' && (typeof payload.entityId !== 'string' || !/^\w+\.\w+[\w.-]{0,96}$/.test(payload.entityId))) return null;
+  return { source, url, refreshSeconds, credentialRef, entityId: source === 'home-assistant' ? payload.entityId : '' };
+}
+
+function normalizeScheduleSourceResponse(source, body) {
+  if (source === 'https-api') {
+    if (!body || typeof body !== 'object' || body.schemaVersion !== 1) return { status: 'malformed', message: 'The HTTPS schedule response was missing schemaVersion 1.' };
+    const values = validScheduledSettingValues(body.settings);
+    if (!values) return { status: 'malformed', message: 'The HTTPS schedule response did not contain bounded settings.' };
+    return { status: body.enabled === false ? 'off' : 'active', values, message: body.enabled === false ? 'The HTTPS source is off; base values remain active.' : 'The HTTPS source supplied validated temporary settings.' };
+  }
+  if (!body || typeof body !== 'object' || !['on', 'off'].includes(body.state)) return { status: 'malformed', message: 'The Home Assistant response did not contain state on or off.' };
+  if (body.state === 'off') return { status: 'off', values: null, message: 'Home Assistant is off; base values remain active.' };
+  const values = validScheduledSettingValues(body.attributes && body.attributes.settings);
+  if (!values) return { status: 'malformed', message: 'Home Assistant was on but supplied no bounded settings.' };
+  return { status: 'active', values, message: 'Home Assistant supplied validated temporary settings.' };
+}
+
+async function readScheduledSource(payload) {
+  const config = scheduleSourcePayload(payload);
+  if (!config) return { schemaVersion: 1, status: 'invalid-config', message: 'The source configuration is invalid. Use HTTPS or loopback HTTP, with no embedded credentials.' };
+  if (config.source === 'home-assistant' && !config.credentialRef) return { schemaVersion: 1, status: 'auth-required', message: 'Home Assistant needs an operating-system credential-vault reference; no token is accepted or stored by this renderer.' };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SCHEDULE_SOURCE_TIMEOUT_MS);
+  try {
+    const target = config.source === 'home-assistant' ? new URL(`/api/states/${encodeURIComponent(config.entityId)}`, config.url) : config.url;
+    const response = await fetch(target, { method: 'GET', redirect: 'manual', signal: controller.signal, headers: { Accept: 'application/json' } });
+    if (response.type === 'opaqueredirect' || [301, 302, 303, 307, 308].includes(response.status)) return { schemaVersion: 1, status: 'invalid-redirect', message: 'Redirects are refused for scheduled sources.' };
+    if (response.status === 401 || response.status === 403) return { schemaVersion: 1, status: 'auth-required', message: 'The source refused access. Credentials remain in the operating-system vault and are never returned to the renderer.' };
+    if (!response.ok) return { schemaVersion: 1, status: 'failed', message: `The source returned HTTP ${response.status}; base values remain active.` };
+    const length = Number(response.headers.get('content-length') || 0);
+    if (length > SCHEDULE_SOURCE_MAX_BYTES) return { schemaVersion: 1, status: 'oversized', message: 'The source response exceeded the 64 KiB bound; base values remain active.' };
+    const text = await response.text();
+    if (new TextEncoder().encode(text).length > SCHEDULE_SOURCE_MAX_BYTES) return { schemaVersion: 1, status: 'oversized', message: 'The source response exceeded the 64 KiB bound; base values remain active.' };
+    let body; try { body = JSON.parse(text); } catch { return { schemaVersion: 1, status: 'malformed', message: 'The source response was not valid JSON; base values remain active.' }; }
+    return { schemaVersion: 1, ...normalizeScheduleSourceResponse(config.source, body), refreshedAt: new Date().toISOString() };
+  } catch (error) {
+    return { schemaVersion: 1, status: controller.signal.aborted ? 'timeout' : 'offline', message: controller.signal.aborted ? 'The source timed out; the last valid or base values remain active.' : 'The source is offline or unreachable; the last valid or base values remain active.' };
+  } finally { clearTimeout(timeout); }
 }
 
 function cpuTimes() {
@@ -887,6 +967,7 @@ ipcMain.on('winforge:close', () => win && win.close());
 ipcMain.handle('winforge:version', () => app.getVersion());
 ipcMain.handle('winforge:mode', () => 'preview');
 ipcMain.handle('winforge:system-metrics', () => readSystemMetrics());
+ipcMain.handle('winforge:read-scheduled-source', (_event, payload) => readScheduledSource(payload));
 ipcMain.handle('winforge:package-engines', () => readPackageEngines());
 ipcMain.handle('winforge:flush-dns', () => flushDns());
 ipcMain.handle('winforge:restart-explorer', () => restartExplorer());

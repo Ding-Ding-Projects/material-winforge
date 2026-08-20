@@ -1,5 +1,11 @@
 # Handoff
 
+## Luna desktop scheduled source depth lane — `codex/luna-desktop-scheduled-sources`
+
+- Extended `main-app-design/WinForge M3.dc.html` scheduled settings from local-only rules to schema version 2 metadata for bounded HTTPS API and Home Assistant boolean-entity sources. Added source status, refresh interval, entity, URL, and credential-vault reference controls; only URL/entity/reference metadata persists and no token or response body is stored.
+- Added the privileged `winforge:read-scheduled-source` bridge in `main-app-design/electron/preload.js` and `main.js`. It validates HTTPS or loopback HTTP, rejects embedded credentials and redirects, bounds response bytes and timeout, validates versioned settings/state payloads, and reports offline, timeout, auth, malformed, oversized, and off states without replacing last-valid or base values. Generation and refresh bounds prevent late responses from overwriting newer state.
+- Updated `docs/application/scheduled-settings.md`, `docs/completeness/universal-feature-inventory.md`, and `CHANGELOG.md`. Tests, lint, reviews, packaged runtime interaction, accessibility review, and captures remain unrun/unverified; vocabulary/publication/diff preflights and the desktop build are the available local evidence.
+
 ## Luna desktop destructive-action confirmation parity lane — `codex/luna-desktop-destructive-confirmation`
 
 - Extended `main-app-design/WinForge M3.dc.html` so Restart Explorer uses the desktop super-confirmation pattern already used by Empty Recycle Bin: two independently operated acknowledgements, a 0–100 authorization slider, exact impact copy, Emergency exit, scrim and Escape cancellation, focus return, readable status/progress, submit locking, and reduced-motion CSS.
