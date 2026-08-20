@@ -58,7 +58,10 @@ type ScheduleRule = {
   startTime: string;
   endTime: string;
   weekdays: number[];
-  source: "local";
+  source: "local" | "https-api" | "home-assistant";
+  refreshMinutes: number;
+  lastRefreshAt: string | null;
+  sourceStatus: "active" | "unavailable";
   settings: Partial<SiteSettingValues>;
 };
 type ScheduleState = { schemaVersion: 1; rules: ScheduleRule[] };
@@ -1201,6 +1204,9 @@ const DEFAULT_SCHEDULE_RULE: ScheduleRule = {
   endTime: "17:00",
   weekdays: [0, 1, 2, 3, 4, 5, 6],
   source: "local",
+  refreshMinutes: 15,
+  lastRefreshAt: null,
+  sourceStatus: "active",
   settings: { theme: "light" },
 };
 function normalizeNarration(value: unknown): NarrationSettings | null {
@@ -1265,7 +1271,14 @@ function normalizeSchedule(value: unknown): ScheduleState | null {
       !["", /^\d{4}-\d{2}-\d{2}$/].some((test) =>
         typeof test === "string" ? rule.endDate === test : test.test(rule.endDate),
       ) ||
-      rule.source !== "local" ||
+      !["local", "https-api", "home-assistant"].includes(String(rule.source)) ||
+      !Number.isInteger(rule.refreshMinutes) ||
+      Number(rule.refreshMinutes) < 5 ||
+      Number(rule.refreshMinutes) > 1440 ||
+      (rule.lastRefreshAt !== null && (typeof rule.lastRefreshAt !== "string" || rule.lastRefreshAt.length > 64)) ||
+      !["active", "unavailable"].includes(String(rule.sourceStatus)) ||
+      (rule.source === "local" && rule.sourceStatus !== "active") ||
+      (rule.source !== "local" && rule.sourceStatus !== "unavailable") ||
       !rule.settings ||
       typeof rule.settings !== "object" ||
       Array.isArray(rule.settings)
@@ -1299,7 +1312,10 @@ function normalizeSchedule(value: unknown): ScheduleState | null {
       startTime: rule.startTime,
       endTime: rule.endTime,
       weekdays: [...rule.weekdays].sort((a, b) => a - b) as number[],
-      source: "local",
+      source: rule.source as ScheduleRule["source"],
+      refreshMinutes: Number(rule.refreshMinutes),
+      lastRefreshAt: rule.lastRefreshAt as string | null,
+      sourceStatus: rule.sourceStatus as ScheduleRule["sourceStatus"],
       settings,
     });
   }
@@ -1889,7 +1905,7 @@ function formatBytes(value: number | null) {
   return `${amount.toFixed(unit ? 1 : 0)} ${units[unit]}`;
 }
 function scheduleRuleMatches(rule: ScheduleRule, now: Date): boolean {
-  if (!rule.enabled) return false;
+  if (!rule.enabled || rule.source !== "local" || rule.sourceStatus !== "active") return false;
   const date = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1)
     .toString()
     .padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
@@ -7057,7 +7073,7 @@ export default function SiteShell({
               >
                 <div className="schedule-editor">
                   <p className="supporting-copy">
-                    {dual("Precedence is deterministic: when several local rules match, the last rule in the list wins. Date and time fields use this browser's local timezone; end times may cross midnight.", "優先次序固定：多個本機排程符合時，清單最後一項勝出。日期同時間用瀏覽器本機時區；結束時間可以跨午夜。", language)}
+                    {dual("Precedence is deterministic: when several eligible rules match, the last rule in the list wins. Date and time fields use this browser's local timezone; end times may cross midnight. Local is active here. HTTPS API and Home Assistant are visible choices, but this landing surface does not hold credentials or make network requests, so those sources remain unavailable until a privileged app integration exists.", "優先次序固定：多個可用排程符合時，清單最後一項勝出。日期同時間用瀏覽器本機時區；結束時間可以跨午夜。本機來源喺呢度可以用。HTTPS API 同 Home Assistant 係可見選擇，但呢個網站唔會保管認證資料或者發出網絡請求，所以要等有權限嘅應用程式整合先可以用。", language)}
                   </p>
                   <div className="schedule-form-grid">
                     <label><span>{dual("Label", "名稱", language)}</span><input value={scheduleDraft.label} maxLength={64} onChange={(event) => setScheduleDraft((current) => ({ ...current, label: event.target.value }))} /></label>
@@ -7066,6 +7082,12 @@ export default function SiteShell({
                     <label><span>{dual("Start time", "開始時間", language)}</span><input type="time" value={scheduleDraft.startTime} onChange={(event) => setScheduleDraft((current) => ({ ...current, startTime: event.target.value }))} /></label>
                     <label><span>{dual("End time", "結束時間", language)}</span><input type="time" value={scheduleDraft.endTime} onChange={(event) => setScheduleDraft((current) => ({ ...current, endTime: event.target.value }))} /></label>
                     <label><span>{dual("Setting to override", "要覆蓋嘅設定", language)}</span><select value={scheduleDraftKey} onChange={(event) => setScheduleDraftKey(event.target.value as SiteSettingKey)}>{scheduleSettingOptions.map(([key, en, yue]) => <option key={key} value={key}>{dual(en, yue, language)}</option>)}</select></label>
+                    <label><span>{dual("Value source", "數值來源", language)}</span><select value={scheduleDraft.source} onChange={(event) => setScheduleDraft((current) => ({ ...current, source: event.target.value as ScheduleRule["source"], sourceStatus: event.target.value === "local" ? "active" : "unavailable" }))}><option value="local">{dual("Local browser data", "瀏覽器本機資料", language)}</option><option value="https-api">{dual("HTTPS API (unavailable here)", "HTTPS API（呢度未能使用）", language)}</option><option value="home-assistant">{dual("Home Assistant (unavailable here)", "Home Assistant（呢度未能使用）", language)}</option></select></label>
+                    <label><span>{dual("Refresh interval", "更新間隔", language)}</span><select value={scheduleDraft.refreshMinutes} onChange={(event) => setScheduleDraft((current) => ({ ...current, refreshMinutes: Number(event.target.value) }))}><option value={5}>5 minutes</option><option value={15}>15 minutes</option><option value={60}>60 minutes</option><option value={1440}>24 hours</option></select></label>
+                  </div>
+                  <div className={`schedule-source-status ${scheduleDraft.sourceStatus === "unavailable" ? "unavailable" : "active"}`} role="status">
+                    <strong>{scheduleDraft.source === "local" ? dual("Source active", "來源已啟用", language) : dual("Source unavailable on this landing surface", "呢個網站未能使用此來源", language)}</strong>
+                    <span>{scheduleDraft.source === "local" ? dual("No network refresh is needed. The local base settings return when the rule stops matching.", "唔需要網絡更新。排程唔再符合時會回復本機基本設定。", language) : dual("This choice is stored as an honest unavailable state; no URL, token, request, or remote value is accepted here.", "呢個選擇會以誠實嘅未能使用狀態儲存；呢度唔會接受 URL、token、請求或者遠端數值。", language)}</span>
                   </div>
                   <div className="schedule-weekdays" role="group" aria-label={dual("Schedule weekdays", "排程星期", language)}>
                     {[[0,"Sun","日"],[1,"Mon","一"],[2,"Tue","二"],[3,"Wed","三"],[4,"Thu","四"],[5,"Fri","五"],[6,"Sat","六"]].map(([day, en, yue]) => <label key={day as number}><input type="checkbox" checked={scheduleDraft.weekdays.includes(day as number)} onChange={(event) => setScheduleDraft((current) => ({ ...current, weekdays: event.target.checked ? [...current.weekdays, day as number] : current.weekdays.filter((item) => item !== day) }))} /><span>{dual(en as string, yue as string, language)}</span></label>)}
@@ -7079,7 +7101,7 @@ export default function SiteShell({
                   </div>
                   <div className="schedule-actions"><label className="narration-toggle"><span>{dual("Enabled", "啟用", language)}</span><input type="checkbox" checked={scheduleDraft.enabled} onChange={(event) => setScheduleDraft((current) => ({ ...current, enabled: event.target.checked }))} /></label><button type="button" className="filled-button" onClick={saveScheduleDraft}>{dual(scheduleDraft.id === "schedule-new" ? "Add local rule" : "Save rule", scheduleDraft.id === "schedule-new" ? "加入本機排程" : "儲存排程", language)}</button><button type="button" className="tonal-button" onClick={() => { setScheduleDraft(DEFAULT_SCHEDULE_RULE); setScheduleDraftKey("theme"); }}>{dual("Clear editor", "清除編輯器", language)}</button></div>
                   <div className="schedule-rule-list">
-                    {schedule.rules.map((rule) => <div className={`schedule-rule ${activeScheduleId === rule.id ? "active" : ""}`} key={rule.id}><div><strong>{rule.label}</strong><small>{rule.startDate || "Any date"} → {rule.endDate || "Any date"} · {rule.startTime}–{rule.endTime} · {rule.weekdays.length}/7 days · {Object.keys(rule.settings).join(", ")}</small></div><button type="button" onClick={() => editSchedule(rule)}>{dual("Edit", "編輯", language)}</button><button type="button" onClick={() => removeSchedule(rule.id)}>{dual("Remove", "移除", language)}</button></div>)}
+                    {schedule.rules.map((rule) => <div className={`schedule-rule ${activeScheduleId === rule.id ? "active" : ""}`} key={rule.id}><div><strong>{rule.label}</strong><small>{rule.startDate || "Any date"} → {rule.endDate || "Any date"} · {rule.startTime}–{rule.endTime} · {rule.weekdays.length}/7 days · {Object.keys(rule.settings).join(", ")}</small><small>{rule.source === "local" ? dual("Local · active", "本機 · 已啟用", language) : dual(`${rule.source === "https-api" ? "HTTPS API" : "Home Assistant"} · unavailable on this surface`, `${rule.source === "https-api" ? "HTTPS API" : "Home Assistant"} · 呢個介面未能使用`, language)} · {rule.refreshMinutes} min refresh</small></div><button type="button" onClick={() => editSchedule(rule)}>{dual("Edit", "編輯", language)}</button><button type="button" onClick={() => removeSchedule(rule.id)}>{dual("Remove", "移除", language)}</button></div>)}
                     {!schedule.rules.length && <p className="empty-state">{dual("No local schedules yet.", "暫時未有本機排程。", language)}</p>}
                   </div>
                 </div>
