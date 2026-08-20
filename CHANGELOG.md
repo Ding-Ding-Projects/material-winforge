@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — desktop destructive-action confirmation parity
+
+- Extended the desktop Restart Explorer confirmation to the shared destructive-action contract: exact impact and affected-data copy, two independent acknowledgements, a full-range slider, Emergency exit/scrim/Escape cancellation, focus return, readable progress, reduced-motion handling, and no bridge mutation before authorization completes.
+- Empty Recycle Bin remains on the same two-key/full-slider path. Tests, lint, runtime interaction, captures, release, and publication remain unrun/unverified for this lane.
+
 ## Unreleased — desktop unlock-ladder parity
 
 - Wired the desktop reference's local waiting aid instead of leaving its Start action decorative. School mode starts at sums; ordinary mode uses the four-choice dim-sum rung, five wrong dishes advance to ten sums, one wrong sum starts an eight-second timed mole round, and a lost or expired round becomes clock-only.

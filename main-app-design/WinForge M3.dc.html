@@ -83,6 +83,7 @@ input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(168,199,
 @keyframes wf-shimmer{0%{background-position:-320px 0}100%{background-position:320px 0}}
 @keyframes wf-tab{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes wf-chip{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:0.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:0.001ms!important}}
 button{transition:background .18s var(--emph),color .18s var(--emph),border-color .18s var(--emph),box-shadow .2s var(--emph),filter .18s var(--emph),transform .14s var(--spring)}
 button:active{transform:scale(.965)}
 input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
@@ -1453,19 +1454,26 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
   </div>
 
   <sc-if value="{{ explorerConfirm }}" hint-placeholder-val="{{ false }}">
-    <div onClick="{{ cancelExplorerRestart }}" style="position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px">
-      <div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="restart-explorer-title" style="width:min(520px,94vw);padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);animation:wf-dialog .25s var(--spring) both">
+    <div onClick="{{ cancelExplorerRestart }}" style="position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div onClick="{{ stopEvent }}" role="dialog" aria-modal="true" aria-labelledby="restart-explorer-title" aria-describedby="restart-explorer-impact" style="width:min(620px,94vw);max-height:88vh;overflow:auto;padding:24px;border-radius:var(--md-sys-shape-corner-extra-large);background:var(--md-sys-color-surface-container-high);box-shadow:var(--md-sys-elevation-level3);animation:wf-dialog .25s var(--spring) both">
         <div style="display:flex;align-items:flex-start;gap:16px">
-          <span class="ms" aria-hidden="true" style="font-size:28px;color:var(--md-sys-color-error)">restart_alt</span>
+          <span class="ms" aria-hidden="true" style="font-size:30px;color:var(--md-sys-color-error)">restart_alt</span>
           <div style="flex:1">
             <h2 id="restart-explorer-title" style="margin:0 0 8px;font-size:22px;font-weight:500">Restart Windows Explorer?</h2>
-            <p style="margin:0;color:var(--md-sys-color-on-surface-variant);line-height:1.5">Explorer windows will close and restart. Unsaved File Explorer work may be interrupted.</p>
+            <p id="restart-explorer-impact" style="margin:0;color:var(--md-sys-color-on-surface-variant);line-height:1.55">Explorer windows will close and restart. Unsaved File Explorer work may be interrupted; WinForge cannot recover unsaved work.</p>
           </div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px">
-          <button onClick="{{ cancelExplorerRestart }}" disabled="{{ explorerRestarting }}" style="height:40px;padding:0 20px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:14px;font-weight:500">Cancel</button>
-          <button onClick="{{ confirmExplorerRestart }}" disabled="{{ explorerRestarting }}" style="height:40px;padding:0 22px;border:none;border-radius:999px;background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);font-size:14px;font-weight:500">{{ explorerConfirmLabel }}</button>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
+          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)"><input type="checkbox" checked="{{ explorerKeyOne }}" disabled="{{ explorerControlsDisabled }}" onChange="{{ toggleExplorerKeyOne }}" style="width:20px;height:20px;flex-shrink:0"><span>I understand Explorer windows will close and restart.</span></label>
+          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container)"><input type="checkbox" checked="{{ explorerKeyTwo }}" disabled="{{ explorerControlsDisabled }}" onChange="{{ toggleExplorerKeyTwo }}" style="width:20px;height:20px;flex-shrink:0"><span>I understand unsaved File Explorer work may be interrupted and cannot be recovered by WinForge.</span></label>
         </div>
+        <div style="margin-top:20px;padding:16px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low)">
+          <label for="restart-explorer-slider" style="display:flex;justify-content:space-between;gap:12px;font-weight:500"><span>Slide fully to authorize restart</span><span>{{ explorerProgressText }}</span></label>
+          <input id="restart-explorer-slider" type="range" min="0" max="100" step="1" value="{{ explorerSlider }}" disabled="{{ explorerSliderDisabled }}" onInput="{{ setExplorerSlider }}" aria-describedby="restart-explorer-impact" style="width:100%;height:44px;accent-color:var(--md-sys-color-error)">
+          <div role="progressbar" aria-label="Restart authorization progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ explorerSlider }}" style="height:8px;overflow:hidden;border-radius:999px;background:var(--md-sys-color-surface-container-highest)"><div style="height:100%;width:{{ explorerSlider }}%;background:var(--md-sys-color-error);transition:width .16s linear"></div></div>
+          <div role="status" aria-live="polite" style="margin-top:10px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">{{ explorerStatusText }}</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:22px"><button onClick="{{ cancelExplorerRestart }}" disabled="{{ explorerRestarting }}" autofocus style="height:42px;padding:0 22px;border:2px solid var(--md-sys-color-error);border-radius:999px;background:transparent;color:var(--md-sys-color-error);font-size:14px;font-weight:600">Emergency exit</button></div>
       </div>
     </div>
   </sc-if>
@@ -2194,7 +2202,7 @@ class Component extends DCLogic {
       unlockLadderAnswer: '',
       scheduleDraftLabel: '', scheduleDraftStartDate: '', scheduleDraftEndDate: '', scheduleDraftStartTime: '09:00', scheduleDraftEndTime: '17:00', scheduleDraftWeekdays: [...SCHEDULE_WEEKDAYS], scheduleDraftPriority: 0, scheduleDraftSource: 'local', scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '',
       route: (L && L.route) || { view: 'dashboard' },
-      paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
+      paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0, explorerRestarting: false,
       recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
       snapshots: [], snapshotsLoading: false, snapshotListStatus: 'stale', snapshotJournalStatus: 'unknown', snapshotInvalidCount: 0, snapshotTruncated: false, snapshotRestoreConfirm: false, snapshotRestoreId: null, snapshotRestoring: false,
       journalEntries: [], journalLoading: false, journalListStatus: 'stale', journalInvalidCount: 0, journalTruncated: false,
@@ -2754,7 +2762,7 @@ class Component extends DCLogic {
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
-      else if (e.key === 'Escape') this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false, wingetReview: this.state.wingetRunning ? this.state.wingetReview : false, recycleConfirm: this.state.recycleRunning ? this.state.recycleConfirm : false, recycleKeyOne: this.state.recycleRunning ? this.state.recycleKeyOne : false, recycleKeyTwo: this.state.recycleRunning ? this.state.recycleKeyTwo : false, recycleSlider: this.state.recycleRunning ? this.state.recycleSlider : 0, recycleComplete: this.state.recycleRunning ? this.state.recycleComplete : false, snapshotRestoreConfirm: this.state.snapshotRestoring ? this.state.snapshotRestoreConfirm : false, snapshotRestoreId: this.state.snapshotRestoring ? this.state.snapshotRestoreId : null });
+      else if (e.key === 'Escape') { if (!this.state.explorerRestarting && this.state.explorerConfirm) { this.setState({ explorerConfirm: false, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0 }); setTimeout(() => this.destructiveOrigin && this.destructiveOrigin.focus && this.destructiveOrigin.focus(), 0); return; } this.setState({ paletteOpen: false, explorerConfirm: this.state.explorerRestarting ? this.state.explorerConfirm : false, wingetReview: this.state.wingetRunning ? this.state.wingetReview : false, recycleConfirm: this.state.recycleRunning ? this.state.recycleConfirm : false, recycleKeyOne: this.state.recycleRunning ? this.state.recycleKeyOne : false, recycleKeyTwo: this.state.recycleRunning ? this.state.recycleKeyTwo : false, recycleSlider: this.state.recycleRunning ? this.state.recycleSlider : 0, recycleComplete: this.state.recycleRunning ? this.state.recycleComplete : false, snapshotRestoreConfirm: this.state.snapshotRestoring ? this.state.snapshotRestoreConfirm : false, snapshotRestoreId: this.state.snapshotRestoring ? this.state.snapshotRestoreId : null }); }
     };
     window.addEventListener('keydown', this.onKey);
     if (window.winforge && window.winforge.updateState) {
@@ -3434,22 +3442,33 @@ class Component extends DCLogic {
       }).catch(() => this.notify('Flush DNS', 'The DNS cache flush request failed.' + retry, 'error', true));
     };
     V.explorerConfirm = s.explorerConfirm;
+    V.explorerKeyOne = s.explorerKeyOne;
+    V.explorerKeyTwo = s.explorerKeyTwo;
+    V.explorerSlider = s.explorerSlider;
+    V.explorerControlsDisabled = s.explorerRestarting;
+    V.explorerSliderDisabled = !s.explorerKeyOne || !s.explorerKeyTwo || s.explorerRestarting;
+    V.explorerProgressText = s.explorerRestarting ? 'Working…' : s.explorerSlider + '%';
+    V.explorerStatusText = s.explorerRestarting ? 'Windows is restarting Explorer. Controls stay disabled until it returns.' : (s.explorerKeyOne && s.explorerKeyTwo ? 'Move the slider to 100% to run the operation.' : 'Complete both independent checks to enable the slider.');
     V.explorerRestarting = s.explorerRestarting;
     V.explorerConfirmLabel = s.explorerRestarting ? 'Restarting…' : 'Restart Explorer';
-    V.openExplorerRestart = () => this.setState({ explorerConfirm: true });
-    V.cancelExplorerRestart = () => { if (!this.state.explorerRestarting) this.setState({ explorerConfirm: false }); };
+    V.openExplorerRestart = () => { this.destructiveOrigin = document.activeElement; this.setState({ explorerConfirm: true, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0, explorerRestarting: false }); };
+    V.cancelExplorerRestart = () => { if (!this.state.explorerRestarting) { this.setState({ explorerConfirm: false, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0 }); setTimeout(() => this.destructiveOrigin && this.destructiveOrigin.focus && this.destructiveOrigin.focus(), 0); } };
+    V.toggleExplorerKeyOne = event => { if (!this.state.explorerRestarting) this.setState({ explorerKeyOne: !!event.target.checked, explorerSlider: 0 }); };
+    V.toggleExplorerKeyTwo = event => { if (!this.state.explorerRestarting) this.setState({ explorerKeyTwo: !!event.target.checked, explorerSlider: 0 }); };
+    V.setExplorerSlider = event => { if (this.state.explorerRestarting || !this.state.explorerKeyOne || !this.state.explorerKeyTwo) return; const value = Math.max(0, Math.min(100, Math.round(Number(event.target.value) || 0))); this.setState({ explorerSlider: value }); if (value === 100) V.confirmExplorerRestart(); };
     V.confirmExplorerRestart = () => {
-      if (this.state.explorerRestarting) return;
+      if (this.state.explorerRestarting || !this.state.explorerKeyOne || !this.state.explorerKeyTwo || this.state.explorerSlider !== 100) return;
       const bridge = window.winforge;
       const retry = ' Choose Restart Explorer again to retry.';
       if (!bridge || !bridge.restartExplorer) {
-        this.setState({ explorerConfirm: false });
+        this.setState({ explorerConfirm: false, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0 });
         this.notify('Restart Explorer', 'Explorer restart is unavailable because the packaged bridge is missing.' + retry, 'warning', true);
         return;
       }
       this.setState({ explorerRestarting: true });
       bridge.restartExplorer().then(result => {
-        this.setState({ explorerConfirm: false, explorerRestarting: false });
+        this.setState({ explorerConfirm: false, explorerRestarting: false, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0 });
+        setTimeout(() => this.destructiveOrigin && this.destructiveOrigin.focus && this.destructiveOrigin.focus(), 0);
         const allowed = ['restarted', 'unsupported', 'timeout', 'failed'];
         if (!result || result.schemaVersion !== 1 || !allowed.includes(result.status) || typeof result.message !== 'string') {
           this.notify('Restart Explorer', 'The Explorer restart bridge returned an invalid response.' + retry, 'error', true); return;
@@ -3457,7 +3476,8 @@ class Component extends DCLogic {
         if (result.status === 'restarted') this.notify('Restart Explorer', result.message, 'success', true);
         else this.notify('Restart Explorer', result.message + retry, result.status === 'unsupported' ? 'warning' : 'error', true);
       }).catch(() => {
-        this.setState({ explorerConfirm: false, explorerRestarting: false });
+        this.setState({ explorerConfirm: false, explorerRestarting: false, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0 });
+        setTimeout(() => this.destructiveOrigin && this.destructiveOrigin.focus && this.destructiveOrigin.focus(), 0);
         this.notify('Restart Explorer', 'The Explorer restart request failed.' + retry, 'error', true);
       });
     };

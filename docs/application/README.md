@@ -32,6 +32,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Local snapshot history and restore](local-snapshot-history.md) — private append-only Git metadata where available, browser-local fallback, browsable redacted settings/authenticator/lock events, and safety-snapshot-first restore evidence.
 - [Reviewed Winget upgrades](winget-upgrades.md)
 - [Empty Recycle Bin](empty-recycle-bin.md)
+- [Desktop destructive-action confirmation](destructive-confirmation.md) — shared two-key and full-slider confirmation for disruptive Windows actions, with cancellation, focus return, reduced-motion, and truthful bridge boundaries.
 - [Desktop Status Hub reference](status-hub.md) — evidence-first release and runtime boundary for the design reference.
 - [In-app offline documentation browser](offline-documentation.md) — build-time Markdown bundle, local article navigation, plain-text search, and the anchored regex builder.
 - [Desktop Export center](export-center.md) — local record-family selection, reviewable bulk selection, and bounded JSON/JSONL/YAML/TOML/XML/CSV/TSV/Markdown/HTML export with privacy omissions.
