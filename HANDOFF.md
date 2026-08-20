@@ -249,3 +249,9 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 
 - External-editor lane: the desktop Settings surface now discovers only fixed Visual Studio Code and Notepad++ candidates, persists the selected editor in private application data, validates absolute project/file targets, and opens them through a no-shell bounded IPC bridge. VS Code is the preferred export handoff; missing editors, unsupported bridge/platform, invalid targets, persistence failures, and launch failures remain truthful non-blocking states. The Pages site remains a landing/documentation surface and does not claim operating-system access.
 - Changed `main-app-design/electron/main.js`, `main-app-design/electron/preload.js`, `main-app-design/WinForge M3.dc.html`, `docs/application/external-editor.md`, `docs/application/README.md`, `docs/completeness/universal-feature-inventory.md`, `CHANGELOG.md`, and this handoff. Ran vocabulary/publication/diff preflights; tests, lint, packaged interaction, editor launch, accessibility review, captures, release, and publication remain unrun for this lane.
+
+## Offline documentation browser lane — `codex/luna-offline-docs-browser`
+
+- Added `main-app-design/scripts/generate-docs-browser.mjs`, which validates and bundles all checked-in application and site Markdown articles into `main-app-design/docs-browser-data.js` during runtime preparation.
+- Added the desktop Docs route with escaped Markdown rendering, local article-to-article links, plain-text-first search, and an adjacent shared regex-builder action. Added the completeness inventory row and application documentation article.
+- Verification boundary: `git diff --check`, vocabulary/publication preflights, and the supported desktop packaging build passed in the isolated lane; tests, lint, reviews, screenshots, and packaged runtime interaction were not run in this bounded lane.

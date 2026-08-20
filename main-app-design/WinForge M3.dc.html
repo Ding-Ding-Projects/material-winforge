@@ -12,6 +12,7 @@
 <x-dc>
 <helmet>
 <script src="winforge-m3-data.js"></script>
+<script src="docs-browser-data.js"></script>
 <style>
 :root{
   --md-sys-color-primary:#a8c7fa; --md-sys-color-on-primary:#062e6f;
@@ -85,6 +86,12 @@ input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(168,199,
 button{transition:background .18s var(--emph),color .18s var(--emph),border-color .18s var(--emph),box-shadow .2s var(--emph),filter .18s var(--emph),transform .14s var(--spring)}
 button:active{transform:scale(.965)}
 input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
+.offline-docs-body{font-size:13.5px;line-height:1.65;color:var(--md-sys-color-on-surface)}
+.offline-docs-body h1,.offline-docs-body h2,.offline-docs-body h3{line-height:1.25;margin:1.4em 0 .45em;font-weight:500}
+.offline-docs-body h1{font-size:26px;margin-top:0}.offline-docs-body h2{font-size:20px}.offline-docs-body h3{font-size:16px}
+.offline-docs-body p{margin:.65em 0}.offline-docs-body ul{padding-left:22px}.offline-docs-body li{margin:.25em 0}
+.offline-docs-body pre{overflow:auto;padding:14px;border-radius:12px;background:var(--md-sys-color-inverse-surface);color:var(--md-sys-color-inverse-on-surface);font:12px/1.5 'Roboto Mono',monospace}.offline-docs-body code{padding:1px 4px;border-radius:4px;background:var(--md-sys-color-surface-container-highest);font:12px 'Roboto Mono',monospace}.offline-docs-body pre code{padding:0;background:transparent}
+.offline-docs-body blockquote{margin:12px 0;padding:8px 14px;border-left:3px solid var(--md-sys-color-primary);color:var(--md-sys-color-on-surface-variant);background:var(--md-sys-color-surface-container)}
 </style>
 </helmet>
 <div class="{{ themeClass }}" style="height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font-size:14px">
@@ -566,6 +573,27 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         <div style="display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-bottom:16px"><label style="display:flex;flex-direction:column;gap:5px;font-size:12px">From date<input type="date" value="{{ changelogFrom }}" onInput="{{ setChangelogFrom }}" aria-label="Changelog start date" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"></label><label style="display:flex;flex-direction:column;gap:5px;font-size:12px">To date<input type="date" value="{{ changelogTo }}" onInput="{{ setChangelogTo }}" aria-label="Changelog end date" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"></label><button onClick="{{ copyChangelog }}" disabled="{{ changelogEmpty }}" style="height:40px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Copy filtered view</button><button onClick="{{ exportChangelog }}" disabled="{{ changelogEmpty }}" style="height:40px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)">Export Markdown</button></div>
         <sc-if value="{{ changelogEmpty }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding:18px;border:1px dashed var(--md-sys-color-outline);border-radius:12px;color:var(--md-sys-color-on-surface-variant)">No published release matches the current text and ISO date range.</div></sc-if>
         <div style="display:flex;flex-direction:column;gap:12px"><sc-for list="{{ changelogEntries }}" as="entry" hint-placeholder-count="5"><article style="padding:18px;border-radius:16px;background:var(--md-sys-color-surface-container-low)"><div style="display:flex;justify-content:space-between;gap:12px"><h2 style="margin:0;font-size:18px">{{ entry.version }}</h2><time style="font-family:'Roboto Mono',monospace;font-size:12px">{{ entry.date }}</time></div><div style="margin:8px 0 5px;color:var(--md-sys-color-primary);font-weight:500">{{ entry.category }}</div><p style="margin:0 0 10px">{{ entry.summary }}</p><a href="{{ entry.commitUrl }}" style="color:var(--md-sys-color-primary);font-family:'Roboto Mono',monospace">{{ entry.shortSha }}</a></article></sc-for></div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isOfflineDocs }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px 32px 48px;max-width:1180px;animation:wf-in .32s var(--emph) both">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px">
+          <div><h1 style="margin:0;font-size:32px;font-weight:400">Offline documentation</h1><p style="margin:6px 0 0;color:var(--md-sys-color-on-surface-variant)">Feature articles are bundled with this application and remain available without a network request.</p></div>
+          <span style="padding:6px 10px;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-family:'Roboto Mono',monospace;font-size:11px">{{ docsArticleCount }} articles · bundled</span>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(220px,.34fr) minmax(0,1fr);gap:18px;align-items:start">
+          <section style="padding:14px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low);position:sticky;top:12px;max-height:calc(100vh - 170px);overflow:auto">
+            <div style="display:flex;align-items:center;gap:6px;height:42px;padding:0 4px 0 12px;margin-bottom:12px;border-radius:999px;background:var(--md-sys-color-surface-container-high)" role="search"><span class="ms" aria-hidden="true">search</span><input value="{{ docsQuery }}" onInput="{{ setDocsQuery }}" maxlength="128" aria-label="Search documentation" placeholder="Search articles and content" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbDocs }}" title="Advanced regex builder" aria-label="Open documentation regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:16px">regular_expression</span></button></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px"><span style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">{{ docsSearchModeLabel }}</span><button onClick="{{ useDocsPlain }}" style="height:28px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:11px">Plain text</button></div>
+            <sc-if value="{{ docsNoMatch }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding:12px;border:1px dashed var(--md-sys-color-outline);border-radius:10px;color:var(--md-sys-color-on-surface-variant);font-size:12px">No article matches this search.</div></sc-if>
+            <div style="display:flex;flex-direction:column;gap:4px"><sc-for list="{{ docsArticles }}" as="article" hint-placeholder-count="8"><button onClick="{{ article.open }}" aria-current="{{ article.current }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:10px 11px;border:none;border-radius:10px;background:{{ article.bg }};color:inherit;text-align:left"><strong style="font-size:12.5px">{{ article.title }}</strong><span style="font-size:10.5px;color:var(--md-sys-color-on-surface-variant);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">{{ article.source }}</span></button></sc-for></div>
+          </section>
+          <article id="offline-docs-article" aria-live="polite" style="min-width:0;padding:24px 26px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><span class="ms" aria-hidden="true" style="font-size:24px;color:var(--md-sys-color-primary)">menu_book</span><div><h2 style="margin:0;font-size:22px;font-weight:500">{{ docsCurrentTitle }}</h2><div style="margin-top:3px;font:11px 'Roboto Mono',monospace;color:var(--md-sys-color-on-surface-variant)">{{ docsCurrentSource }}</div></div></div>
+            <div id="offline-docs-body" class="offline-docs-body"></div>
+          </article>
+        </div>
       </div>
       </sc-if>
 
@@ -1812,6 +1840,7 @@ const RAIL = [
   { id: 'terminal', label: 'Dev', icon: 'terminal' },
   { id: 'memory', label: 'Preview data', icon: 'dataset' },
   { id: 'changelog', label: 'Changelog', icon: 'history' },
+  { id: 'offlinedocs', label: 'Docs', icon: 'menu_book' },
   { id: 'handoff', label: 'Handoff', icon: 'checklist' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
@@ -1949,6 +1978,8 @@ const SHIP_ITEMS = [
   { id: 'nav.terminal', group: 'Shell', label: 'Developer workflow', dod: 'Embedded terminal with eight parameterised, argument-vector workflows.', where: 'Navigation rail · Dev', def: true },
   { id: 'nav.memory', group: 'Local tools', label: 'Preview Data', dod: 'Sample datasets, bundled resources and local-only preferences are labelled as preview content.', where: 'Navigation rail · Preview data', def: true },
   { id: 'nav.changelog', group: 'Delivery', label: 'Changelog', dod: 'Published release catalogue with exact dates, commits, bounded search/date filtering, copy and Markdown export.', where: 'Navigation rail · Changelog', def: true },
+  { id: 'nav.offlinedocs', group: 'Delivery', label: 'Offline documentation', dod: 'All checked-in application and site feature articles are bundled, searchable, rendered locally, and linked article-to-article.', where: 'Navigation rail · Docs', def: true },
+  { id: 'feat.offlinedocs', group: 'Universal features', label: 'In-app offline documentation browser', dod: 'Build-time article bundle, shared safe Markdown renderer, local links, plain-text-first search and anchored regex builder.', where: 'Navigation rail · Docs', def: true },
   { id: 'nav.settings', group: 'Shell', label: 'Settings', dod: 'Appearance, language mode, funny levels and local-state controls persist.', where: 'Navigation rail · Settings', def: true },
   { id: 'nav.handoff', group: 'Delivery', label: 'Handoff checklist', dod: 'Every feature lists its definition of done and only appears in the app once ticked off.', where: 'Navigation rail · Handoff', def: true },
   { id: 'surface.cake', group: 'Reactor family', label: 'Cake Factory & Farm', dod: 'Plant lines, herd telemetry, CIP, signed .cake minting, and the exact power-loss freeze rule.', where: 'Dashboard · Jump back in, command palette', def: false },
@@ -2001,6 +2032,30 @@ const FUNNY_ZH = ['', '已清理 2.4 GB 暫存檔案。', '清走 2.4 GB，乾�
 const NARRATOR_LANGUAGES = ['English', 'Cantonese', 'Bilingual'];
 const NARRATOR_DEFAULT = Object.freeze({ schemaVersion: 1, enabled: false, language: 'English', englishVoiceId: 'auto', cantoneseVoiceId: 'auto', rate: 1, pitch: 1 });
 
+function renderOfflineMarkdown(source, articleIds) {
+  const esc = value => String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const inline = value => esc(value).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, href) => {
+    const match = String(href).match(/^(application|site)\/([a-z0-9-]+)\.md$/i);
+    if (match && articleIds.has(`${match[1].toLowerCase()}/${match[2]}`)) return `<a href="#offline-docs=${encodeURIComponent(`${match[1].toLowerCase()}/${match[2]}`)}" data-offline-doc="${esc(`${match[1].toLowerCase()}/${match[2]}`)}">${label}</a>`;
+    return `<a href="${/^https?:\/\//i.test(href) ? esc(href) : '#'}" rel="noreferrer">${label}</a>`;
+  });
+  const lines = String(source || '').replace(/\r\n?/g, '\n').split('\n');
+  const out = []; let paragraph = []; let list = false; let code = false; let codeLines = [];
+  const flushParagraph = () => { if (paragraph.length) { out.push(`<p>${inline(paragraph.join(' '))}</p>`); paragraph = []; } };
+  const flushList = () => { if (list) { out.push('</ul>'); list = false; } };
+  for (const line of lines) {
+    if (/^```/.test(line)) { flushParagraph(); flushList(); if (code) { out.push(`<pre><code>${esc(codeLines.join('\n'))}</code></pre>`); codeLines = []; } code = !code; continue; }
+    if (code) { codeLines.push(line); continue; }
+    if (!line.trim()) { flushParagraph(); flushList(); continue; }
+    const heading = line.match(/^(#{1,3})\s+(.+)$/); if (heading) { flushParagraph(); flushList(); const level = heading[1].length; out.push(`<h${level}>${inline(heading[2])}</h${level}>`); continue; }
+    const item = line.match(/^\s*[-*]\s+(.+)$/); if (item) { flushParagraph(); if (!list) { out.push('<ul>'); list = true; } out.push(`<li>${inline(item[1])}</li>`); continue; }
+    if (/^>\s?/.test(line)) { flushParagraph(); flushList(); out.push(`<blockquote>${inline(line.replace(/^>\s?/, ''))}</blockquote>`); continue; }
+    flushList(); paragraph.push(line.trim());
+  }
+  flushParagraph(); flushList(); if (code) out.push(`<pre><code>${esc(codeLines.join('\n'))}</code></pre>`);
+  return out.join('');
+}
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -2028,6 +2083,8 @@ class Component extends DCLogic {
     this.changelogFrom = '';
     this.changelogTo = '';
     this.changelogRegexMode = false;
+    this.docsQuery = '';
+    this.docsRegexMode = false;
     const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
     const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3, showEmojis: true };
     const storedGlobal = L && L.settingsGlobal && typeof L.settingsGlobal === 'object' && !Array.isArray(L.settingsGlobal) ? L.settingsGlobal : {};
@@ -2331,6 +2388,22 @@ class Component extends DCLogic {
 
   componentDidMount() {
     this.D = window.WINFORGE_DATA || { meta: {}, categories: [], modules: [] };
+    this.docs = window.WINFORGE_DOCS && window.WINFORGE_DOCS.schemaVersion === 1 && Array.isArray(window.WINFORGE_DOCS.articles) ? window.WINFORGE_DOCS.articles : [];
+    this.docsArticleIds = new Set(this.docs.map(article => article.id));
+    this.renderOfflineDocsBody = () => {
+      if (this.state.route.view !== 'offlinedocs') return;
+      const host = document.getElementById('offline-docs-body');
+      const article = this.docs.find(item => item.id === this.state.route.id) || this.docs[0];
+      if (host && article) host.innerHTML = renderOfflineMarkdown(article.markdown, this.docsArticleIds);
+    };
+    this.offlineDocsClick = event => {
+      const link = event.target && event.target.closest ? event.target.closest('[data-offline-doc]') : null;
+      if (!link) return;
+      event.preventDefault();
+      const id = link.getAttribute('data-offline-doc');
+      if (this.docsArticleIds.has(id)) this.go({ view: 'offlinedocs', id }, 'Offline documentation', 'menu_book');
+    };
+    document.addEventListener('click', this.offlineDocsClick);
     this.last = performance.now();
     this.simTimer = setInterval(() => {
       const now = performance.now();
@@ -2413,11 +2486,15 @@ class Component extends DCLogic {
     }
     this.forceUpdate();
   }
+  componentDidUpdate() {
+    if (this.renderOfflineDocsBody) this.renderOfflineDocsBody();
+  }
   componentWillUnmount() {
     clearInterval(this.simTimer); clearInterval(this.sysTimer); clearInterval(this.saveTimer); clearInterval(this.scheduleTimer);
     if (this.narratorVoicesChanged && 'speechSynthesis' in window) window.speechSynthesis.removeEventListener('voiceschanged', this.narratorVoicesChanged);
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     window.removeEventListener('keydown', this.onKey);
+    if (this.offlineDocsClick) document.removeEventListener('click', this.offlineDocsClick);
     this.persist();
   }
 
@@ -2498,6 +2575,7 @@ class Component extends DCLogic {
       projects: { label: 'Active project picker', get: () => this.projectQuery || '', set: v => { this.projectQuery = v; this.bump(); } },
       settings: { label: 'Settings sections', get: () => this.settingsQuery || '', set: v => { this.settingsQuery = v; this.bump(); } },
       changelog: { label: 'Changelog', get: () => this.changelogQuery || '', set: v => { this.changelogQuery = v; this.bump(); } },
+      docs: { label: 'Offline documentation', get: () => this.docsQuery || '', set: v => { this.docsQuery = v; this.bump(); } },
       extapps: { label: 'External apps', get: () => this.extQuery || '', set: v => { this.extQuery = v; this.bump(); } },
       dev: { label: 'Developer workflows', get: () => this.devQuery || '', set: v => { this.devQuery = v; this.bump(); } },
       log: { label: 'Control-room log', get: () => this.logQuery || '', set: v => { this.logQuery = v; this.bump(); } },
@@ -2569,6 +2647,7 @@ class Component extends DCLogic {
       applauncher: { view: 'apps' }, cakefactory: { view: 'cake' }, fuelfactory: { view: 'fuel' },
       dimsum: { view: 'dimsum' }, statushub: { view: 'statushub' }, memory: { view: 'memory' },
       settings: { view: 'settings' }, devterminal: { view: 'terminal' },
+      offlinedocs: { view: 'offlinedocs', id: null },
     };
     if (bespoke[page]) return bespoke[page];
     if (INDUSTRIAL_LOADS.some(l => l.id === page)) return { view: 'loads' };
@@ -2694,7 +2773,7 @@ class Component extends DCLogic {
     V.rbPalette = mk('palette'); V.rbRows = mk('rows'); V.rbAllApps = mk('allapps');
     V.rbCats = mk('cats'); V.rbPackages = mk('packages'); V.rbDimSum = mk('dimsum');
     V.rbNotifs = mk('notifs'); V.rbRps = mk('rps'); V.rbLoads = mk('loads');
-    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbProjects = mk('projects'); V.rbSettings = mk('settings'); V.rbChangelog = mk('changelog'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
+    V.rbSkills = mk('skills'); V.rbSnapshots = mk('snapshots'); V.rbJournal = mk('journal'); V.rbProjects = mk('projects'); V.rbSettings = mk('settings'); V.rbChangelog = mk('changelog'); V.rbDocs = mk('docs'); V.rbExtApps = mk('extapps'); V.rbDev = mk('dev'); V.rbLog = mk('log');
     V.rbShown = !!rb.target && this.isShipped('feat.regex');
     V.rbLabel = rb.label;
     const rbField = fields[rb.target] || { get: () => '', set: () => {} };
@@ -2747,6 +2826,7 @@ class Component extends DCLogic {
     V.rbApply = () => {
       rb.history.unshift(rbPattern);
       if (rb.target === 'changelog') this.changelogRegexMode = true;
+      if (rb.target === 'docs') this.docsRegexMode = true;
       rb.target = null;
       this.notify('Pattern builder', 'Filter applied · ' + rbRes.matches.length + ' sample matches', 'success');
     };
@@ -2764,6 +2844,18 @@ class Component extends DCLogic {
     V.changelogQuery = this.changelogQuery || ''; V.setChangelogQuery = e => { this.changelogQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
     V.changelogFrom = this.changelogFrom || ''; V.setChangelogFrom = e => { this.changelogFrom = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : ''; this.bump(); };
     V.changelogTo = this.changelogTo || ''; V.setChangelogTo = e => { this.changelogTo = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : ''; this.bump(); };
+    V.docsQuery = this.docsQuery || ''; V.setDocsQuery = e => { this.docsQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
+    V.useDocsPlain = () => { this.docsRegexMode = false; this.bump(); };
+    V.docsSearchModeLabel = this.docsRegexMode ? 'Regex active · use plain text' : 'Plain text search';
+    V.docsCurrent = this.docs && this.docs.find(article => article.id === r.id) || (this.docs && this.docs[0]);
+    V.docsCurrentTitle = V.docsCurrent ? V.docsCurrent.title : 'No bundled articles';
+    V.docsCurrentSource = V.docsCurrent ? V.docsCurrent.source : 'Documentation bundle unavailable';
+    const docsQuery = this.docsQuery.trim();
+    const docsPattern = docsQuery && this.docsRegexMode ? (() => { try { return new RegExp(docsQuery, 'i'); } catch { return null; } })() : null;
+    const docsMatches = article => !docsQuery || (docsPattern ? docsPattern.test(article.title + ' ' + article.source + ' ' + article.markdown) : (article.title + ' ' + article.source + ' ' + article.markdown).toLowerCase().includes(docsQuery.toLowerCase()));
+    V.docsArticles = (this.docs || []).filter(docsMatches).slice(0, 256).map(article => ({ title: article.title, source: article.source, current: V.docsCurrent && article.id === V.docsCurrent.id, bg: V.docsCurrent && article.id === V.docsCurrent.id ? 'var(--md-sys-color-secondary-container)' : 'transparent', open: () => this.go({ view: 'offlinedocs', id: article.id }, 'Offline documentation', 'menu_book') }));
+    V.docsArticleCount = (this.docs || []).length;
+    V.docsNoMatch = docsQuery.length > 0 && !V.docsArticles.length;
     V.changelogModeLabel = this.changelogRegexMode ? 'Regex active · use plain text' : 'Plain text';
     V.changelogPlainDisabled = !this.changelogRegexMode;
     V.useChangelogPlain = () => { this.changelogRegexMode = false; this.bump(); };
@@ -2863,6 +2955,7 @@ class Component extends DCLogic {
       ];
       for (const command of settingsCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'settings', route: { view: 'settings' }, label: 'Settings', settingsQuery: command.query });
       if (this.match(q, 'Changelog published releases dates commit links copy export')) hits.push({ kind: 'destination', title: 'Changelog', sub: 'Published release history and commit links', icon: 'history', route: { view: 'changelog' }, label: 'Changelog' });
+      if (this.match(q, 'Offline documentation bundled feature articles local search')) hits.push({ kind: 'destination', title: 'Offline documentation', sub: 'Bundled feature articles with local search', icon: 'menu_book', route: { view: 'offlinedocs' }, label: 'Docs' });
       const vocabularyCommands = [
         { title: 'Upload personal vocabulary', sub: 'Choose or replace the local JSON file', action: 'upload' },
         { title: 'Personal vocabulary status', sub: 'Open the local loaded, invalid or no-file state', action: 'status' },
@@ -2901,6 +2994,7 @@ class Component extends DCLogic {
     V.isReactor = r.view === 'reactor';
     V.isSettings = r.view === 'settings';
     V.isChangelog = r.view === 'changelog';
+    V.isOfflineDocs = r.view === 'offlinedocs';
 
     const changelogMatches = entry => {
       const text = entry.version + ' ' + entry.category + ' ' + entry.summary + ' ' + entry.sha;
