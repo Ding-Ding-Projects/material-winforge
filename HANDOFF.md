@@ -218,3 +218,8 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Added explicit post-pull reconciliation guidance, local-only chat response handling, and a fixed allowlisted harness preview that never accepts arbitrary shell text or launches a process in the site surface.
 - Updated `pages/app/globals.css`, the design reference, both Ollama articles and indexes, the universal inventory, and this changelog/handoff.
 - Verification boundary: no tests, lint, runtime interaction, screenshots, release, or publication run for this lane; hardware/storage fit evidence remains intentionally unclaimed.
+## Local file-converter depth lane — `codex/luna-converter-depth`
+
+- Extended `pages/app/SiteShell.tsx` with a bounded 100-file queue, two-worker JSON↔CSV processing, pause/resume/cancel, per-file outcomes, browser-download destination disclosure, and adapter-catalog plain search plus anchored regex-builder state.
+- Updated `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, both converter articles and indexes, the universal inventory, and the changelog. Only the real offline JSON↔CSV adapter remains enabled; no PATH, network, PDF, image, audio, video, archive, or binary converter was added.
+- Evidence boundary: source/diff only. No tests, lint, runtime interaction, accessibility review, screenshots, release, publication, or issue scan was run in this no-verification lane.

@@ -258,6 +258,17 @@ type ConverterState = {
   progress: number;
   message: string;
 };
+type ConverterQueueStatus = "queued" | "converting" | "converted" | "skipped" | "cancelled" | "failed";
+type ConverterQueueItem = {
+  id: string;
+  file: File;
+  detected: ConverterDetectedType;
+  target: "json" | "csv";
+  preview: string;
+  status: ConverterQueueStatus;
+  progress: number;
+  message: string;
+};
 
 type OllamaState = {
   status: "idle" | "checking" | "healthy" | "stopped" | "offline" | "error";
@@ -1843,6 +1854,14 @@ export default function SiteShell({
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [query, setQuery] = useState("");
   const [converter, setConverter] = useState<ConverterState>({ file: null, detected: "unknown", target: "csv", preview: "", status: "empty", progress: 0, message: "" });
+  const [converterQueue, setConverterQueue] = useState<ConverterQueueItem[]>([]);
+  const [converterPaused, setConverterPaused] = useState(false);
+  const converterPausedRef = useRef(false);
+  const [converterCatalogQuery, setConverterCatalogQuery] = useState("");
+  const [converterCatalogRegex, setConverterCatalogRegex] = useState(false);
+  const [converterCatalogBuilderOpen, setConverterCatalogBuilderOpen] = useState(false);
+  const [converterCatalogFlags, setConverterCatalogFlags] = useState({ i: true, m: false });
+  const [converterCatalogSample, setConverterCatalogSample] = useState("Documents / PDF\nStructured Data / Spreadsheets\nBinary Encodings");
   const [ollama, setOllama] = useState<OllamaState>({ status: "idle", version: null, models: [], message: "Not checked yet.", checkedAt: null });
   const [ollamaQuery, setOllamaQuery] = useState("");
   const [ollamaRegex, setOllamaRegex] = useState(false);
@@ -2056,29 +2075,54 @@ export default function SiteShell({
     if (!ollamaRegex) return { matches: values.filter((value) => value.toLocaleLowerCase().includes(ollamaQuery.toLocaleLowerCase())), error: "" };
     try { const re = new RegExp(ollamaQuery, `${ollamaFlags.i ? "i" : ""}${ollamaFlags.m ? "m" : ""}`); return { matches: values.filter((value) => re.test(value)), error: "" }; } catch (error) { return { matches: [], error: error instanceof Error ? error.message : "Invalid regular expression." }; }
   }, [ollama.models, ollamaQuery, ollamaRegex, ollamaFlags]);
-  const inspectConverterFile = useCallback(async (file: File | null) => {
-    if (!file) return;
-    if (file.size > CONVERTER_MAX_BYTES) { setConverter({ file, detected: "unknown", target: "csv", preview: "", status: "error", progress: 0, message: "Files must be 2 MiB or smaller; nothing was read." }); return; }
-    const bytes = new Uint8Array(await file.slice(0, CONVERTER_MAX_BYTES).arrayBuffer());
-    const detected = detectConverterType(bytes);
-    const text = new TextDecoder().decode(bytes);
-    setConverter({ file, detected, target: detected === "csv" ? "json" : "csv", preview: text.slice(0, 4000), status: detected === "json" || detected === "csv" ? "ready" : "error", progress: 0, message: detected === "json" || detected === "csv" ? "Ready for the bundled offline adapter." : "This file is detected for inspection only; no adapter is enabled for it." });
+  const inspectConverterFiles = useCallback(async (files: File[]) => {
+    const items: ConverterQueueItem[] = [];
+    for (const file of files.slice(0, 100)) {
+      if (file.size > CONVERTER_MAX_BYTES) { items.push({ id: `${file.name}-${file.lastModified}`, file, detected: "unknown", target: "csv", preview: "", status: "failed", progress: 0, message: "Skipped: files must be 2 MiB or smaller; nothing was read." }); continue; }
+      const bytes = new Uint8Array(await file.slice(0, CONVERTER_MAX_BYTES).arrayBuffer());
+      const detected = detectConverterType(bytes); const text = new TextDecoder().decode(bytes);
+      const usable = detected === "json" || detected === "csv";
+      items.push({ id: `${file.name}-${file.lastModified}-${items.length}`, file, detected, target: detected === "csv" ? "json" : "csv", preview: text.slice(0, 4000), status: usable ? "queued" : "skipped", progress: 0, message: usable ? "Queued for the bundled offline adapter." : "Skipped: detected for inspection only; no adapter is enabled for this type." });
+    }
+    setConverterQueue(items);
+    const first = items[0];
+    setConverter(first ? { file: first.file, detected: first.detected, target: first.target, preview: first.preview, status: first.status === "queued" ? "ready" : first.status === "skipped" ? "error" : "error", progress: first.progress, message: first.message } : { file: null, detected: "unknown", target: "csv", preview: "", status: "empty", progress: 0, message: "" });
   }, []);
-  const cancelConverter = useCallback(() => { converterCancel.current = true; if (converterTimer.current) clearInterval(converterTimer.current); converterTimer.current = null; setConverter((current) => ({ ...current, status: "cancelled", message: "Conversion cancelled; the source file was not changed." })); }, []);
+  const inspectConverterFile = useCallback(async (file: File | null) => { await inspectConverterFiles(file ? [file] : []); }, [inspectConverterFiles]);
+  const cancelConverter = useCallback(() => { converterCancel.current = true; converterPausedRef.current = false; setConverterPaused(false); if (converterTimer.current) clearInterval(converterTimer.current); converterTimer.current = null; setConverterQueue((items) => items.map((item) => item.status === "queued" || item.status === "converting" ? { ...item, status: "cancelled", message: "Cancelled; the source file was not changed." } : item)); setConverter((current) => ({ ...current, status: "cancelled", message: "Batch conversion cancelled; source files were not changed." })); }, []);
+  const toggleConverterPause = useCallback(() => { const next = !converterPausedRef.current; converterPausedRef.current = next; setConverterPaused(next); }, []);
   const runConverter = useCallback(async () => {
-    if (!converter.file || (converter.detected !== "json" && converter.detected !== "csv")) return;
-    converterCancel.current = false; setConverter((current) => ({ ...current, status: "converting", progress: 0, message: "Converting locally…" }));
-    let progress = 0; converterTimer.current = setInterval(() => { progress = Math.min(90, progress + 15); setConverter((current) => ({ ...current, progress })); }, 70);
-    try {
-      const text = await converter.file.text();
-      const output = converter.detected === "json" && converter.target === "csv" ? convertJsonToCsv(JSON.parse(text)) : converter.detected === "csv" && converter.target === "json" ? convertCsvToJson(text) : text;
-      if (converterCancel.current) return;
-      const blob = new Blob([output], { type: converter.target === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${converter.file.name.replace(/\.[^.]+$/, "")}.${converter.target}`; anchor.click(); URL.revokeObjectURL(url);
-      setConverter((current) => ({ ...current, status: "complete", progress: 100, message: `Converted ${converter.file?.name} locally and downloaded the ${converter.target.toUpperCase()} result.` })); setToast("File conversion complete.");
-    } catch (error) { setConverter((current) => ({ ...current, status: "error", progress: 0, message: error instanceof Error ? error.message : "Conversion failed; no output was downloaded." })); }
-    finally { if (converterTimer.current) clearInterval(converterTimer.current); converterTimer.current = null; }
-  }, [converter]);
+    const pending = converterQueue.filter((item) => item.status === "queued");
+    if (!pending.length) return;
+    converterCancel.current = false; converterPausedRef.current = false; setConverterPaused(false); setConverter((current) => ({ ...current, status: "converting", message: `Converting ${pending.length} queued file${pending.length === 1 ? "" : "s"} locally…` }));
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < pending.length && !converterCancel.current) {
+        while (converterPausedRef.current && !converterCancel.current) await new Promise((resolve) => window.setTimeout(resolve, 80));
+        const item = pending[cursor++]; if (!item || converterCancel.current) break;
+        setConverterQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: "converting", progress: 10, message: "Converting locally…" } : entry));
+        try {
+          const text = await item.file.text();
+          const output = item.detected === "json" && item.target === "csv" ? convertJsonToCsv(JSON.parse(text)) : item.detected === "csv" && item.target === "json" ? convertCsvToJson(text) : "";
+          if (converterCancel.current) break;
+          const blob = new Blob([output], { type: item.target === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8" });
+          const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${item.file.name.replace(/\.[^.]+$/, "")}.${item.target}`; anchor.click(); URL.revokeObjectURL(url);
+          setConverterQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: "converted", progress: 100, message: `Converted locally and downloaded ${item.target.toUpperCase()}.` } : entry));
+        } catch (error) { setConverterQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: "failed", progress: 0, message: error instanceof Error ? error.message : "Conversion failed; no output was downloaded." } : entry)); }
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    setConverter((current) => ({ ...current, status: converterCancel.current ? "cancelled" : "complete", progress: 100, message: converterCancel.current ? "Batch conversion cancelled; source files were not changed." : "Batch conversion finished; each file has an honest outcome below." }));
+  }, [converterQueue]);
+  const converterCatalogResult = useMemo(() => {
+    const values = CONVERTER_CATEGORIES.filter(([category]) => {
+      if (!converterCatalogQuery) return true;
+      if (!converterCatalogRegex) return category.toLocaleLowerCase().includes(converterCatalogQuery.toLocaleLowerCase());
+      try { return new RegExp(converterCatalogQuery, `${converterCatalogFlags.i ? "i" : ""}${converterCatalogFlags.m ? "m" : ""}`).test(category); } catch { return false; }
+    });
+    let error = ""; if (converterCatalogRegex && converterCatalogQuery) { try { new RegExp(converterCatalogQuery, `${converterCatalogFlags.i ? "i" : ""}${converterCatalogFlags.m ? "m" : ""}`); } catch (e) { error = e instanceof Error ? e.message : "Invalid regular expression."; } }
+    return { values, error };
+  }, [converterCatalogFlags, converterCatalogQuery, converterCatalogRegex]);
   const drainSpeech = useCallback(() => {
     if (speechRunning.current || !narration.enabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const next = speechQueue.current.shift();
@@ -6209,15 +6253,19 @@ export default function SiteShell({
                 body={dual("Choose a local file up to 2 MiB. Only the offline JSON ↔ CSV adapter can write a result; every other category stays visible with its real unavailable reason.", "揀一個最多 2 MiB 嘅本機檔案。只有離線 JSON ↔ CSV adapter 可以寫結果；其他類別照樣顯示真正未有原因。", language)}
               />
               <div className="converter-controls">
-                <label className="file-picker-field"><span>{dual("Source file", "來源檔案", language)}</span><input type="file" accept=".json,.csv,.txt,application/json,text/csv,text/plain" onChange={(event) => void inspectConverterFile(event.target.files?.[0] ?? null)} aria-describedby="converter-status" /></label>
-                <label><span>{dual("Target format", "目標格式", language)}</span><select value={converter.target} onChange={(event) => setConverter((current) => ({ ...current, target: event.target.value as "json" | "csv" }))} disabled={converter.detected !== "json" && converter.detected !== "csv"}><option value="json">JSON</option><option value="csv">CSV</option></select></label>
-                <button type="button" className="filled-button" onClick={() => void runConverter()} disabled={converter.status === "converting" || !converter.file || (converter.detected !== "json" && converter.detected !== "csv")}>{dual("Convert and download", "轉換同下載", language)}</button>
-                <button type="button" className="outlined-button" onClick={cancelConverter} disabled={converter.status !== "converting"}>{dual("Cancel", "取消", language)}</button>
+                <label className="file-picker-field"><span>{dual("Source files (up to 100)", "來源檔案（最多 100 個）", language)}</span><input type="file" multiple accept=".json,.csv,.txt,application/json,text/csv,text/plain" onChange={(event) => void inspectConverterFiles(Array.from(event.target.files ?? []))} aria-describedby="converter-status" /></label>
+                <label><span>{dual("Target format", "目標格式", language)}</span><select value={converter.target} onChange={(event) => { const target = event.target.value as "json" | "csv"; setConverter((current) => ({ ...current, target })); setConverterQueue((items) => items.map((item) => item.status === "queued" ? { ...item, target } : item)); }} disabled={converter.detected !== "json" && converter.detected !== "csv"}><option value="json">JSON</option><option value="csv">CSV</option></select></label>
+                <button type="button" className="filled-button" onClick={() => void runConverter()} disabled={converter.status === "converting" || !converterQueue.some((item) => item.status === "queued")}>{dual("Convert queued files", "轉換排隊檔案", language)}</button>
+                <button type="button" className="outlined-button" onClick={toggleConverterPause} disabled={converter.status !== "converting"}>{converterPaused ? dual("Resume", "繼續", language) : dual("Pause", "暫停", language)}</button>
+                <button type="button" className="outlined-button" onClick={cancelConverter} disabled={converter.status !== "converting" && !converterQueue.some((item) => item.status === "queued")}>{dual("Cancel", "取消", language)}</button>
               </div>
-              <p id="converter-status" className="supporting-copy" role="status" aria-live="polite">{converter.message || dual("No file selected. Source files remain unchanged.", "未揀檔案；來源檔案唔會改。", language)}</p>
+              <p id="converter-status" className="supporting-copy" role="status" aria-live="polite">{converter.message || dual("No files selected. Sources remain unchanged; outputs are written only to the browser download destination.", "未揀檔案；來源唔會改，結果只會寫入瀏覽器下載位置。", language)}</p>
               {converter.file && <div className="converter-meta"><span>{converter.file.name} · {formatBytes(converter.file.size)} · detected {converter.detected}</span><progress max="100" value={converter.progress}>{converter.progress}%</progress></div>}
               {converter.preview && <pre className="converter-preview" aria-label={dual("Local file preview", "本機檔案預覽", language)}>{converter.preview}</pre>}
-              <div className="converter-adapter-grid">{CONVERTER_CATEGORIES.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" ? dual("Enabled · JSON ↔ CSV", "已啟用 · JSON ↔ CSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
+              {converterQueue.length > 0 && <div className="converter-queue" aria-label={dual("Batch conversion queue", "批次轉換排隊", language)}><strong>{dual("Batch outcomes · concurrency 2", "批次結果 · 同時處理 2 個", language)}</strong>{converterQueue.map((item) => <div className="converter-queue-row" key={item.id}><span className="converter-queue-name">{item.file.name} · {formatBytes(item.file.size)}</span><span className={`converter-queue-status converter-queue-${item.status}`}>{item.status}</span><span>{item.message}</span></div>)}</div>}
+              <div className="converter-catalog-search"><label className="search-field" htmlFor="converter-catalog-search"><span aria-hidden="true">⌕</span><input id="converter-catalog-search" value={converterCatalogQuery} onChange={(event) => setConverterCatalogQuery(event.target.value)} placeholder={dual("Search adapter catalog", "搜尋 adapter 目錄", language)} /><button type="button" className={converterCatalogRegex ? "active" : ""} onClick={() => setConverterCatalogRegex((current) => !current)}>{converterCatalogRegex ? "Regex" : "Plain"}</button></label><div className="builder-anchor"><button type="button" className={`builder-button ${converterCatalogBuilderOpen ? "active" : ""}`} onClick={() => setConverterCatalogBuilderOpen((current) => !current)} aria-expanded={converterCatalogBuilderOpen} aria-controls="converter-catalog-regex-builder">.* {dual("Regex builder", "正規表示式工具", language)}</button>{converterCatalogBuilderOpen && <RegexBuilder builderId="converter-catalog-regex-builder" query={converterCatalogQuery} setQuery={setConverterCatalogQuery} regexMode={converterCatalogRegex} setRegexMode={setConverterCatalogRegex} flags={converterCatalogFlags} setFlags={setConverterCatalogFlags} error={converterCatalogResult.error} sample={converterCatalogSample} setSample={setConverterCatalogSample} matches={converterCatalogResult.values.map(([category]) => category)} announce={announce} close={() => setConverterCatalogBuilderOpen(false)} />}</div></div>
+              <p className="search-meta" aria-live="polite">{converterCatalogResult.error || `${converterCatalogResult.values.length} adapter categor${converterCatalogResult.values.length === 1 ? "y" : "ies"} shown`}</p>
+              <div className="converter-adapter-grid">{converterCatalogResult.values.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" ? dual("Enabled · JSON ↔ CSV", "已啟用 · JSON ↔ CSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
             </section>
             <section className="ollama-surface" aria-labelledby="ollama-suite-title">
               <PageHeading eyebrow={dual("Local-only model tools", "本機限定模型工具", language)} title={dual("Ollama suite manager", "Ollama 工具套件管理", language)} body={dual("Use only Ollama's documented local HTTP API for health, installed-model reconciliation, bounded pulls, and local chat. No cloud services, payment semantics, credentials, telemetry, or arbitrary shell commands.", "只會用 Ollama 文件列明嘅本機 HTTP API 做健康檢查、已安裝模型同步、有限 pull 同本機聊天；唔連 cloud、唔收費、唔收集 credentials/telemetry、唔接受任意 shell 指令。", language)} />
