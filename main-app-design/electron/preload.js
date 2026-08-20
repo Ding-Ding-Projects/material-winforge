@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('winforge', {
   version: () => ipcRenderer.invoke('winforge:version'),
   mode: () => ipcRenderer.invoke('winforge:mode'),
   systemMetrics: () => ipcRenderer.invoke('winforge:system-metrics'),
+  readScheduledSource: payload => ipcRenderer.invoke('winforge:read-scheduled-source', payload),
   packageEngines: () => ipcRenderer.invoke('winforge:package-engines'),
   flushDns: () => ipcRenderer.invoke('winforge:flush-dns'),
   restartExplorer: () => ipcRenderer.invoke('winforge:restart-explorer'),

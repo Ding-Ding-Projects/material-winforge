@@ -787,6 +787,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
               <input value="{{ scheduleDraftLabel }}" onInput="{{ setScheduleDraft('scheduleDraftLabel') }}" maxlength="80" placeholder="Rule label" aria-label="Schedule rule label" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit">
               <select value="{{ scheduleDraftSource }}" onChange="{{ setScheduleDraftSource }}" aria-label="Schedule source" style="height:38px;padding:0 8px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"><option value="local">Local values</option><option value="https-api">HTTPS API (not configured)</option><option value="home-assistant">Home Assistant (not configured)</option></select>
+              <sc-if value="{{ scheduleSourceFieldsVisible }}" hint-placeholder-val="{{ false }}"><input value="{{ scheduleDraftUrl }}" onInput="{{ setScheduleDraft('scheduleDraftUrl') }}" maxlength="1024" placeholder="HTTPS endpoint or loopback URL" aria-label="Scheduled source URL" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"><input value="{{ scheduleDraftEntityId }}" onInput="{{ setScheduleDraft('scheduleDraftEntityId') }}" maxlength="112" placeholder="Home Assistant entity id (optional for API)" aria-label="Home Assistant entity id" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"><input value="{{ scheduleDraftCredentialRef }}" onInput="{{ setScheduleDraft('scheduleDraftCredentialRef') }}" maxlength="96" placeholder="Credential-vault reference (not token)" aria-label="Credential vault reference" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container);color:inherit"><label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">Refresh seconds (30–86400)<input type="number" min="30" max="86400" value="{{ scheduleDraftRefreshSeconds }}" onInput="{{ setScheduleDraft('scheduleDraftRefreshSeconds') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label></sc-if>
               <label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">Start date<input type="date" value="{{ scheduleDraftStartDate }}" onInput="{{ setScheduleDraft('scheduleDraftStartDate') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label>
               <label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">End date<input type="date" value="{{ scheduleDraftEndDate }}" onInput="{{ setScheduleDraft('scheduleDraftEndDate') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label>
               <label style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">Start time<input type="time" value="{{ scheduleDraftStartTime }}" onInput="{{ setScheduleDraft('scheduleDraftStartTime') }}" style="display:block;width:100%;height:36px;margin-top:3px"></label>
@@ -1919,7 +1920,7 @@ const RAIL = [
 const PKG_VIEWS = ['Discover', 'Updates', 'Installed', 'Bundles', 'Sources', 'Ignored', 'Setup', 'Settings', 'Operations'];
 const APP_SETTING_KEYS_V1 = Object.freeze(['theme', 'lang', 'funnyEn', 'funnyZh']);
 const APP_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS_V1, 'showEmojis']);
-const SCHEDULE_SCHEMA_VERSION = 1;
+const SCHEDULE_SCHEMA_VERSION = 2;
 const SCHEDULE_WEEKDAYS = Object.freeze(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
 const SCHEDULE_SETTING_KEYS = Object.freeze([...APP_SETTING_KEYS]);
 const SCHEDULE_SOURCES = Object.freeze(['local', 'https-api', 'home-assistant']);
@@ -2169,6 +2170,8 @@ class Component extends DCLogic {
     this.settingsProjects = (L && Array.isArray(L.settingsProjects) ? L.settingsProjects : []).slice(0, 50).filter(project => project && typeof project.id === 'string' && /^project-[a-z0-9-]{6,48}$/.test(project.id) && !seenProjects.has(project.id) && typeof project.name === 'string' && project.name.trim().length >= 1 && project.name.trim().length <= 64 && project.overrides && typeof project.overrides === 'object' && !Array.isArray(project.overrides) && Object.keys(project.overrides).every(key => APP_SETTING_KEYS.includes(key) && validSetting(key, project.overrides[key])) && (seenProjects.add(project.id) || true)).map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
     this.displayName = typeof (L && L.displayName) === 'string' && L.displayName.trim().length > 0 && L.displayName.trim().length <= DISPLAY_NAME_MAX_LENGTH && !/[\u0000-\u001f\u007f]/.test(L.displayName) ? L.displayName.trim() : SHIPPED_DISPLAY_NAME;
     this.schedules = this.validateSchedules(L && L.schedules);
+    this.scheduleSourceStates = Object.create(null);
+    this.scheduleSourceRequests = Object.create(null);
     this.scheduleQuery = '';
     this.activeProjectId = L && typeof L.activeProjectId === 'string' && this.settingsProjects.some(project => project.id === L.activeProjectId) ? L.activeProjectId : null;
     const activeSettingsProject = this.settingsProjects.find(project => project.id === this.activeProjectId);
@@ -2201,7 +2204,7 @@ class Component extends DCLogic {
       showEmojis: effectiveSettings.showEmojis,
       projectNameInput: '', schoolNameInput: this.schoolMode.name, schoolCredentialInput: '', schoolUnlockInput: '',
       unlockLadderAnswer: '',
-      scheduleDraftLabel: '', scheduleDraftStartDate: '', scheduleDraftEndDate: '', scheduleDraftStartTime: '09:00', scheduleDraftEndTime: '17:00', scheduleDraftWeekdays: [...SCHEDULE_WEEKDAYS], scheduleDraftPriority: 0, scheduleDraftSource: 'local', scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '',
+      scheduleDraftLabel: '', scheduleDraftStartDate: '', scheduleDraftEndDate: '', scheduleDraftStartTime: '09:00', scheduleDraftEndTime: '17:00', scheduleDraftWeekdays: [...SCHEDULE_WEEKDAYS], scheduleDraftPriority: 0, scheduleDraftSource: 'local', scheduleDraftUrl: '', scheduleDraftEntityId: '', scheduleDraftCredentialRef: '', scheduleDraftRefreshSeconds: 300, scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '',
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerKeyOne: false, explorerKeyTwo: false, explorerSlider: 0, explorerRestarting: false,
       recycleConfirm: false, recycleKeyOne: false, recycleKeyTwo: false, recycleSlider: 0, recycleRunning: false, recycleComplete: false,
@@ -2513,19 +2516,22 @@ class Component extends DCLogic {
     const validDate = value => value === '' || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + 'T00:00:00')));
     const validValue = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
     return payload.slice(0, 50).filter(rule => {
-      if (!rule || typeof rule !== 'object' || Array.isArray(rule) || Object.keys(rule).some(key => !['id', 'label', 'enabled', 'startDate', 'endDate', 'startTime', 'endTime', 'weekdays', 'priority', 'source', 'values', 'updatedAt'].includes(key))) return false;
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule) || Object.keys(rule).some(key => !['id', 'label', 'enabled', 'startDate', 'endDate', 'startTime', 'endTime', 'weekdays', 'priority', 'source', 'sourceUrl', 'entityId', 'credentialRef', 'refreshSeconds', 'values', 'updatedAt'].includes(key))) return false;
       if (typeof rule.id !== 'string' || !/^schedule-[a-z0-9-]{6,48}$/.test(rule.id) || seen.has(rule.id)) return false;
       if (typeof rule.label !== 'string' || rule.label.trim().length < 1 || rule.label.length > 80 || typeof rule.enabled !== 'boolean') return false;
       if (!validDate(rule.startDate || '') || !validDate(rule.endDate || '') || (rule.startDate && rule.endDate && rule.endDate < rule.startDate) || !validTime(rule.startTime || '') || !validTime(rule.endTime || '')) return false;
       if (!Array.isArray(rule.weekdays) || rule.weekdays.length < 1 || rule.weekdays.length > 7 || rule.weekdays.some(day => !SCHEDULE_WEEKDAYS.includes(day)) || new Set(rule.weekdays).size !== rule.weekdays.length) return false;
       if (!Number.isInteger(rule.priority) || rule.priority < 0 || rule.priority > 100) return false;
       if (!SCHEDULE_SOURCES.includes(rule.source || 'local') || !rule.values || typeof rule.values !== 'object' || Array.isArray(rule.values)) return false;
+      if ((rule.source || 'local') !== 'local' && (typeof rule.sourceUrl !== 'string' || rule.sourceUrl.length > 1024 || /[\u0000-\u001f\u007f]/.test(rule.sourceUrl) || (rule.source === 'home-assistant' && (typeof rule.entityId !== 'string' || !/^\w+\.\w+[\w.-]{0,96}$/.test(rule.entityId) || typeof rule.credentialRef !== 'string' || !/^[a-z0-9._-]{1,96}$/i.test(rule.credentialRef))))) return false;
+      if (rule.source !== 'local' && (!Number.isInteger(rule.refreshSeconds) || rule.refreshSeconds < 30 || rule.refreshSeconds > 86400)) return false;
       if (Object.keys(rule.values).some(key => !SCHEDULE_SETTING_KEYS.includes(key) || !validValue(key, rule.values[key]))) return false;
       seen.add(rule.id); return true;
-    }).map(rule => ({ id: rule.id, label: rule.label.trim(), enabled: rule.enabled, startDate: rule.startDate || '', endDate: rule.endDate || '', startTime: rule.startTime || '00:00', endTime: rule.endTime || '23:59', weekdays: [...rule.weekdays], priority: rule.priority, source: rule.source || 'local', values: { ...rule.values }, updatedAt: typeof rule.updatedAt === 'string' ? rule.updatedAt : '' }));
+    }).map(rule => ({ id: rule.id, label: rule.label.trim(), enabled: rule.enabled, startDate: rule.startDate || '', endDate: rule.endDate || '', startTime: rule.startTime || '00:00', endTime: rule.endTime || '23:59', weekdays: [...rule.weekdays], priority: rule.priority, source: rule.source || 'local', sourceUrl: typeof rule.sourceUrl === 'string' ? rule.sourceUrl.trim() : '', entityId: typeof rule.entityId === 'string' ? rule.entityId.trim() : '', credentialRef: typeof rule.credentialRef === 'string' ? rule.credentialRef.trim() : '', refreshSeconds: Number.isInteger(rule.refreshSeconds) ? rule.refreshSeconds : 300, values: { ...rule.values }, updatedAt: typeof rule.updatedAt === 'string' ? rule.updatedAt : '' }));
   }
   scheduleMatches(rule, now = new Date()) {
-    if (!rule.enabled || (rule.source && rule.source !== 'local')) return false;
+    if (!rule.enabled) return false;
+    if (rule.source && rule.source !== 'local' && this.scheduleSourceStates[rule.id]?.status !== 'active') return false;
     const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
     if (rule.startDate && date < rule.startDate || rule.endDate && date > rule.endDate) return false;
     const weekday = SCHEDULE_WEEKDAYS[(now.getDay() + 6) % 7];
@@ -2538,7 +2544,7 @@ class Component extends DCLogic {
   scheduledSettings(now = new Date()) {
     const base = { ...this.settingsGlobal, ...(this.settingsProjects.find(project => project.id === this.activeProjectId)?.overrides || {}) };
     const matches = this.schedules.filter(rule => this.scheduleMatches(rule, now)).sort((a, b) => b.priority - a.priority || String(a.updatedAt).localeCompare(String(b.updatedAt)) || a.id.localeCompare(b.id));
-    const effective = matches.reduce((values, rule) => ({ ...values, ...rule.values }), base);
+    const effective = matches.reduce((values, rule) => ({ ...values, ...(rule.source === 'local' ? rule.values : (this.scheduleSourceStates[rule.id]?.values || {})) }), base);
     return { base, effective, matches };
   }
   refreshScheduledSettings() {
@@ -2546,6 +2552,20 @@ class Component extends DCLogic {
     const current = this.state;
     const changed = SCHEDULE_SETTING_KEYS.some(key => current[key] !== effective[key]);
     if (changed) this.setState({ ...Object.fromEntries(SCHEDULE_SETTING_KEYS.map(key => [key, effective[key]])) });
+  }
+  async refreshScheduledSources() {
+    const candidates = this.schedules.filter(rule => rule.enabled && rule.source !== 'local' && rule.sourceUrl);
+    await Promise.all(candidates.map(async rule => {
+      const previous = this.scheduleSourceRequests[rule.id];
+      if (previous && Date.now() - previous.startedAt < rule.refreshSeconds * 1000) return;
+      const generation = (previous ? previous.generation : 0) + 1;
+      this.scheduleSourceRequests[rule.id] = { generation, startedAt: Date.now() };
+      const result = window.winforge && window.winforge.readScheduledSource ? await window.winforge.readScheduledSource({ source: rule.source, url: rule.sourceUrl, entityId: rule.entityId, credentialRef: rule.credentialRef, refreshSeconds: rule.refreshSeconds }) : { status: 'unavailable', message: 'The scheduled-source bridge is unavailable; base values remain active.' };
+      if (!this.scheduleSourceRequests[rule.id] || this.scheduleSourceRequests[rule.id].generation !== generation) return;
+      const previousState = this.scheduleSourceStates[rule.id] || {};
+      this.scheduleSourceStates[rule.id] = { status: result.status, values: result.status === 'active' ? result.values : (previousState.status === 'active' ? previousState.values : null), message: String(result.message || '').slice(0, 240), refreshedAt: result.refreshedAt || previousState.refreshedAt || '' };
+      this.refreshScheduledSettings(); this.bump();
+    }));
   }
   validateVocabularyPayload(payload) {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== 2 || payload.schemaVersion !== 1 || !payload.replacements || typeof payload.replacements !== 'object' || Array.isArray(payload.replacements)) return null;
@@ -2796,6 +2816,7 @@ class Component extends DCLogic {
     };
     this.pollSystemMetrics();
     this.refreshScheduledSettings();
+    this.refreshScheduledSources();
     this.refreshSnapshots();
     this.refreshJournal();
     this.refreshExternalEditors();
@@ -2803,7 +2824,7 @@ class Component extends DCLogic {
     this.saveTimer = setInterval(() => this.persist(), 4000);
     this.refreshAuthenticatorCodes();
     this.authTimer = setInterval(() => this.refreshAuthenticatorCodes(), 1000);
-    this.scheduleTimer = setInterval(() => this.refreshScheduledSettings(), 15000);
+    this.scheduleTimer = setInterval(() => { this.refreshScheduledSettings(); this.refreshScheduledSources(); }, 15000);
     this.narratorVoicesChanged = () => this.enumerateNarratorVoices();
     if ('speechSynthesis' in window) { window.speechSynthesis.addEventListener('voiceschanged', this.narratorVoicesChanged); this.enumerateNarratorVoices(); }
     this.onKey = e => {
@@ -3915,13 +3936,14 @@ class Component extends DCLogic {
     V.externalEditorOptions = this.externalEditors.map(editor => ({ label: editor.label, state: editor.status === 'available' ? (editor.editorId === this.externalEditorSelected ? 'Selected' : 'Available') : (editor.status === 'timeout' ? 'Discovery timed out' : 'Not installed'), selected: editor.editorId === this.externalEditorSelected, choose: () => this.selectExternalEditor(editor.editorId), disabled: editor.status !== 'available', bg: editor.editorId === this.externalEditorSelected ? prim : 'transparent', fg: editor.editorId === this.externalEditorSelected ? 'var(--md-sys-color-on-primary)' : onVar, border: editor.status === 'available' ? 'var(--md-sys-color-outline)' : 'var(--md-sys-color-outline-variant)' }));
     V.externalEditorOptionsEmpty = this.externalEditorStatus === 'loading' || !this.externalEditors.length;
     V.openExternalEditorTarget = () => this.openExternalEditorTarget();
-    V.scheduleDraftLabel = s.scheduleDraftLabel; V.scheduleDraftStartDate = s.scheduleDraftStartDate; V.scheduleDraftEndDate = s.scheduleDraftEndDate; V.scheduleDraftStartTime = s.scheduleDraftStartTime; V.scheduleDraftEndTime = s.scheduleDraftEndTime; V.scheduleDraftSource = s.scheduleDraftSource; V.scheduleDraftTheme = s.scheduleDraftTheme; V.scheduleDraftLang = s.scheduleDraftLang; V.scheduleDraftFunnyEn = s.scheduleDraftFunnyEn; V.scheduleDraftFunnyZh = s.scheduleDraftFunnyZh; V.scheduleDraftPriority = s.scheduleDraftPriority; V.scheduleDraftShowEmojis = s.scheduleDraftShowEmojis;
-    V.scheduleSourceLine = 'Local source is active. HTTPS API and Home Assistant are listed for the contract boundary but remain unconfigured here; no token or network request is stored by this preview.';
+    V.scheduleDraftLabel = s.scheduleDraftLabel; V.scheduleDraftStartDate = s.scheduleDraftStartDate; V.scheduleDraftEndDate = s.scheduleDraftEndDate; V.scheduleDraftStartTime = s.scheduleDraftStartTime; V.scheduleDraftEndTime = s.scheduleDraftEndTime; V.scheduleDraftSource = s.scheduleDraftSource; V.scheduleDraftUrl = s.scheduleDraftUrl; V.scheduleDraftEntityId = s.scheduleDraftEntityId; V.scheduleDraftCredentialRef = s.scheduleDraftCredentialRef; V.scheduleDraftRefreshSeconds = s.scheduleDraftRefreshSeconds; V.scheduleDraftTheme = s.scheduleDraftTheme; V.scheduleDraftLang = s.scheduleDraftLang; V.scheduleDraftFunnyEn = s.scheduleDraftFunnyEn; V.scheduleDraftFunnyZh = s.scheduleDraftFunnyZh; V.scheduleDraftPriority = s.scheduleDraftPriority; V.scheduleDraftShowEmojis = s.scheduleDraftShowEmojis;
+    V.scheduleSourceLine = 'Local values apply immediately. HTTPS API and Home Assistant refresh through a bounded privileged bridge; redirects, embedded credentials, oversized/malformed responses and stale generations fail safe to the last valid or base values. Tokens never enter this record.';
     V.scheduleEffectiveLine = scheduleEffective.matches.length ? ('Temporary override active: ' + scheduleEffective.matches.map(rule => rule.label).join(', ') + '. Base values return when the matching window ends.') : 'No rule is active now; the current project/global values are the base values.';
     const scheduleMatchesQuery = rule => this.match(this.scheduleQuery, [rule.label, rule.source, rule.startDate, rule.endDate, rule.startTime, rule.endTime, rule.weekdays.join(' '), Object.keys(rule.values).join(' ')].join(' '));
-    V.scheduleItems = this.schedules.filter(scheduleMatchesQuery).map(rule => ({ label: rule.label, window: (rule.startDate || 'Any date') + ' → ' + (rule.endDate || 'Any date') + ' · ' + rule.startTime + '–' + rule.endTime + ' · ' + rule.weekdays.join(', '), source: rule.source === 'local' ? 'Local' : rule.source === 'https-api' ? 'HTTPS API (not configured)' : 'Home Assistant (not configured)', state: rule.enabled ? (this.scheduleMatches(rule) ? 'Active now' : 'Enabled') : 'Disabled', priority: rule.priority, values: Object.entries(rule.values).map(([key, value]) => key + '=' + value).join(' · '), toggle: () => { rule.enabled = !rule.enabled; this.persist(); this.refreshScheduledSettings(); this.bump(); } }));
+    V.scheduleItems = this.schedules.filter(scheduleMatchesQuery).map(rule => { const sourceState = this.scheduleSourceStates[rule.id]; return { label: rule.label, window: (rule.startDate || 'Any date') + ' → ' + (rule.endDate || 'Any date') + ' · ' + rule.startTime + '–' + rule.endTime + ' · ' + rule.weekdays.join(', '), source: rule.source === 'local' ? 'Local' : rule.source === 'https-api' ? 'HTTPS API · ' + (sourceState?.status || 'waiting') : 'Home Assistant · ' + (sourceState?.status || 'waiting'), state: rule.enabled ? (this.scheduleMatches(rule) ? 'Active now' : (sourceState?.message || 'Enabled; waiting for a validated source response.')) : 'Disabled', priority: rule.priority, values: Object.entries(rule.source === 'local' ? rule.values : (sourceState?.values || rule.values)).map(([key, value]) => key + '=' + value).join(' · '), toggle: () => { rule.enabled = !rule.enabled; this.persist(); this.refreshScheduledSettings(); this.refreshScheduledSources(); this.bump(); } }; });
     V.scheduleNoMatch = this.schedules.length > 0 && V.scheduleItems.length === 0;
     V.scheduleDraftWeekdays = SCHEDULE_WEEKDAYS.map(day => ({ day, checked: s.scheduleDraftWeekdays.includes(day), toggle: () => { const next = s.scheduleDraftWeekdays.includes(day) ? s.scheduleDraftWeekdays.filter(item => item !== day) : [...s.scheduleDraftWeekdays, day]; this.setState({ scheduleDraftWeekdays: next }); } }));
+    V.scheduleSourceFieldsVisible = s.scheduleDraftSource !== 'local';
     V.setScheduleDraft = key => e => this.setState({ [key]: String(e.target.value || '').slice(0, key === 'scheduleDraftLabel' ? 80 : 32) });
     V.setScheduleDraftPriority = e => this.setState({ scheduleDraftPriority: Math.max(0, Math.min(100, Number(e.target.value) || 0)) });
     V.setScheduleDraftSource = e => this.setState({ scheduleDraftSource: SCHEDULE_SOURCES.includes(e.target.value) ? e.target.value : 'local' });
@@ -3938,9 +3960,9 @@ class Component extends DCLogic {
       if (d.scheduleDraftShowEmojis) values.showEmojis = d.scheduleDraftShowEmojis === 'on';
       if (!Object.keys(values).length) { this.notify('Scheduled settings', 'Choose at least one temporary setting value.', 'warning', true); return; }
       const id = 'schedule-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-      const rule = { id, label, enabled: true, startDate: d.scheduleDraftStartDate, endDate: d.scheduleDraftEndDate, startTime: d.scheduleDraftStartTime, endTime: d.scheduleDraftEndTime, weekdays: [...d.scheduleDraftWeekdays], priority: d.scheduleDraftPriority, source: d.scheduleDraftSource, values, updatedAt: new Date().toISOString() };
+      const rule = { id, label, enabled: true, startDate: d.scheduleDraftStartDate, endDate: d.scheduleDraftEndDate, startTime: d.scheduleDraftStartTime, endTime: d.scheduleDraftEndTime, weekdays: [...d.scheduleDraftWeekdays], priority: d.scheduleDraftPriority, source: d.scheduleDraftSource, sourceUrl: d.scheduleDraftUrl.trim(), entityId: d.scheduleDraftEntityId.trim(), credentialRef: d.scheduleDraftCredentialRef.trim(), refreshSeconds: Math.max(30, Math.min(86400, Number(d.scheduleDraftRefreshSeconds) || 300)), values, updatedAt: new Date().toISOString() };
       if (!this.validateSchedules([rule]).length) { this.notify('Scheduled settings', 'The rule could not be validated and was not saved.', 'error', true); return; }
-      this.schedules.push(rule); this.setState({ scheduleDraftLabel: '', scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '' }, () => { this.persist(); this.refreshScheduledSettings(); this.bump(); });
+      this.schedules.push(rule); this.setState({ scheduleDraftLabel: '', scheduleDraftUrl: '', scheduleDraftEntityId: '', scheduleDraftCredentialRef: '', scheduleDraftRefreshSeconds: 300, scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '' }, () => { this.persist(); this.refreshScheduledSettings(); this.refreshScheduledSources(); this.bump(); });
     };
     // package manager
     V.isPackages = r.view === 'packages';
