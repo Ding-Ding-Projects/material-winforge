@@ -14,6 +14,13 @@
 - Added `docs/application/export-center.md`, the application index entry, inventory row, and changelog record.
 - Tests, lint, reviews, screenshots, packaged/runtime interaction, and accessibility review were not run in this bounded implementation lane.
 
+## Luna site documentation-browser lane — `codex/luna-offline-docs-browser`
+
+- Extended `pages/app/SiteShell.tsx` and `pages/app/globals.css` with a local Documentation search covering article titles, bilingual titles, section headings, body text, and related labels. Plain text is the default; the adjacent anchored builder uses the browser JavaScript `RegExp` dialect with flags, guided tokens, sample matches, and inline invalid-pattern handling.
+- Added real article-to-article controls in Suggested articles, bounded browser persistence for the selected article/query/mode, and truthful no-article/no-match states. Search and article state remain local-only and do not touch the installed desktop runtime.
+- Added `docs/site/offline-documentation.md`, its index entry, and the completeness inventory/changelog records.
+- Tests, lint, reviews, runtime interaction, screenshots, release, and publication remain unrun/unverified for this lane; the next owner should run the sequential site builds and built-artifact interaction evidence.
+
 ## Unlock ladder lane — `codex/luna-unlock-ladder`
 
 - Added the local-only unlock ladder waiting aid to `pages/app/SiteShell.tsx` and `pages/app/globals.css`. It starts at a four-choice dim-sum rung unless School mode is enabled, advances through ten sums and a timed mole round, and falls to clock-only after a lost round.

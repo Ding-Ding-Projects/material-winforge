@@ -1983,6 +1983,11 @@ export default function SiteShell({
   const [statusLastUpdated, setStatusLastUpdated] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [articleId, setArticleId] = useState(ARTICLES[0].id);
+  const [docsQuery, setDocsQuery] = useState("");
+  const [docsRegex, setDocsRegex] = useState(false);
+  const [docsBuilderOpen, setDocsBuilderOpen] = useState(false);
+  const [docsFlags, setDocsFlags] = useState({ i: true, m: false });
+  const [docsSample, setDocsSample] = useState("Behavior\nConfiguration\nFailure modes\nSecurity and privacy\nVerification");
   const [settingsGridTarget, setSettingsGridTarget] = useState<Element | null>(
     null,
   );
@@ -2435,6 +2440,17 @@ export default function SiteShell({
     }
     const ticketRecord = readLocalRecord(SUPPORT_TICKET_KEY, SUPPORT_TICKET_MAX_BYTES);
     if (ticketRecord.raw) { try { const parsed = normalizeSupportTickets(JSON.parse(ticketRecord.raw)); if (parsed) setSupportTickets(parsed); else removeLocalRecord(SUPPORT_TICKET_KEY); } catch { removeLocalRecord(SUPPORT_TICKET_KEY); } }
+    const docsRecord = readLocalRecord("winforge-site-docs-v1", 8 * 1024);
+    if (docsRecord.raw) {
+      try {
+        const parsed = JSON.parse(docsRecord.raw) as { articleId?: unknown; query?: unknown; regex?: unknown };
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          if (typeof parsed.articleId === "string" && ARTICLES.some((article) => article.id === parsed.articleId)) setArticleId(parsed.articleId);
+          if (typeof parsed.query === "string" && parsed.query.length <= 128) setDocsQuery(parsed.query);
+          if (typeof parsed.regex === "boolean") setDocsRegex(parsed.regex);
+        }
+      } catch { removeLocalRecord("winforge-site-docs-v1"); }
+    }
     setHydrated(true);
   }, []);
   useEffect(() => {
@@ -2456,6 +2472,9 @@ export default function SiteShell({
   useEffect(() => { if (hydrated && !writeLocalRecord(TOY_LOCK_KEY, toyLocks, TOY_LOCK_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, toyLocks]);
   useEffect(() => { if (hydrated && !writeLocalRecord(SUPPORT_TICKET_KEY, supportTickets, SUPPORT_TICKET_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, supportTickets]);
   useEffect(() => { if (hydrated && !writeLocalRecord(LOCAL_HISTORY_KEY, localHistory, LOCAL_HISTORY_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, localHistory]);
+  useEffect(() => {
+    if (hydrated && !writeLocalRecord("winforge-site-docs-v1", { schemaVersion: 1, articleId, query: docsQuery, regex: docsRegex }, 8 * 1024)) setPersistenceAvailable(false);
+  }, [articleId, docsQuery, docsRegex, hydrated]);
   useEffect(() => {
     const tick = () => {
       const now = Date.now(); setAuthSeconds(Math.max(0, 30 - Math.floor((now / 1000) % 30)));
@@ -3605,6 +3624,25 @@ export default function SiteShell({
       text(item).toLocaleLowerCase().includes(needle),
     );
   }, [query, regexMode, regexResult.expression, schoolEnabled]);
+  const docsRegexResult = useMemo(() => {
+    if (!docsRegex || !docsQuery) return { expression: null as RegExp | null, error: "" };
+    try {
+      return { expression: new RegExp(docsQuery, `${docsFlags.i ? "i" : ""}${docsFlags.m ? "m" : ""}`), error: "" };
+    } catch (error) {
+      return { expression: null, error: error instanceof Error ? error.message : "Invalid regular expression" };
+    }
+  }, [docsFlags, docsQuery, docsRegex]);
+  const docsSearchResult = useMemo(() => {
+    const text = (article: (typeof ARTICLES)[number]) => `${article.title} ${article.titleYue} ${article.sections.flat().join(" ")} ${article.related.join(" ")}`;
+    if (!docsQuery) return ARTICLES;
+    if (docsRegex) return docsRegexResult.expression ? ARTICLES.filter((article) => docsRegexResult.expression?.test(text(article))) : [];
+    const needle = docsQuery.toLocaleLowerCase();
+    return ARTICLES.filter((article) => text(article).toLocaleLowerCase().includes(needle));
+  }, [docsQuery, docsRegex, docsRegexResult.expression]);
+  const docsSampleMatches = useMemo(() => {
+    if (!docsRegex || !docsQuery || !docsRegexResult.expression) return [] as RegExpMatchArray[];
+    try { return Array.from(docsSample.matchAll(new RegExp(docsQuery, `${docsFlags.i ? "i" : ""}${docsFlags.m ? "m" : ""}g`))).slice(0, 50); } catch { return []; }
+  }, [docsFlags, docsQuery, docsRegex, docsRegexResult.expression, docsSample]);
   const sampleMatches = useMemo(() => {
     if (!regexMode || !query || !regexResult.expression)
       return [] as RegExpMatchArray[];
@@ -6434,9 +6472,23 @@ export default function SiteShell({
                 language,
               )}
             />
+            <div className="docs-search-region" aria-label={dual("Search documentation", "搜尋文件", language)}>
+              <div className="search-row">
+                <label className="search-field" htmlFor="docs-search">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="docs-search" value={docsQuery} onChange={(event) => setDocsQuery(event.target.value)} placeholder={dual("Search articles and article text", "搜尋文章同文章內容", language)} />
+                  {docsQuery && <button type="button" onClick={() => setDocsQuery("")} aria-label={dual("Clear documentation search", "清除文件搜尋", language)}>×</button>}
+                </label>
+                <div className="builder-anchor">
+                  <button className={`builder-button ${docsBuilderOpen ? "active" : ""}`} type="button" onClick={() => setDocsBuilderOpen((value) => !value)} aria-expanded={docsBuilderOpen} aria-controls="docs-regex-builder"><span aria-hidden="true">.*</span>{dual("Regex builder", "正規表示式工具", language)}</button>
+                  {docsBuilderOpen && <RegexBuilder builderId="docs-regex-builder" language={language} query={docsQuery} setQuery={setDocsQuery} regexMode={docsRegex} setRegexMode={setDocsRegex} flags={docsFlags} setFlags={setDocsFlags} error={docsRegexResult.error} sample={docsSample} setSample={setDocsSample} matches={docsSampleMatches} announce={announce} close={() => setDocsBuilderOpen(false)} />}
+                </div>
+              </div>
+              <div className="search-meta" aria-live="polite"><span>{docsRegex ? `JavaScript RegExp /${docsQuery}/${docsFlags.i ? "i" : ""}${docsFlags.m ? "m" : ""}` : dual("Plain-text search", "純文字搜尋", language)}</span><strong>{docsRegexResult.error || `${docsSearchResult.length} ${dual(docsSearchResult.length === 1 ? "article" : "articles", "篇文章", language)}`}</strong></div>
+            </div>
             <div className="docs-layout">
               <nav className="article-list" aria-label="Documentation articles">
-                {ARTICLES.map((article) => (
+                {docsSearchResult.map((article) => (
                   <button
                     key={article.id}
                     type="button"
@@ -6450,7 +6502,7 @@ export default function SiteShell({
                   </button>
                 ))}
               </nav>
-              {ARTICLES.filter((a) => a.id === articleId).map((article) => (
+              {docsSearchResult.filter((a) => a.id === articleId).map((article) => (
                 <article
                   key={article.id}
                   id={`article-${article.id}`}
@@ -6476,13 +6528,16 @@ export default function SiteShell({
                       {dual("Suggested articles", "建議文章", language)}
                     </strong>
                     <ul>
-                      {article.related.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
+                      {article.related.map((item) => {
+                        const related = ARTICLES.find((candidate) => candidate.title === item);
+                        return <li key={item}>{related ? <button type="button" className="article-link" onClick={() => { setDocsQuery(""); setDocsRegex(false); setArticleId(related.id); }}>{dual(related.title, related.titleYue, language)}</button> : item}</li>;
+                      })}
                     </ul>
                   </div>
                 </article>
               ))}
+              {!docsSearchResult.length && <div className="empty-state" role="status"><span aria-hidden="true">⌕</span><h2>{dual("No articles match", "冇文章符合", language)}</h2><p>{dual("Change the query or return to plain text. No article was opened.", "改吓搜尋字或者轉返純文字；未有文章開啟。", language)}</p></div>}
+              {docsSearchResult.length > 0 && !docsSearchResult.some((article) => article.id === articleId) && <div className="empty-state" role="status"><span aria-hidden="true">▤</span><h2>{dual("Choose an article", "揀一篇文章", language)}</h2><p>{dual("Select an article from the filtered list to open it locally.", "喺篩選後嘅清單揀一篇文章，就可以喺本機開啟。", language)}</p></div>}
             </div>
           </Panel>
         )}
