@@ -42,6 +42,28 @@ const EXTERNAL_APP_EXECUTABLES = Object.freeze({
   dockerdesktop: ['Docker Desktop.exe'],
   wireshark: ['Wireshark.exe'],
 });
+const EXTERNAL_EDITOR_CANDIDATES = Object.freeze({
+  vscode: Object.freeze({
+    label: 'Visual Studio Code',
+    executables: Object.freeze(['Code.exe', 'code.exe']),
+    fixedPaths: Object.freeze([
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Microsoft VS Code', 'Code.exe'),
+      path.join(process.env.PROGRAMFILES || '', 'Microsoft VS Code', 'Code.exe'),
+      path.join(process.env['PROGRAMFILES(X86)'] || '', 'Microsoft VS Code', 'Code.exe'),
+    ]),
+  }),
+  notepadpp: Object.freeze({
+    label: 'Notepad++',
+    executables: Object.freeze(['notepad++.exe']),
+    fixedPaths: Object.freeze([
+      path.join(process.env.PROGRAMFILES || '', 'Notepad++', 'notepad++.exe'),
+      path.join(process.env['PROGRAMFILES(X86)'] || '', 'Notepad++', 'notepad++.exe'),
+    ]),
+  }),
+});
+const EXTERNAL_EDITOR_IDS = Object.freeze(Object.keys(EXTERNAL_EDITOR_CANDIDATES));
+const EXTERNAL_EDITOR_FILE = 'external-editor.json';
+const EXTERNAL_EDITOR_PATH_MAX = 2048;
 const PACKAGE_ENGINE_EXECUTABLES = Object.freeze({
   winget: ['winget.exe'],
   scoop: ['scoop.cmd'],
@@ -196,6 +218,80 @@ function discoverExecutable(candidate, signal) {
       resolve({ status: 'found', executable: match });
     });
   });
+}
+
+function externalEditorResult(status, message, extra = {}) {
+  return { schemaVersion: 1, status, message: String(message).slice(0, 240), ...extra };
+}
+
+function validEditorId(id) {
+  return typeof id === 'string' && EXTERNAL_EDITOR_IDS.includes(id);
+}
+
+async function readExternalEditorPreference() {
+  try {
+    const raw = await fs.promises.readFile(path.join(app.getPath('userData'), EXTERNAL_EDITOR_FILE), 'utf8');
+    const value = JSON.parse(raw);
+    if (!value || value.schemaVersion !== 1 || !validEditorId(value.editorId)) return null;
+    return value.editorId;
+  } catch { return null; }
+}
+
+async function writeExternalEditorPreference(editorId) {
+  if (!validEditorId(editorId)) return false;
+  try {
+    const directory = app.getPath('userData');
+    await fs.promises.mkdir(directory, { recursive: true });
+    const temporary = path.join(directory, `.${EXTERNAL_EDITOR_FILE}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`);
+    await fs.promises.writeFile(temporary, `${JSON.stringify({ schemaVersion: 1, editorId }, null, 2)}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    await fs.promises.rename(temporary, path.join(directory, EXTERNAL_EDITOR_FILE));
+    return true;
+  } catch { return false; }
+}
+
+async function discoverExternalEditor(editorId) {
+  if (!validEditorId(editorId)) return externalEditorResult('invalid-id', 'The requested editor identifier is not allowed.', { editorId: '' });
+  const candidate = EXTERNAL_EDITOR_CANDIDATES[editorId];
+  const checked = new Set();
+  for (const fixedPath of candidate.fixedPaths) {
+    if (!path.isAbsolute(fixedPath) || checked.has(fixedPath.toLowerCase())) continue;
+    checked.add(fixedPath.toLowerCase());
+    try {
+      if (fs.statSync(fixedPath).isFile()) return externalEditorResult('available', `${candidate.label} is installed at a fixed Windows location.`, { editorId, label: candidate.label, executable: fixedPath });
+    } catch {}
+  }
+  for (const executable of candidate.executables) {
+    const found = await discoverExecutable(executable, new AbortController().signal);
+    if (found.status === 'found') return externalEditorResult('available', `${candidate.label} is available on PATH.`, { editorId, label: candidate.label, executable: found.executable });
+    if (found.status === 'timeout') return externalEditorResult('timeout', `${candidate.label} discovery timed out.`, { editorId, label: candidate.label });
+  }
+  return externalEditorResult('not-installed', `${candidate.label} is not installed in the supported fixed locations or on PATH.`, { editorId, label: candidate.label });
+}
+
+async function listExternalEditors() {
+  const preferred = await readExternalEditorPreference();
+  const editors = [];
+  for (const id of EXTERNAL_EDITOR_IDS) editors.push(await discoverExternalEditor(id));
+  const selected = preferred && editors.some(item => item.editorId === preferred && item.status === 'available') ? preferred : null;
+  return { schemaVersion: 1, status: 'listed', selectedEditorId: selected, editors };
+}
+
+async function openInExternalEditor(payload) {
+  if (!payload || typeof payload !== 'object' || !validEditorId(payload.editorId)) return externalEditorResult('invalid-id', 'The requested editor identifier is not allowed.', { editorId: '' });
+  const target = typeof payload.target === 'string' ? payload.target.trim() : '';
+  if (!target || target.length > EXTERNAL_EDITOR_PATH_MAX || /[\u0000-\u001f\u007f]/.test(target) || !path.isAbsolute(target) || /^(https?|file):/i.test(target)) return externalEditorResult('invalid-target', 'The selected file or project folder path is invalid.', { editorId: payload.editorId });
+  const editor = await discoverExternalEditor(payload.editorId);
+  if (editor.status !== 'available') return externalEditorResult(editor.status, editor.message, { editorId: payload.editorId, label: editor.label });
+  try {
+    const stat = await fs.promises.stat(target);
+    if (!stat.isFile() && !stat.isDirectory()) return externalEditorResult('invalid-target', 'The selected path is not a file or folder.', { editorId: payload.editorId, label: editor.label });
+    const error = await new Promise(resolve => execFile(editor.executable, [target], { windowsHide: true, shell: false, timeout: 5_000 }, error => resolve(error || null)));
+    if (error) return externalEditorResult(error.code === 'ETIMEDOUT' ? 'timeout' : 'error', 'The selected editor was found but could not open the target.', { editorId: payload.editorId, label: editor.label });
+    await writeExternalEditorPreference(payload.editorId);
+    return externalEditorResult('opened', `${editor.label} opened the selected target.`, { editorId: payload.editorId, label: editor.label });
+  } catch (error) {
+    return externalEditorResult(error && error.code === 'ENOENT' ? 'not-found' : 'error', 'The selected target could not be opened by the editor.', { editorId: payload.editorId, label: editor.label });
+  }
 }
 
 async function readPackageEngines() {
@@ -806,6 +902,15 @@ ipcMain.handle('winforge:cancel-winget-upgrade', () => {
   return { schemaVersion: 1, status: 'cancelled', message: 'Winget upgrade cancellation was requested.' };
 });
 ipcMain.handle('winforge:launch-external-app', (_event, id) => launchExternalApp(id));
+ipcMain.handle('winforge:list-external-editors', () => listExternalEditors());
+ipcMain.handle('winforge:set-external-editor', async (_event, id) => {
+  if (!validEditorId(id)) return externalEditorResult('invalid-id', 'The requested editor identifier is not allowed.', { editorId: '' });
+  const editor = await discoverExternalEditor(id);
+  if (editor.status !== 'available') return externalEditorResult(editor.status, editor.message, { editorId: id, label: editor.label });
+  if (!(await writeExternalEditorPreference(id))) return externalEditorResult('persistence-failed', 'The editor was found, but its preference could not be persisted.', { editorId: id, label: editor.label });
+  return externalEditorResult('saved', `${editor.label} is now the selected external editor.`, { editorId: id, label: editor.label });
+});
+ipcMain.handle('winforge:open-in-external-editor', (_event, payload) => openInExternalEditor(payload));
 ipcMain.handle('winforge:cancel-external-app-launch', (_event, id) => {
   if (typeof id !== 'string' || !Object.hasOwn(EXTERNAL_APP_EXECUTABLES, id)) return externalAppResult('', 'invalid-id', 'The requested app identifier is not allowed.');
   const controller = externalAppLaunches.get(id);

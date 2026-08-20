@@ -724,6 +724,17 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         </section>
         </sc-if>
 
+        <sc-if value="{{ showSettingsExternalEditor }}" hint-placeholder-val="{{ true }}">
+        <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:start"><div><h2 style="margin:0 0 6px;font-size:16px;font-weight:500">External editor</h2><p style="margin:0;color:var(--md-sys-color-on-surface-variant);font-size:12.5px">Choose one installed editor, persist that choice locally, and open a project folder or exported file from the exact path you provide. Detection uses only fixed Windows candidates and PATH; no arbitrary command or shell string is accepted.</p></div><span class="ms" aria-hidden="true">open_in_new</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px" role="listbox" aria-label="Installed external editor choices"><sc-for list="{{ externalEditorOptions }}" as="editor" hint-placeholder-count="2"><button onClick="{{ editor.choose }}" disabled="{{ editor.disabled }}" aria-selected="{{ editor.selected }}" style="height:38px;padding:0 16px;border:1px solid {{ editor.border }};border-radius:999px;background:{{ editor.bg }};color:{{ editor.fg }};font-weight:500">{{ editor.label }} · {{ editor.state }}</button></sc-for></div>
+          <sc-if value="{{ externalEditorOptionsEmpty }}" hint-placeholder-val="{{ true }}"><p style="margin:12px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px">{{ externalEditorMessage }}</p></sc-if>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:14px"><label style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:320px;font-size:12px">Project folder or exported file path<input value="{{ externalEditorTarget }}" onInput="{{ setExternalEditorTarget }}" maxlength="2048" placeholder="C:\\Users\\you\\Documents\\project" aria-label="Absolute project folder or exported file path" style="height:40px;padding:0 12px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><button onClick="{{ openExternalEditorTarget }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Open in selected editor</button><button onClick="{{ refreshExternalEditors }}" style="height:40px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">Refresh editors</button></div>
+          <p style="margin:12px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px" role="status" aria-live="polite">{{ externalEditorMessage }}</p>
+          <p style="margin:8px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px">VS Code is the preferred export handoff. When it is not installed, the app says so and leaves the export untouched; no editor is downloaded or installed by this control.</p>
+        </section>
+        </sc-if>
+
         <sc-if value="{{ showSettingsLocal }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant)">
           <h2 style="margin:0 0 16px;font-size:16px;font-weight:500">Local state</h2>
@@ -2005,6 +2016,8 @@ class Component extends DCLogic {
     this.snacks = [];
     this.updateInfo = { state: 'idle', currentVersion: '1.0.0', version: null, releaseNotesUrl: null, progress: null, message: 'Updates have not been checked yet.', unsigned: true };
     this.externalAppStates = {};
+    this.externalEditors = [];
+    this.externalEditorSelected = null;
     this.packageEngineStates = {};
     this.recycleSubmitActive = false;
     this.snapshotQuery = '';
@@ -2051,6 +2064,7 @@ class Component extends DCLogic {
       journalEntries: [], journalLoading: false, journalListStatus: 'stale', journalInvalidCount: 0, journalTruncated: false,
       vocabStatus: this.personalVocabulary ? 'loaded' : 'no-file', vocabMessage: '',
       wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null,
+      externalEditorTarget: '', externalEditorStatus: 'stale', externalEditorMessage: 'Not checked yet.',
       notifsOpen: false, adminDismissed: false,
       rowFilter: '', regexOpen: false, result: null,
       sys: {
@@ -2260,6 +2274,44 @@ class Component extends DCLogic {
       this.setState({ journalEntries: entries, journalLoading: false, journalListStatus: result.status, journalInvalidCount: Number.isInteger(result.invalidCount) ? Math.max(0, Math.min(10000, result.invalidCount)) : 0, journalTruncated: result.truncated === true });
     }).catch(() => this.setState({ journalEntries: [], journalLoading: false, journalListStatus: 'invalid' }));
   }
+  refreshExternalEditors() {
+    const bridge = window.winforge;
+    if (!bridge || !bridge.listExternalEditors) { this.setState({ externalEditorStatus: 'unavailable', externalEditorMessage: 'External-editor integration requires the packaged desktop bridge.' }); return; }
+    this.setState({ externalEditorStatus: 'loading', externalEditorMessage: 'Checking supported editor candidates…' });
+    bridge.listExternalEditors().then(result => {
+      const editors = result && result.schemaVersion === 1 && result.status === 'listed' && Array.isArray(result.editors) ? result.editors.filter(item => item && ['available', 'not-installed', 'timeout'].includes(item.status) && typeof item.editorId === 'string' && typeof item.label === 'string' && typeof item.message === 'string') : [];
+      if (!editors.length) throw new Error('invalid');
+      const selected = typeof result.selectedEditorId === 'string' && editors.some(item => item.editorId === result.selectedEditorId && item.status === 'available') ? result.selectedEditorId : null;
+      this.externalEditors = editors;
+      this.externalEditorSelected = selected;
+      this.setState({ externalEditorStatus: 'listed', externalEditorMessage: selected ? `${editors.find(item => item.editorId === selected).label} is selected.` : 'No installed editor is selected yet.' });
+    }).catch(() => { this.externalEditors = []; this.externalEditorSelected = null; this.setState({ externalEditorStatus: 'invalid', externalEditorMessage: 'The editor discovery response was invalid. Refresh to retry.' }); });
+  }
+  selectExternalEditor(id) {
+    const bridge = window.winforge;
+    if (!bridge || !bridge.setExternalEditor) { this.setState({ externalEditorStatus: 'unavailable', externalEditorMessage: 'Selecting an external editor requires the packaged desktop bridge.' }); return; }
+    const candidate = this.externalEditors.find(item => item.editorId === id);
+    if (!candidate || candidate.status !== 'available') return;
+    this.setState({ externalEditorStatus: 'saving', externalEditorMessage: `Saving ${candidate.label} as the external editor…` });
+    bridge.setExternalEditor(id).then(result => {
+      if (!result || result.schemaVersion !== 1 || result.status !== 'saved' || result.editorId !== id) throw new Error('invalid');
+      this.externalEditorSelected = id;
+      this.setState({ externalEditorStatus: 'listed', externalEditorMessage: result.message });
+    }).catch(() => this.setState({ externalEditorStatus: 'error', externalEditorMessage: 'The editor preference could not be saved. Retry is available.' }));
+  }
+  openExternalEditorTarget() {
+    const bridge = window.winforge;
+    const editorId = this.externalEditorSelected;
+    const target = String(this.state.externalEditorTarget || '').trim();
+    if (!bridge || !bridge.openInExternalEditor) { this.setState({ externalEditorStatus: 'unavailable', externalEditorMessage: 'Opening a target requires the packaged desktop bridge.' }); return; }
+    if (!editorId) { this.setState({ externalEditorStatus: 'error', externalEditorMessage: 'Choose an installed editor before opening a target.' }); return; }
+    if (!target) { this.setState({ externalEditorStatus: 'error', externalEditorMessage: 'Enter an absolute project folder or file path first.' }); return; }
+    this.setState({ externalEditorStatus: 'opening', externalEditorMessage: 'Opening the selected target…' });
+    bridge.openInExternalEditor({ editorId, target }).then(result => {
+      if (!result || result.schemaVersion !== 1 || typeof result.status !== 'string' || typeof result.message !== 'string') throw new Error('invalid');
+      this.setState({ externalEditorStatus: result.status === 'opened' ? 'listed' : result.status, externalEditorMessage: result.message });
+    }).catch(() => this.setState({ externalEditorStatus: 'error', externalEditorMessage: 'The external-editor request failed. No target was changed.' }));
+  }
   persist() {
     try {
       localStorage.setItem(KEY, JSON.stringify({
@@ -2309,6 +2361,7 @@ class Component extends DCLogic {
     this.refreshScheduledSettings();
     this.refreshSnapshots();
     this.refreshJournal();
+    this.refreshExternalEditors();
     this.sysTimer = setInterval(this.pollSystemMetrics, 4000);
     this.saveTimer = setInterval(() => this.persist(), 4000);
     this.scheduleTimer = setInterval(() => this.refreshScheduledSettings(), 15000);
@@ -3226,8 +3279,9 @@ class Component extends DCLogic {
     V.showSettingsFunny = !this.schoolMode.enabled && this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
     V.showSettingsNarrator = !this.schoolMode.enabled && this.match(settingsSearch, 'narrator voice speech language rate pitch local offline notifications English Cantonese bilingual');
     V.showSettingsSchedule = this.match(settingsSearch, 'scheduled settings schedule calendar date time weekday timezone local api home assistant temporary override precedence external source credential');
+    V.showSettingsExternalEditor = this.match(settingsSearch, 'external editor Visual Studio Code VS Code Notepad++ project folder file export open editor installed PATH preference');
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
-    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsLocal;
+    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsExternalEditor && !V.showSettingsLocal;
     V.schoolModeEnabled = this.schoolMode.enabled;
     V.schoolModeDisabled = !this.schoolMode.enabled;
     V.schoolModeName = this.schoolMode.name;
@@ -3308,6 +3362,14 @@ class Component extends DCLogic {
     V.scheduleQuery = this.scheduleQuery;
     V.setScheduleQuery = e => { this.scheduleQuery = String(e.target.value || '').slice(0, 128); this.bump(); };
     V.scheduleTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
+    V.externalEditorStatus = this.state.externalEditorStatus;
+    V.externalEditorMessage = this.state.externalEditorMessage;
+    V.externalEditorTarget = this.state.externalEditorTarget;
+    V.setExternalEditorTarget = e => this.setState({ externalEditorTarget: String(e.target.value || '').slice(0, 2048) });
+    V.refreshExternalEditors = () => this.refreshExternalEditors();
+    V.externalEditorOptions = this.externalEditors.map(editor => ({ label: editor.label, state: editor.status === 'available' ? (editor.editorId === this.externalEditorSelected ? 'Selected' : 'Available') : (editor.status === 'timeout' ? 'Discovery timed out' : 'Not installed'), selected: editor.editorId === this.externalEditorSelected, choose: () => this.selectExternalEditor(editor.editorId), disabled: editor.status !== 'available', bg: editor.editorId === this.externalEditorSelected ? prim : 'transparent', fg: editor.editorId === this.externalEditorSelected ? 'var(--md-sys-color-on-primary)' : onVar, border: editor.status === 'available' ? 'var(--md-sys-color-outline)' : 'var(--md-sys-color-outline-variant)' }));
+    V.externalEditorOptionsEmpty = this.externalEditorStatus === 'loading' || !this.externalEditors.length;
+    V.openExternalEditorTarget = () => this.openExternalEditorTarget();
     V.scheduleDraftLabel = s.scheduleDraftLabel; V.scheduleDraftStartDate = s.scheduleDraftStartDate; V.scheduleDraftEndDate = s.scheduleDraftEndDate; V.scheduleDraftStartTime = s.scheduleDraftStartTime; V.scheduleDraftEndTime = s.scheduleDraftEndTime; V.scheduleDraftSource = s.scheduleDraftSource; V.scheduleDraftTheme = s.scheduleDraftTheme; V.scheduleDraftLang = s.scheduleDraftLang; V.scheduleDraftFunnyEn = s.scheduleDraftFunnyEn; V.scheduleDraftFunnyZh = s.scheduleDraftFunnyZh; V.scheduleDraftPriority = s.scheduleDraftPriority; V.scheduleDraftShowEmojis = s.scheduleDraftShowEmojis;
     V.scheduleSourceLine = 'Local source is active. HTTPS API and Home Assistant are listed for the contract boundary but remain unconfigured here; no token or network request is stored by this preview.';
     V.scheduleEffectiveLine = scheduleEffective.matches.length ? ('Temporary override active: ' + scheduleEffective.matches.map(rule => rule.label).join(', ') + '. Base values return when the matching window ends.') : 'No rule is active now; the current project/global values are the base values.';
