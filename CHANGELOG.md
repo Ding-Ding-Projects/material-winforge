@@ -1,5 +1,7 @@
 # Changelog
 
+- Added the desktop Export center for settings/project ownership, redacted local-history metadata, notifications, and bundled feature records. It supports reviewable select-all-on-page, inverse and clear selection, bulk export/copy, and bounded local JSON, JSONL, YAML, TOML, XML, CSV, TSV, Markdown, and HTML serializers. Credentials, hashes, TOTP secrets, QR payloads, private vocabulary, and source paths are explicitly omitted; no network or editor handoff occurs. Tests, lint, reviews, packaged interaction, and captures remain unrun/unverified for this slice.
+
 - Expanded the local converter catalog from category summaries to individually enumerated formats across Documents/PDF, Images, Audio, Video, Archives, Structured Data/Spreadsheets, Code/Text, and Binary Encodings. Every unavailable format is visibly disabled with its exact missing bundled-adapter reason, while JSON/CSV/JSONL/TSV adapters and bounded queue behavior remain unchanged. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
 - Added the desktop in-app offline documentation browser. Build preparation now validates and bundles every checked-in application and site Markdown article; the Docs route renders escaped Markdown locally, follows internal article links, and searches plain text by default with the shared anchored regex builder. Built-artifact interaction and captures remain unverified for this lane.
 

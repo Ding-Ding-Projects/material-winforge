@@ -1,5 +1,13 @@
 # Handoff
 
+## Desktop Export center — `codex/luna-export-bulk-actions`
+
+- Added the local desktop Export center to `main-app-design/WinForge M3.dc.html`. It projects settings/project ownership, redacted local-history metadata, notifications, and bundled feature metadata into four selectable record families.
+- Added scoped select-all-on-page, inverse, clear, selected-count review, bulk local export, and clipboard copy. Formats are JSON, JSONL/NDJSON, YAML, TOML, XML, CSV, TSV, Markdown, and HTML with escaping and a persistent privacy disclosure.
+- Credentials, password hashes, TOTP secrets, QR payloads, private vocabulary, source paths, network requests, uploads, and editor handoff are excluded by design. Empty selections stay disabled and report clipboard denial without claiming a copy.
+- Added `docs/application/export-center.md`, the application index entry, inventory row, and changelog record.
+- Tests, lint, reviews, screenshots, packaged/runtime interaction, and accessibility review were not run in this bounded implementation lane.
+
 ## Unlock ladder lane — `codex/luna-unlock-ladder`
 
 - Added the local-only unlock ladder waiting aid to `pages/app/SiteShell.tsx` and `pages/app/globals.css`. It starts at a four-choice dim-sum rung unless School mode is enabled, advances through ten sums and a timed mole round, and falls to clock-only after a lost round.
