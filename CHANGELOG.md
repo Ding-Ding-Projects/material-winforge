@@ -5,6 +5,11 @@
 - Extended the desktop Restart Explorer confirmation to the shared destructive-action contract: exact impact and affected-data copy, two independent acknowledgements, a full-range slider, Emergency exit/scrim/Escape cancellation, focus return, readable progress, reduced-motion handling, and no bridge mutation before authorization completes.
 - Empty Recycle Bin remains on the same two-key/full-slider path. Tests, lint, runtime interaction, captures, release, and publication remain unrun/unverified for this lane.
 
+## Unreleased — Pages destructive confirmation parity
+
+- Strengthened the browser-local Settings reset confirmation with a live affected-record inventory, including presentation-setting, local-project, and sparse-override counts plus preserved records.
+- Added a contained keyboard focus loop and local Escape handling to the alertdialog; Emergency exit, header close, scrim cancellation, reduced-motion progress, and durable origin-focus return remain mutation-free until both independent acknowledgements and the full-range slider complete. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this bounded lane.
+
 ## Unreleased — desktop unlock-ladder parity
 
 - Wired the desktop reference's local waiting aid instead of leaving its Start action decorative. School mode starts at sums; ordinary mode uses the four-choice dim-sum rung, five wrong dishes advance to ten sums, one wrong sum starts an eight-second timed mole round, and a lost or expired round becomes clock-only.
