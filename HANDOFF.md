@@ -1,5 +1,12 @@
 # Handoff
 
+## Element appearance editor lane — `codex/luna-appearance-editor`
+
+- Added the anchored Pages appearance editor in `pages/app/SiteShell.tsx` and `pages/app/globals.css`. Major feature cards, Settings cards, and tabs expose a pencil action and a right-click path; edits apply live and persist in a bounded localStorage record with per-element reset.
+- Added typography basics (family, size, weight, radius), text/surface colors, alpha, and HEX/RGB/HSL/HSV/HWB/CMYK representations. OKLab is explicitly disclosed as unsupported rather than guessed, and contrast is disclosed for review.
+- Added the matching desktop design-reference surface in `main-app-design/WinForge M3.dc.html`, categorized docs and indexes, and the universal inventory/changelog entries.
+- No network, credentials, remote fonts, or source-file writes are used. Tests, lint, reviews, packaged/runtime interaction, accessibility review, captures, release, and publication remain unrun/unverified for this lane.
+
 ## Local file-converter lane — `codex/luna-file-converter`
 
 - Added the bounded Pages converter in `pages/app/SiteShell.tsx` and `pages/app/globals.css`: local picker, byte-based JSON/CSV/TXT detection, 2 MiB bound, preview, offline JSON ↔ CSV adapter, progress/cancel, atomic browser download, and visible unavailable reasons for all other converter categories.

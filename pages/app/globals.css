@@ -134,6 +134,41 @@ a {
 button {
   color: inherit;
 }
+.appearance-edit-trigger {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+  background: var(--surface-bright);
+  color: var(--on-surface-variant);
+  cursor: pointer;
+}
+.appearance-editor-popover {
+  position: fixed;
+  z-index: 1200;
+  width: min(350px, calc(100vw - 24px));
+  max-height: min(760px, calc(100vh - 24px));
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+  box-shadow: 0 12px 32px var(--shadow);
+}
+.appearance-editor-popover header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:14px; }
+.appearance-editor-popover header button { min-width:36px; min-height:36px; border:0; border-radius:999px; background:transparent; font-size:22px; }
+.appearance-editor-grid { display:grid; gap:12px; }
+.appearance-editor-grid label { display:grid; gap:6px; font-weight:600; }
+.appearance-editor-grid input[type="text"], .appearance-editor-grid input:not([type]) { min-height:42px; padding:8px 10px; border:1px solid var(--outline); border-radius:var(--radius-sm); background:var(--surface-bright); color:var(--on-surface); }
+.appearance-editor-grid input[type="color"] { width:100%; min-height:42px; border:1px solid var(--outline); border-radius:var(--radius-sm); background:var(--surface-bright); }
+.appearance-editor-grid small, .appearance-color-translations small { color:var(--on-surface-variant); font-weight:400; line-height:1.45; }
+.appearance-color-translations { display:grid; gap:7px; margin-top:16px; padding:12px; border:1px solid var(--outline-variant); border-radius:var(--radius-md); background:var(--surface-container); }
+.appearance-color-translations code { overflow-wrap:anywhere; font-size:12px; }
+.appearance-editor-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.feature-card, .setting-card, .tab-entry { position:relative; }
+.feature-card > .appearance-edit-trigger, .setting-card > .appearance-edit-trigger { position:absolute; top:12px; right:12px; opacity:.82; }
+.tab-entry > .appearance-edit-trigger { position:absolute; top:4px; right:4px; z-index:2; opacity:.75; }
 a {
   color: var(--primary);
 }
