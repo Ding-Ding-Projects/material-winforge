@@ -135,6 +135,16 @@ type SettingsHistoryRecord = {
   logo: SettingsLogoState;
 };
 type SettingsHistory = { schemaVersion: 2; records: SettingsHistoryRecord[] };
+type ElementAppearance = {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: number;
+  textColor: string;
+  backgroundColor: string;
+  alpha: number;
+  radius: number;
+};
+type AppearanceState = { schemaVersion: 1; elements: Record<string, ElementAppearance> };
 type Preferences = SiteSettingValues & {
   schemaVersion: 1;
   pinnedTabs: TabId[];
@@ -242,6 +252,7 @@ const NARRATION_KEY = "winforge-material-preview-narration-v1";
 const SCHEDULE_KEY = "winforge-material-preview-schedules-v1";
 const SCHOOL_MODE_KEY = "winforge-material-preview-school-mode-v1";
 const AUTHENTICATOR_KEY = "winforge-material-preview-authenticator-v1";
+const APPEARANCE_KEY = "winforge-material-preview-element-appearance-v1";
 const PREFERENCES_MAX_BYTES = 512 * 1024;
 const NOTIFICATION_MAX_BYTES = 128 * 1024;
 const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
@@ -263,6 +274,15 @@ const DEFAULT_GROUP_APPEARANCE: TabGroupAppearance = {
   icon: "▦",
   textColor: "#1b1b1f",
   backgroundColor: "#f3f3f7",
+};
+const DEFAULT_ELEMENT_APPEARANCE: ElementAppearance = {
+  fontFamily: "inherit",
+  fontSize: 16,
+  fontWeight: 400,
+  textColor: "#1b1b1f",
+  backgroundColor: "#ffffff",
+  alpha: 1,
+  radius: 16,
 };
 const DEFAULTS: Preferences = {
   schemaVersion: 1,
@@ -1302,6 +1322,49 @@ function normalizeNotificationHistory(
   }
   return { schemaVersion: 1, records, readThrough: root.readThrough ?? null };
 }
+
+function hexToRgb(hex: string) {
+  const value = hex.replace("#", "");
+  const expanded = value.length === 3 ? value.split("").map((part) => part + part).join("") : value;
+  const number = Number.parseInt(expanded.slice(0, 6), 16);
+  return { r: (number >> 16) & 255, g: (number >> 8) & 255, b: number & 255 };
+}
+function rgbToHsl({ r, g, b }: { r: number; g: number; b: number }) {
+  const red = r / 255, green = g / 255, blue = b / 255;
+  const max = Math.max(red, green, blue), min = Math.min(red, green, blue);
+  const lightness = (max + min) / 2; const delta = max - min;
+  if (!delta) return { h: 0, s: 0, l: Math.round(lightness * 100) };
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  let hue = 0;
+  if (max === red) hue = 60 * (((green - blue) / delta) % 6);
+  else if (max === green) hue = 60 * ((blue - red) / delta + 2);
+  else hue = 60 * ((red - green) / delta + 4);
+  if (hue < 0) hue += 360;
+  return { h: Math.round(hue), s: Math.round(saturation * 100), l: Math.round(lightness * 100) };
+}
+function colorTranslations(hex: string) {
+  const rgb = hexToRgb(hex); const hsl = rgbToHsl(rgb);
+  const red = rgb.r / 255, green = rgb.g / 255, blue = rgb.b / 255;
+  const max = Math.max(red, green, blue), min = Math.min(red, green, blue);
+  const hsv = { h: hsl.h, s: max ? Math.round(((max - min) / max) * 100) : 0, v: Math.round(max * 100) };
+  const k = 1 - max; const cmyk = k === 1 ? { c: 0, m: 0, y: 0, k: 100 } : { c: Math.round(((1 - red - k) / (1 - k)) * 100), m: Math.round(((1 - green - k) / (1 - k)) * 100), y: Math.round(((1 - blue - k) / (1 - k)) * 100), k: Math.round(k * 100) };
+  const hwb = { h: hsl.h, w: Math.round(min * 100), b: Math.round((1 - max) * 100) };
+  return { hex: hex.toUpperCase(), rgb: `rgb(${rgb.r} ${rgb.g} ${rgb.b})`, hsl: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)`, hsv: `hsv(${hsv.h} ${hsv.s}% ${hsv.v}%)`, hwb: `hwb(${hwb.h} ${hwb.w}% ${hwb.b}%)`, oklab: "oklab(see unsupported-property note)", cmyk: `cmyk(${cmyk.c}% ${cmyk.m}% ${cmyk.y}% ${cmyk.k}%)` };
+}
+function normalizeAppearanceState(value: unknown): AppearanceState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Partial<AppearanceState>;
+  if (root.schemaVersion !== 1 || !root.elements || typeof root.elements !== "object" || Array.isArray(root.elements)) return null;
+  const elements: Record<string, ElementAppearance> = {};
+  for (const [id, raw] of Object.entries(root.elements as Record<string, unknown>).slice(0, 80)) {
+    if (!/^[a-z0-9-]{1,80}$/.test(id) || !raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const item = raw as Partial<ElementAppearance>;
+    const candidate = { ...DEFAULT_ELEMENT_APPEARANCE, ...item };
+    if (typeof candidate.fontFamily !== "string" || candidate.fontFamily.length > 120 || !Number.isFinite(candidate.fontSize) || candidate.fontSize < 10 || candidate.fontSize > 48 || !Number.isFinite(candidate.fontWeight) || candidate.fontWeight < 300 || candidate.fontWeight > 800 || !/^#[0-9a-f]{6}$/i.test(candidate.textColor) || !/^#[0-9a-f]{6}$/i.test(candidate.backgroundColor) || !Number.isFinite(candidate.alpha) || candidate.alpha < 0 || candidate.alpha > 1 || !Number.isFinite(candidate.radius) || candidate.radius < 0 || candidate.radius > 48) continue;
+    elements[id] = { fontFamily: candidate.fontFamily, fontSize: Number(candidate.fontSize), fontWeight: Number(candidate.fontWeight), textColor: candidate.textColor, backgroundColor: candidate.backgroundColor, alpha: Number(candidate.alpha), radius: Number(candidate.radius) };
+  }
+  return { schemaVersion: 1, elements };
+}
 function normalizeAuthenticator(value: unknown): AuthenticatorState | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const root = value as Partial<AuthenticatorState>;
@@ -1707,6 +1770,10 @@ export default function SiteShell({
     schemaVersion: 2,
     records: [],
   });
+  const [appearanceState, setAppearanceState] = useState<AppearanceState>({ schemaVersion: 1, elements: {} });
+  const [appearanceEditorId, setAppearanceEditorId] = useState<string | null>(null);
+  const [appearanceAnchor, setAppearanceAnchor] = useState<{ top: number; left: number } | null>(null);
+  const appearanceEditorRef = useRef<HTMLElement | null>(null);
   const [settingsHistoryOpen, setSettingsHistoryOpen] = useState(false);
   const [settingsHistoryQuery, setSettingsHistoryQuery] = useState("");
   const [settingsHistoryRegex, setSettingsHistoryRegex] = useState(false);
@@ -1923,6 +1990,15 @@ export default function SiteShell({
       } catch {
         removeLocalRecord(SETTINGS_HISTORY_KEY);
       }
+    const appearanceRecord = readLocalRecord(APPEARANCE_KEY, 96 * 1024);
+    if (!appearanceRecord.available) setPersistenceAvailable(false);
+    if (appearanceRecord.raw) {
+      try {
+        const parsed = normalizeAppearanceState(JSON.parse(appearanceRecord.raw));
+        if (parsed) setAppearanceState(parsed);
+        else removeLocalRecord(APPEARANCE_KEY);
+      } catch { removeLocalRecord(APPEARANCE_KEY); }
+    }
     const narrationRecord = readLocalRecord(NARRATION_KEY, NARRATION_MAX_BYTES);
     if (!narrationRecord.available) setPersistenceAvailable(false);
     if (narrationRecord.oversized) removeLocalRecord(NARRATION_KEY);
@@ -2055,6 +2131,46 @@ export default function SiteShell({
   useEffect(() => {
     if (hydrated) { const bounded = boundSettingsHistory(settingsHistory); if (bounded.records.length !== settingsHistory.records.length) setSettingsHistory(bounded); if (!writeLocalRecord(SETTINGS_HISTORY_KEY, bounded, SETTINGS_HISTORY_MAX_BYTES)) setPersistenceAvailable(false); }
   }, [hydrated, settingsHistory]);
+  useEffect(() => {
+    if (hydrated && !writeLocalRecord(APPEARANCE_KEY, appearanceState, 96 * 1024)) setPersistenceAvailable(false);
+  }, [hydrated, appearanceState]);
+  useEffect(() => {
+    const apply = () => {
+      document.querySelectorAll<HTMLElement>("[data-appearance-target]").forEach((element) => {
+        const id = element.dataset.appearanceTarget;
+        if (!id) return;
+        const style = appearanceState.elements[id];
+        if (!style) {
+          ["font-family", "font-size", "font-weight", "color", "background-color", "border-radius"].forEach((property) => element.style.removeProperty(property));
+          return;
+        }
+        element.style.setProperty("font-family", style.fontFamily);
+        element.style.setProperty("font-size", `${style.fontSize}px`);
+        element.style.setProperty("font-weight", String(style.fontWeight));
+        element.style.setProperty("color", style.textColor);
+        element.style.setProperty("background-color", `color-mix(in srgb, ${style.backgroundColor} ${Math.round(style.alpha * 100)}%, transparent)`);
+        element.style.setProperty("border-radius", `${style.radius}px`);
+      });
+    };
+    apply();
+    const open = (event: Event) => {
+      const target = event.target as HTMLElement;
+      const element = target.closest<HTMLElement>("[data-appearance-target]");
+      if (!element) return;
+      if (event.type === "contextmenu") event.preventDefault();
+      const id = element.dataset.appearanceTarget;
+      if (!id) return;
+      const rect = element.getBoundingClientRect();
+      setAppearanceEditorId(id);
+      setAppearanceAnchor({ top: Math.min(window.innerHeight - 24, rect.bottom + 8), left: Math.min(window.innerWidth - 360, Math.max(12, rect.left)) });
+    };
+    const click = (event: Event) => { if ((event.target as HTMLElement).closest(".appearance-edit-trigger")) open(event); };
+    document.addEventListener("contextmenu", open);
+    document.addEventListener("click", click);
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") { setAppearanceEditorId(null); setAppearanceAnchor(null); } };
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("contextmenu", open); document.removeEventListener("click", click); document.removeEventListener("keydown", close); };
+  }, [appearanceState]);
   useEffect(() => {
     if (activeTab !== "settings") {
       setSettingsGridTarget(null);
@@ -4370,6 +4486,7 @@ export default function SiteShell({
       <div
         className={`tab-entry ${pinned ? "pinned" : "ordinary"}`}
         key={tab.id}
+        data-appearance-target={`tab-${tab.id}`}
         data-bulk-close-protected={pinned ? "true" : "false"}
       >
         <button
@@ -4393,6 +4510,7 @@ export default function SiteShell({
             </span>
           )}
         </button>
+        <button type="button" className="appearance-edit-trigger" aria-label={dual(`Edit ${tab.en} appearance`, `編輯${tab.yue}外觀`, language)} title="Edit appearance…">✎</button>
         <span
           className="tab-reorder-controls"
           role="group"
@@ -7445,6 +7563,17 @@ export default function SiteShell({
           </section>
         </div>
       )}
+      {appearanceEditorId && appearanceAnchor && (
+        <AppearanceEditor
+          id={appearanceEditorId}
+          language={language}
+          value={appearanceState.elements[appearanceEditorId] ?? DEFAULT_ELEMENT_APPEARANCE}
+          style={{ top: appearanceAnchor.top, left: appearanceAnchor.left }}
+          update={(patch) => setAppearanceState((current) => ({ schemaVersion: 1, elements: { ...current.elements, [appearanceEditorId]: { ...(current.elements[appearanceEditorId] ?? DEFAULT_ELEMENT_APPEARANCE), ...patch } } }))}
+          reset={() => setAppearanceState((current) => { const elements = { ...current.elements }; delete elements[appearanceEditorId]; return { schemaVersion: 1, elements }; })}
+          close={() => { setAppearanceEditorId(null); setAppearanceAnchor(null); }}
+        />
+      )}
       <div
         className={`snackbar ${toast ? "visible" : ""}`}
         role="status"
@@ -7506,7 +7635,8 @@ function FeatureCard({
   body: string;
 }) {
   return (
-    <article className="feature-card">
+    <article className="feature-card" data-appearance-target={`feature-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`}>
+      <button type="button" className="appearance-edit-trigger" aria-label={`Edit appearance for ${title}`} title="Edit appearance…">✎</button>
       <span className="feature-icon" aria-hidden="true">
         {icon}
       </span>
@@ -7548,9 +7678,11 @@ function SettingCard({
     <article
       id={id}
       className="setting-card"
+      data-appearance-target={id ?? `setting-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`}
       hidden={hidden}
       tabIndex={id ? -1 : undefined}
     >
+      <button type="button" className="appearance-edit-trigger" aria-label={`Edit appearance for ${title}`} title="Edit appearance…">✎</button>
       <div>
         <h2>{title}</h2>
         <p>{description}</p>
@@ -7961,6 +8093,42 @@ function BulkCloseConfirmation({
         )}
       </section>
     </div>
+  );
+}
+
+function AppearanceEditor({
+  id,
+  language,
+  value,
+  style,
+  update,
+  reset,
+  close,
+}: {
+  id: string;
+  language: LanguageMode;
+  value: ElementAppearance;
+  style: CSSProperties;
+  update: (patch: Partial<ElementAppearance>) => void;
+  reset: () => void;
+  close: () => void;
+}) {
+  const translated = colorTranslations(value.textColor);
+  return (
+    <aside ref={(node) => { /* anchor is measured by the owner; this ref keeps the panel addressable */ }} className="appearance-editor-popover" role="dialog" aria-modal="false" aria-labelledby="appearance-editor-title" style={style}>
+      <header><div><span className="eyebrow">{dual("Anchored appearance editor", "貼邊外觀編輯器", language)}</span><h2 id="appearance-editor-title">{dual("Edit element appearance", "編輯元素外觀", language)}</h2><small>{id}</small></div><button type="button" onClick={close} aria-label={dual("Close appearance editor", "關閉外觀編輯器", language)}>×</button></header>
+      <div className="appearance-editor-grid">
+        <label><span>{dual("Font family", "字體", language)}</span><input value={value.fontFamily} maxLength={120} onChange={(event) => update({ fontFamily: event.target.value })} /><small>{dual("Uses an installed family or CSS fallback; arbitrary remote fonts are not loaded.", "只用已安裝字體或者 CSS 後備字體；唔會載入遠端字體。", language)}</small></label>
+        <label><span>{dual("Font size", "字體大小", language)} · {value.fontSize}px</span><input type="range" min="10" max="48" value={value.fontSize} onChange={(event) => update({ fontSize: Number(event.target.value) })} /></label>
+        <label><span>{dual("Weight", "字重", language)} · {value.fontWeight}</span><input type="range" min="300" max="800" step="100" value={value.fontWeight} onChange={(event) => update({ fontWeight: Number(event.target.value) })} /></label>
+        <label><span>{dual("Corner radius", "圓角", language)} · {value.radius}px</span><input type="range" min="0" max="48" value={value.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
+        <label><span>{dual("Text color", "文字顏色", language)}</span><input type="color" value={value.textColor} onChange={(event) => update({ textColor: event.target.value })} /></label>
+        <label><span>{dual("Background color", "背景顏色", language)}</span><input type="color" value={value.backgroundColor} onChange={(event) => update({ backgroundColor: event.target.value })} /></label>
+        <label><span>{dual("Alpha", "透明度", language)} · {Math.round(value.alpha * 100)}%</span><input type="range" min="0" max="1" step="0.01" value={value.alpha} onChange={(event) => update({ alpha: Number(event.target.value) })} /></label>
+      </div>
+      <div className="appearance-color-translations" aria-label={dual("Color translations", "顏色轉換", language)}><strong>{dual("Continuous color representations", "連續顏色表示", language)}</strong><code>HEX {translated.hex}</code><code>RGB {translated.rgb}</code><code>HSL {translated.hsl}</code><code>HSV {translated.hsv}</code><code>HWB {translated.hwb}</code><code>OKLab {translated.oklab}</code><code>CMYK {translated.cmyk}</code><small>{dual("Contrast disclosure: text and background are shown as chosen; review contrast before saving. OKLab conversion is currently unsupported and is disclosed rather than guessed.", "對比度披露：文字同背景會按你揀嘅值顯示；儲存前請檢查對比度。OKLab 轉換暫時未支援，會清楚講明而唔會亂估。", language)}</small></div>
+      <div className="appearance-editor-actions"><button type="button" className="outlined-button" onClick={reset}>{dual("Reset this element", "重設呢個元素", language)}</button><button type="button" className="filled-button" onClick={close}>{dual("Done", "完成", language)}</button></div>
+    </aside>
   );
 }
 
