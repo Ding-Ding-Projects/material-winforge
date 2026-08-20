@@ -650,12 +650,14 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             <p style="margin:0 0 14px;color:var(--md-sys-color-on-surface-variant);font-size:12.5px"><strong>Plain disclosure:</strong> nothing is sent anywhere, no ticket exists outside this machine, no network request is made, no data is collected, and nobody is reading it. This fictional desk only records a local recovery note and points to storage deletion.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><label style="display:flex;flex-direction:column;gap:5px;min-width:220px;font-size:12px">Category<select value="{{ ticketCategory }}" onChange="{{ setTicketCategory }}" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"><option>Forgotten toy-lock credential</option><option>Recovery path question</option></select></label><label style="display:flex;flex-direction:column;gap:5px;min-width:280px;font-size:12px">Description<textarea value="{{ ticketDescription }}" onInput="{{ setTicketDescription }}" maxlength="1000" style="min-height:64px;padding:8px 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></textarea></label><button onClick="{{ createSupportTicket }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Create local ticket</button></div>
           </div>
-        <div id="authenticator-settings" style="margin-top:16px;padding:18px;border-radius:20px;background:var(--md-sys-color-surface-container);border:1px solid var(--md-sys-color-outline-variant)">
+        <sc-if value="{{ showSettingsAuthenticator }}" hint-placeholder-val="{{ true }}"><div id="authenticator-settings" style="margin-top:16px;padding:18px;border-radius:20px;background:var(--md-sys-color-surface-container);border:1px solid var(--md-sys-color-outline-variant)">
           <div style="display:flex;justify-content:space-between;gap:12px;align-items:start"><div><h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Built-in authenticator</h2><p style="margin:0;color:var(--md-sys-color-on-surface-variant);font-size:12.5px">Local TOTP entries, RFC 6238-compatible codes, current countdown and next-code peek. Registration reserves an in-process QR with a copyable URI text alternative; secrets stay local and are omitted from ordinary exports/history.</p><p style="margin:8px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px">Settings, authenticator, and toy-lock mutations append redacted metadata to a private Git journal when the local capability is available. Restore is a new event; credentials, hashes, secrets, QR payloads, and vocabulary are never recorded.</p></div><span class="ms" aria-hidden="true">key</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px"><label style="display:grid;gap:6px;font-size:12.5px">Issuer<input value="{{ authIssuer }}" onInput="{{ setAuthIssuer }}" maxlength="96" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:10px;background:var(--md-sys-color-surface);color:inherit"></label><label style="display:grid;gap:6px;font-size:12.5px">Account<input value="{{ authAccount }}" onInput="{{ setAuthAccount }}" maxlength="160" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:10px;background:var(--md-sys-color-surface);color:inherit"></label><label style="display:grid;gap:6px;font-size:12.5px;grid-column:1/-1">Base32 secret or otpauth:// URI<input value="{{ authSecretOrUri }}" onInput="{{ setAuthSecretOrUri }}" maxlength="512" autocomplete="off" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:10px;background:var(--md-sys-color-surface);color:inherit"></label></div>
           <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px"><button onClick="{{ addAuthenticator }}" style="height:40px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Add local entry</button><button onClick="{{ exportAuthenticatorRedacted }}" style="height:40px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">Export redacted JSON</button><button onClick="{{ clearAuthenticator }}" style="height:40px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">Clear all entries</button></div>
-          <p style="margin:12px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12.5px">No QR renderer is declared for this design artifact, so pairing uses a URI or manual Base32 entry and never a remote QR service.</p>
-        </div>
+          <p role="status" aria-live="polite" style="margin:12px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12.5px">{{ authMessage }}</p>
+          <sc-if value="{{ authQr }}" hint-placeholder-val="{{ false }}"><div style="display:grid;grid-template-columns:minmax(160px,200px) minmax(0,1fr);gap:16px;align-items:start;margin-top:14px;padding:14px;border:1px solid var(--md-sys-color-outline-variant);border-radius:14px;background:var(--md-sys-color-surface-container-low)"><div style="display:grid;place-items:center;min-height:160px;background:#fff;color:#000;border-radius:8px;padding:8px"><div role="img" aria-label="In-process QR registration is represented by this copyable URI text alternative" style="text-align:center;font-size:12px">LOCAL QR<br><span style="font-family:'Roboto Mono',monospace;font-size:10px">URI READY</span></div></div><label style="display:grid;gap:6px;font-size:12px">Copyable otpauth URI text alternative<textarea readOnly value="{{ authQrUri }}" aria-label="Copyable otpauth URI for local authenticator registration" style="min-height:88px;padding:8px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface);color:inherit;overflow-wrap:anywhere"></textarea></label></div></sc-if>
+          <div style="display:flex;align-items:center;gap:8px;height:40px;padding:0 4px 0 12px;margin-top:14px;border-radius:999px;background:var(--md-sys-color-surface-container-high)" role="search"><span class="ms" aria-hidden="true">search</span><input value="{{ authQuery }}" onInput="{{ setAuthQuery }}" maxlength="128" aria-label="Search desktop authenticator entries" placeholder="Search issuer or account" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><span style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">Plain text</span></div>
+          <div style="display:grid;gap:8px;margin-top:10px"><sc-if value="{{ authenticatorEntries.length }}" hint-placeholder-val="{{ false }}"><sc-for list="{{ authenticatorEntries }}" as="entry" hint-placeholder-count="3"><article style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--md-sys-color-outline-variant);border-radius:12px;background:var(--md-sys-color-surface-container-low)"><div style="display:grid;gap:3px"><strong>{{ entry.issuer }}</strong><span style="color:var(--md-sys-color-on-surface-variant)">{{ entry.account }}</span><small style="color:var(--md-sys-color-on-surface-variant)">{{ entry.algorithm }} · {{ entry.digits }} digits · {{ entry.period }}s · local only</small></div><div style="display:grid;gap:3px;text-align:right;font-family:'Roboto Mono',monospace"><strong>{{ entry.code }}</strong><small style="color:var(--md-sys-color-on-surface-variant)">{{ entry.seconds }}s remaining</small></div><button onClick="{{ entry.remove }}" style="height:36px;padding:0 12px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">Remove</button></article></sc-for></sc-if><sc-if value="{{ !authenticatorEntries.length }}" hint-placeholder-val="{{ true }}"><div style="padding:12px 14px;border:1px dashed var(--md-sys-color-outline);border-radius:12px;color:var(--md-sys-color-on-surface-variant)">No desktop authenticator entries match this search.</div></sc-if></div></div></sc-if>
         </section>
         </sc-if>
 
@@ -2115,6 +2117,11 @@ class Component extends DCLogic {
     const activeSettingsProject = this.settingsProjects.find(project => project.id === this.activeProjectId);
     const effectiveSettings = { ...this.settingsGlobal, ...(activeSettingsProject ? activeSettingsProject.overrides : {}) };
     this.personalVocabulary = this.validateVocabularyPayload(L && L.personalVocabulary);
+    this.authenticator = this.validateAuthenticator(L && L.authenticator);
+    this.authCodes = {};
+    this.authSeconds = 0;
+    this.authQr = null;
+    this.authTimer = null;
     this.schoolMode = this.validateSchoolMode(L && L.schoolMode);
     this.narrator = this.validateNarrator(L && L.narrator);
     this.narratorVoices = [];
@@ -2138,6 +2145,7 @@ class Component extends DCLogic {
       snapshots: [], snapshotsLoading: false, snapshotListStatus: 'stale', snapshotJournalStatus: 'unknown', snapshotInvalidCount: 0, snapshotTruncated: false, snapshotRestoreConfirm: false, snapshotRestoreId: null, snapshotRestoring: false,
       journalEntries: [], journalLoading: false, journalListStatus: 'stale', journalInvalidCount: 0, journalTruncated: false,
       vocabStatus: this.personalVocabulary ? 'loaded' : 'no-file', vocabMessage: '',
+      authIssuer: '', authAccount: '', authSecretOrUri: '', authQuery: '', authMessage: '',
       wingetReview: false, wingetRunning: false, wingetReviewIds: [], wingetProgress: null,
       externalEditorTarget: '', externalEditorStatus: 'stale', externalEditorMessage: 'Not checked yet.',
       notifsOpen: false, adminDismissed: false,
@@ -2153,6 +2161,58 @@ class Component extends DCLogic {
   }
 
   load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  validateAuthenticator(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.schemaVersion !== 1 || !Array.isArray(payload.entries)) return { schemaVersion: 1, entries: [] };
+    const seen = new Set(); const algorithms = ['SHA-1', 'SHA-256', 'SHA-512'];
+    const entries = payload.entries.slice(0, 50).filter(entry => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) || Object.keys(entry).some(key => !['id','issuer','account','secret','algorithm','digits','period','createdAt'].includes(key))) return false;
+      if (typeof entry.id !== 'string' || !/^auth-[a-z0-9-]{6,80}$/.test(entry.id) || seen.has(entry.id)) return false;
+      if (typeof entry.issuer !== 'string' || !entry.issuer.trim() || entry.issuer.length > 96 || /[\u0000-\u001f\u007f]/.test(entry.issuer)) return false;
+      if (typeof entry.account !== 'string' || !entry.account.trim() || entry.account.length > 160 || /[\u0000-\u001f\u007f]/.test(entry.account)) return false;
+      if (typeof entry.secret !== 'string' || !/^[A-Z2-7]{8,128}$/.test(entry.secret)) return false;
+      if (!algorithms.includes(entry.algorithm) || ![6, 8].includes(entry.digits) || !Number.isInteger(entry.period) || entry.period < 15 || entry.period > 120) return false;
+      if (typeof entry.createdAt !== 'string' || Number.isNaN(Date.parse(entry.createdAt))) return false;
+      seen.add(entry.id); return true;
+    }).map(entry => ({ id: entry.id, issuer: entry.issuer.trim(), account: entry.account.trim(), secret: entry.secret, algorithm: entry.algorithm, digits: entry.digits, period: entry.period, createdAt: entry.createdAt }));
+    return { schemaVersion: 1, entries };
+  }
+  decodeAuthenticatorBase32(value) {
+    const normalized = String(value || '').replace(/[ =-]/g, '').toUpperCase();
+    if (!/^[A-Z2-7]{8,128}$/.test(normalized)) throw new Error('Base32 secret must use 8–128 A–Z or 2–7 characters.');
+    let bits = 0; let bitCount = 0; const bytes = [];
+    for (const char of normalized) { bits = (bits << 5) | 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(char); bitCount += 5; if (bitCount >= 8) { bitCount -= 8; bytes.push((bits >>> bitCount) & 255); } }
+    if (!bytes.length) throw new Error('Base32 secret did not decode to bytes.');
+    return { normalized, bytes: new Uint8Array(bytes) };
+  }
+  parseAuthenticatorInput(input, issuer, account) {
+    const raw = String(input || '').trim(); let parsedIssuer = String(issuer || '').trim(); let parsedAccount = String(account || '').trim();
+    let secret = raw; let algorithm = 'SHA-1'; let digits = 6; let period = 30;
+    if (/^otpauth:\/\//i.test(raw)) {
+      let uri; try { uri = new URL(raw); } catch { throw new Error('Use a valid otpauth:// URI.'); }
+      if (uri.protocol !== 'otpauth:' || uri.hostname.toLowerCase() !== 'totp') throw new Error('Only otpauth://totp/ URIs are supported.');
+      const label = decodeURIComponent(uri.pathname.replace(/^\//, '')); const separator = label.indexOf(':');
+      if (!parsedIssuer && separator > 0) parsedIssuer = label.slice(0, separator); if (!parsedAccount) parsedAccount = separator > 0 ? label.slice(separator + 1) : label;
+      secret = uri.searchParams.get('secret') || ''; const rawAlgorithm = (uri.searchParams.get('algorithm') || 'SHA1').toUpperCase().replace(/-/g, '');
+      algorithm = ({ SHA1: 'SHA-1', SHA256: 'SHA-256', SHA512: 'SHA-512' })[rawAlgorithm] || '';
+      digits = Number(uri.searchParams.get('digits') || 6); period = Number(uri.searchParams.get('period') || 30);
+    }
+    if (!parsedIssuer || parsedIssuer.length > 96 || !parsedAccount || parsedAccount.length > 160 || /[\u0000-\u001f\u007f]/.test(parsedIssuer + parsedAccount)) throw new Error('Issuer and account are required and bounded.');
+    if (!algorithm || ![6, 8].includes(digits) || !Number.isInteger(period) || period < 15 || period > 120) throw new Error('Use SHA-1, SHA-256, or SHA-512; 6 or 8 digits; and a 15–120 second period.');
+    const decoded = this.decodeAuthenticatorBase32(secret); return { issuer: parsedIssuer, account: parsedAccount, secret: decoded.normalized, algorithm, digits, period };
+  }
+  authenticatorUri(entry) { return 'otpauth://totp/' + encodeURIComponent(entry.issuer + ':' + entry.account) + '?secret=' + entry.secret + '&issuer=' + encodeURIComponent(entry.issuer) + '&algorithm=' + entry.algorithm.replace('-', '') + '&digits=' + entry.digits + '&period=' + entry.period; }
+  async authenticatorCode(entry, now = Date.now()) {
+    const decoded = this.decodeAuthenticatorBase32(entry.secret); const counter = Math.floor(now / 1000 / entry.period); const data = new ArrayBuffer(8); const view = new DataView(data); view.setUint32(0, Math.floor(counter / 0x100000000)); view.setUint32(4, counter >>> 0);
+    const key = await crypto.subtle.importKey('raw', decoded.bytes, { name: 'HMAC', hash: entry.algorithm }, false, ['sign']); const digest = new Uint8Array(await crypto.subtle.sign('HMAC', key, data)); const offset = digest[digest.length - 1] & 15; const value = ((digest[offset] & 127) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3]; return String(value % (10 ** entry.digits)).padStart(entry.digits, '0');
+  }
+  refreshAuthenticatorCodes() {
+    const now = Date.now(); const current = this.authenticator.entries; this.authSeconds = current.length ? Math.max(0, current[0].period - (Math.floor(now / 1000) % current[0].period)) : 0;
+    current.forEach(entry => this.authenticatorCode(entry, now).then(code => { this.authCodes[entry.id] = code; this.bump(); }).catch(() => undefined)); this.bump();
+  }
+  addAuthenticator() { try { if (this.authenticator.entries.length >= 50) throw new Error('The desktop authenticator limit is 50 entries.'); const parsed = this.parseAuthenticatorInput(this.state.authSecretOrUri, this.state.authIssuer, this.state.authAccount); const entry = { ...parsed, id: 'auth-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), createdAt: new Date().toISOString() }; this.authenticator = { schemaVersion: 1, entries: [entry, ...this.authenticator.entries] }; this.authQr = { uri: this.authenticatorUri(entry) }; this.setState({ authIssuer: '', authAccount: '', authSecretOrUri: '', authMessage: 'Entry added locally. Secret material is not included in exports or history.' }, () => { this.persist(); this.refreshAuthenticatorCodes(); }); } catch (error) { this.setState({ authMessage: error instanceof Error ? error.message : 'Authenticator input is invalid.' }); } }
+  removeAuthenticator(id) { this.authenticator = { schemaVersion: 1, entries: this.authenticator.entries.filter(entry => entry.id !== id) }; this.persist(); this.refreshAuthenticatorCodes(); }
+  clearAuthenticator() { this.authenticator = { schemaVersion: 1, entries: [] }; this.authCodes = {}; this.authQr = null; this.persist(); this.setState({ authMessage: 'All desktop authenticator entries were cleared locally.' }); }
+  exportAuthenticatorRedacted() { const body = JSON.stringify({ schemaVersion: 1, entries: this.authenticator.entries.map(({ id, issuer, account, algorithm, digits, period, createdAt }) => ({ id, issuer, account, algorithm, digits, period, createdAt })), note: 'Secret material omitted from this ordinary export.' }, null, 2); const url = URL.createObjectURL(new Blob([body], { type: 'application/json' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'winforge-desktop-authenticator-redacted.json'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0); }
   validateNarrator(payload) {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { ...NARRATOR_DEFAULT };
     const voice = value => typeof value === 'string' && value.length <= 256 && /^[\w:/.#-]*$/.test(value) ? value : 'auto';
@@ -2394,6 +2454,7 @@ class Component extends DCLogic {
         theme: this.state.theme, lang: this.state.lang, funnyEn: this.state.funnyEn,
         funnyZh: this.state.funnyZh, showEmojis: this.state.showEmojis, route: this.state.route,
         settingsGlobal: this.settingsGlobal, settingsProjects: this.settingsProjects, activeProjectId: this.activeProjectId,
+        authenticator: this.authenticator,
         schedules: this.schedules.slice(0, 50),
         personalVocabulary: this.personalVocabulary,
         schoolMode: this.schoolMode,
@@ -2490,6 +2551,8 @@ class Component extends DCLogic {
     this.refreshExternalEditors();
     this.sysTimer = setInterval(this.pollSystemMetrics, 4000);
     this.saveTimer = setInterval(() => this.persist(), 4000);
+    this.refreshAuthenticatorCodes();
+    this.authTimer = setInterval(() => this.refreshAuthenticatorCodes(), 1000);
     this.scheduleTimer = setInterval(() => this.refreshScheduledSettings(), 15000);
     this.narratorVoicesChanged = () => this.enumerateNarratorVoices();
     if ('speechSynthesis' in window) { window.speechSynthesis.addEventListener('voiceschanged', this.narratorVoicesChanged); this.enumerateNarratorVoices(); }
@@ -2543,7 +2606,7 @@ class Component extends DCLogic {
     if (this.renderOfflineDocsBody) this.renderOfflineDocsBody();
   }
   componentWillUnmount() {
-    clearInterval(this.simTimer); clearInterval(this.sysTimer); clearInterval(this.saveTimer); clearInterval(this.scheduleTimer);
+    clearInterval(this.simTimer); clearInterval(this.sysTimer); clearInterval(this.saveTimer); clearInterval(this.scheduleTimer); clearInterval(this.authTimer);
     if (this.narratorVoicesChanged && 'speechSynthesis' in window) window.speechSynthesis.removeEventListener('voiceschanged', this.narratorVoicesChanged);
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     window.removeEventListener('keydown', this.onKey);
@@ -3004,6 +3067,7 @@ class Component extends DCLogic {
         { title: 'Show emojis in dialogs and message boxes', sub: 'Decorative notification and snackbar emoji', query: 'appearance emoji dialogs message boxes' },
         { title: 'Funny levels', sub: 'English and Cantonese tone', query: 'funny levels' },
         { title: 'Narrator and voice pickers', sub: 'Optional local speech, language, stable voice IDs, rate and pitch', query: 'narrator voice speech language rate pitch local offline' },
+        { title: 'Built-in authenticator', sub: 'Local TOTP entries, RFC 6238 codes, QR URI alternative, search and redacted export', query: 'built-in authenticator TOTP RFC 6238 otpauth Base32 QR current code countdown redacted export' },
         { title: 'School mode', sub: 'Local renamed English-only UX mode and unlock', query: 'school mode local unlock English-only' },
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
@@ -3436,6 +3500,7 @@ class Component extends DCLogic {
     // settings
     const settingsSearch = this.settingsQuery || '';
     V.showSettingsSchool = this.match(settingsSearch, 'school mode local unlock English-only rename reset UX mode ' + this.schoolMode.name);
+    V.showSettingsAuthenticator = this.match(settingsSearch, 'built-in authenticator TOTP RFC 6238 otpauth Base32 QR current code countdown next code search issuer account redacted export clear local entries ' + this.authenticator.entries.length);
     V.showSettingsProjects = this.match(settingsSearch, 'global defaults project overrides active project picker inherited values reset project create local project');
     V.showSettingsAppearance = this.match(settingsSearch, 'appearance theme dark light language mode English Cantonese bilingual emoji dialogs message boxes current ' + s.theme + ' ' + s.lang + ' ' + s.showEmojis);
     V.showSettingsFunny = !this.schoolMode.enabled && this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
@@ -3443,7 +3508,15 @@ class Component extends DCLogic {
     V.showSettingsSchedule = this.match(settingsSearch, 'scheduled settings schedule calendar date time weekday timezone local api home assistant temporary override precedence external source credential');
     V.showSettingsExternalEditor = this.match(settingsSearch, 'external editor Visual Studio Code VS Code Notepad++ project folder file export open editor installed PATH preference');
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
-    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsExternalEditor && !V.showSettingsLocal;
+    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsExternalEditor && !V.showSettingsAuthenticator && !V.showSettingsLocal;
+    V.authIssuer = this.state.authIssuer; V.setAuthIssuer = e => this.setState({ authIssuer: String(e.target.value || '').slice(0, 96) });
+    V.authAccount = this.state.authAccount; V.setAuthAccount = e => this.setState({ authAccount: String(e.target.value || '').slice(0, 160) });
+    V.authSecretOrUri = this.state.authSecretOrUri; V.setAuthSecretOrUri = e => this.setState({ authSecretOrUri: String(e.target.value || '').slice(0, 512) });
+    V.authMessage = this.state.authMessage || 'No local entry has been added yet. Secrets stay in memory/local storage only; this design does not use a credential vault.';
+    V.authenticatorEntries = this.authenticator.entries.filter(entry => this.match(this.state.authQuery || '', entry.issuer + ' ' + entry.account)).map(entry => ({ issuer: entry.issuer, account: entry.account, algorithm: entry.algorithm, digits: entry.digits, period: entry.period, code: this.authCodes[entry.id] || '------', seconds: Math.max(0, entry.period - (Math.floor(Date.now() / 1000) % entry.period)), remove: () => this.removeAuthenticator(entry.id) }));
+    V.authQuery = this.state.authQuery; V.setAuthQuery = e => this.setState({ authQuery: String(e.target.value || '').slice(0, 128) });
+    V.addAuthenticator = () => this.addAuthenticator(); V.exportAuthenticatorRedacted = () => this.exportAuthenticatorRedacted(); V.clearAuthenticator = () => this.clearAuthenticator();
+    V.authQr = this.authQr; V.authQrUri = this.authQr ? this.authQr.uri : '';
     V.schoolModeEnabled = this.schoolMode.enabled;
     V.schoolModeDisabled = !this.schoolMode.enabled;
     V.schoolModeName = this.schoolMode.name;
