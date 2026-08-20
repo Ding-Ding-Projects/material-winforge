@@ -191,3 +191,9 @@ Implemented on branch `luna/toy-locks` from base `72644297a61e7ca5765497088cae47
 Changed `pages/app/SiteShell.tsx`, `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, the site/application toy-lock articles and indexes, the completeness inventory, `CHANGELOG.md`, and this handoff. The site persists only bounded salted hashes and local ticket metadata; it makes no network request and exposes self-service browser-storage or local application-data recovery without deleting anything.
 
 Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verification, release, and issue/discussion updates were not run in this bounded lane.
+## Local Status Hub lane — `codex/luna-status-hub`
+
+- Added the local Status Hub dashboard in `pages/app/SiteShell.tsx` and `pages/app/globals.css`. It reads only the existing release manifest, shows current commit/release/Hub availability cards, filters evidence lanes, expands evidence and next-check details, and displays a local-read heartbeat.
+- Added the matching Status Hub reference treatment in `main-app-design/WinForge M3.dc.html`, `docs/site/status-hub.md`, `docs/application/status-hub.md`, both documentation indexes, and `docs/completeness/universal-feature-inventory.md`.
+- The dashboard explicitly says authenticated Status Hub delivery is unavailable and offers a copy-for-chat fallback. It does not invent credentials, remote verdicts, or deployment state.
+- Verification boundary: tests, lint, reviews, screenshots, packaged/runtime interaction, external Status Hub delivery, release, and publication were intentionally not run for this bounded lane.

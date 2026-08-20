@@ -18,6 +18,7 @@
 - [Local file converter](file-converter.md) — bounded local JSON ↔ CSV conversion with truthful unavailable-adapter catalog.
 - [Local Ollama suite manager](ollama.md) — bounded loopback version/tag reads with explicit stopped and offline states.
 - [Element appearance editor](appearance-editor.md) — anchored per-card and per-tab typography, color, alpha, radius, persistence, and reset.
+- [Local Status Hub](status-hub.md) — interactive local release projection, evidence lanes, filters, and the explicit authenticated-delivery fallback.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 

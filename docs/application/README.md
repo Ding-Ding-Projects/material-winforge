@@ -27,6 +27,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Local snapshot history and restore](local-snapshot-history.md) — private append-only Git metadata where available, with browser-local fallback and redacted settings/authenticator/lock events.
 - [Reviewed Winget upgrades](winget-upgrades.md)
 - [Empty Recycle Bin](empty-recycle-bin.md)
+- [Desktop Status Hub reference](status-hub.md) — evidence-first release and runtime boundary for the design reference.
 
 ## Not yet claimed
 

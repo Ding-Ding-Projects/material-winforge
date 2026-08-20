@@ -1251,7 +1251,12 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       <sc-if value="{{ isStatus }}" hint-placeholder-val="{{ false }}">
       <div style="padding:20px 32px 48px;max-width:1080px;animation:wf-in .32s var(--emph) both">
         <h1 style="margin:0;font-size:32px;font-weight:400">Preview Status</h1>
-        <p style="margin:6px 0 20px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Declared renderer and simulation states for this offline preview. No service health check is performed.</p>
+        <p style="margin:6px 0 20px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Evidence-first local status projection. Manifest facts are shown when available; no authenticated Hub delivery, service health check, or packaged-runtime verdict is invented.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px">
+          <div style="padding:14px 16px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low)"><div style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">CURRENT COMMIT</div><div style="font-family:'Roboto Mono',monospace;font-size:14px;margin-top:6px">{{ manifestCommit }}</div></div>
+          <div style="padding:14px 16px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low)"><div style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">RELEASE</div><div style="font-family:'Roboto Mono',monospace;font-size:14px;margin-top:6px">{{ manifestRelease }}</div></div>
+          <div style="padding:14px 16px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low)"><div style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">HUB DELIVERY</div><div style="font-size:14px;margin-top:6px">Local fallback · unavailable</div></div>
+        </div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <sc-for list="{{ statusRows }}" as="s" hint-placeholder-count="8">
             <div style="display:flex;align-items:center;gap:16px;padding:14px 18px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low)">
@@ -3864,6 +3869,8 @@ class Component extends DCLogic {
     V.dimSumItems = DIM_SUM.filter(d => !dq || d.en.toLowerCase().includes(dq) || d.zh.includes(this.dimQuery.trim()));
 
     V.isStatus = r.view === 'statushub';
+    V.manifestCommit = 'Unavailable · no local manifest injected';
+    V.manifestRelease = 'Not published';
     const st_ = (name, detail, state, ok) => ({
       name, detail, state,
       dot: ok === 'warn' ? amber : (ok ? green : err),

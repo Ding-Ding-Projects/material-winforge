@@ -5,6 +5,10 @@
 - Added a bounded append-only redacted journal for Settings, authenticator, and toy-lock mutations. The packaged local Git capability may commit neutral metadata privately; restore is a new event, never a history rewrite, and secrets, hashes, QR payloads, credentials, and vocabulary are excluded.
 - Added a truthful browser-local append-only fallback when Pages cannot execute Git, with visible capability provenance and no network or credential path.
 - Tests, lint, reviews, packaged interaction, captures, release, and publication remain unrun/unverified for this slice.
+## Unreleased — local Status Hub
+
+- Added an interactive local Status Hub projection to the Pages Status tab: manifest-backed commit/release cards, emoji evidence lanes, accessible filters, expandable lane details, a local-read heartbeat, and a truthful authenticated-delivery-unavailable/copy-for-chat fallback.
+- Added matching site and desktop Status Hub documentation, design-reference coverage, and the completeness-inventory row. No remote delivery, credentials, tests, lint, runtime interaction, captures, release, or publication are claimed for this lane.
 
 ## Unreleased — toy locks and Support Tickets
 
