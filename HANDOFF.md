@@ -1,5 +1,11 @@
 # Handoff
 
+## Luna Pages destructive-confirmation parity lane — `codex/luna-site-destructive-confirmation`
+
+- Strengthened the Pages Settings reset alertdialog with an exact affected-record disclosure: eight presentation settings, the live local-project count, the live sparse-override count, and the preserved personal vocabulary, app logo, notification history, and settings history.
+- Added a contained keyboard focus loop and dialog-local Escape handling. Header close, Emergency exit, scrim cancellation, and Escape return focus to the originating control without mutating browser state; the full-range slider stays unavailable until both independent acknowledgements are checked, and reset remains single-shot at 100% only.
+- Updated `pages/app/SiteShell.tsx`, `pages/app/globals.css`, `docs/site/destructive-confirmation.md`, `CHANGELOG.md`, and this handoff. No tests, lint, reviews, runtime interaction, captures, release, or publication evidence were run; sequential site builds and vocabulary/publication/diff preflights are the permitted evidence for this lane.
+
 ## Luna desktop unlock-ladder parity lane — `codex/luna-desktop-unlock-ladder-parity`
 
 - Wired the desktop design/runtime reference's Unlock ladder card with bounded local state and real transitions: four-choice dim-sum when School mode is off, five-wrong-dish escalation to ten sums, an eight-second timed mole rung after one wrong sum, and clock-only fallback after expiry or a lost round. School mode starts directly at sums and does not expose the dim-sum rung.

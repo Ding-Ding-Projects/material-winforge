@@ -2967,6 +2967,19 @@ footer {
   gap: 10px;
   margin: 20px 0;
 }
+.reset-impact-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 20px;
+  padding: 14px 18px 14px 34px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 18px;
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+}
+.reset-impact-list li::marker {
+  color: var(--error);
+}
 .reset-keys label {
   display: grid;
   grid-template-columns: auto 1fr;

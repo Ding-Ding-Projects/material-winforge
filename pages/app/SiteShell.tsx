@@ -8566,6 +8566,8 @@ export default function SiteShell({
       {resetConfirmOpen && (
         <ResetSettingsConfirmation
           language={language}
+          projectCount={prefs.settingsOwnership.projects.length}
+          overrideCount={prefs.settingsOwnership.projects.reduce((count, project) => count + Object.keys(project.overrides).length, 0)}
           keySettings={resetKeySettings}
           setKeySettings={setResetKeySettings}
           keyProjects={resetKeyProjects}
@@ -9000,6 +9002,8 @@ function Range({
 }
 function ResetSettingsConfirmation({
   language,
+  projectCount,
+  overrideCount,
   keySettings,
   setKeySettings,
   keyProjects,
@@ -9011,6 +9015,8 @@ function ResetSettingsConfirmation({
   cancel,
 }: {
   language: LanguageMode;
+  projectCount: number;
+  overrideCount: number;
   keySettings: boolean;
   setKeySettings: (value: boolean) => void;
   keyProjects: boolean;
@@ -9022,6 +9028,41 @@ function ResetSettingsConfirmation({
   cancel: () => void;
 }) {
   const armed = keySettings && keyProjects;
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((element) => !element.hidden && element.getClientRects().length > 0);
+    const first = focusable()[0];
+    first?.focus();
+    const trap = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancel();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const firstItem = items[0];
+      const lastItem = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === firstItem) {
+        event.preventDefault();
+        lastItem.focus();
+      } else if (!event.shiftKey && document.activeElement === lastItem) {
+        event.preventDefault();
+        firstItem.focus();
+      }
+    };
+    dialog.addEventListener("keydown", trap);
+    return () => dialog.removeEventListener("keydown", trap);
+  }, [cancel, complete]);
   return (
     <div
       className="dialog-scrim reset-confirm-scrim"
@@ -9031,9 +9072,11 @@ function ResetSettingsConfirmation({
       }}
     >
       <section
+        ref={dialogRef}
         className={`reset-confirmation ${complete ? "complete" : ""}`}
         role="alertdialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby="reset-confirm-title"
         aria-describedby="reset-confirm-impact"
       >
@@ -9080,6 +9123,12 @@ function ResetSettingsConfirmation({
                 language,
               )}
             </p>
+            <ul className="reset-impact-list" aria-label={dual("Affected local records", "受影響嘅本機記錄", language)}>
+              <li>{dual("Eight presentation settings → shipped values", "八個顯示設定 → 原裝值", language)}</li>
+              <li>{dual(`${projectCount} local project record${projectCount === 1 ? "" : "s"} → removed`, `${projectCount} 個本機 project 記錄 → 移除`, language)}</li>
+              <li>{dual(`${overrideCount} sparse project override${overrideCount === 1 ? "" : "s"} → removed`, `${overrideCount} 個稀疏 project 覆寫 → 移除`, language)}</li>
+              <li>{dual("Personal vocabulary, app logo, notification history, and settings history → preserved", "個人詞彙、應用程式標誌、通知記錄同設定記錄 → 保留", language)}</li>
+            </ul>
             <div className="reset-keys">
               <label>
                 <input

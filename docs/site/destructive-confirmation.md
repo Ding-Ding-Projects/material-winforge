@@ -8,9 +8,9 @@ The visible Settings control and the command-palette reset command open the same
 
 ## Confirmation sequence
 
-The blocking surface names the impact before authorization. A visitor must independently acknowledge the presentation-settings reset and project-record removal. Only then does the full-range slider become available. Mutation occurs once, only when the slider reaches 100 percent. The completion state reports what changed and what was preserved.
+The blocking surface names the impact before authorization and lists the exact affected-record counts at the moment it opens: eight presentation settings, the current number of local project records, and the current number of sparse project overrides. It separately lists the personal vocabulary, app logo, notification history, and settings history that will be preserved. A visitor must independently acknowledge the presentation-settings reset and project-record removal. Only then does the full-range slider become available. Mutation occurs once, only when the slider reaches 100 percent. The completion state reports what changed and what was preserved.
 
-Emergency exit, the close control, Escape, and a click on the surrounding scrim cancel without mutation and return focus to the control that opened the surface. The controls have explicit labels, visible focus behavior inherited from the site, adequate targets, and localized English, Cantonese, and bilingual copy.
+Emergency exit, the close control, Escape, and a click on the surrounding scrim cancel without mutation and return focus to the control that opened the surface. While open, keyboard focus is contained within the alertdialog; completion keeps the same focus-return path. The controls have explicit labels, visible focus behavior inherited from the site, adequate targets, and localized English, Cantonese, and bilingual copy.
 
 ## Motion and failure modes
 
