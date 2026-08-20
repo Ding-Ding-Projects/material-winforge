@@ -41,6 +41,10 @@ type NarrationSettings = {
   rate: number;
   pitch: number;
 };
+type SpeechQueueItem = {
+  text: string;
+  language: "en" | "yue";
+};
 type ScheduleRule = {
   schemaVersion: 1;
   id: string;
@@ -1867,7 +1871,7 @@ export default function SiteShell({
   const appliedScheduleSignature = useRef<string | null>(null);
   const [speechVoices, setSpeechVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [narrationStatus, setNarrationStatus] = useState<"available" | "unavailable">("available");
-  const speechQueue = useRef<Array<{ text: string; language: "en" | "yue" }>>([]);
+  const speechQueue = useRef<SpeechQueueItem[]>([]);
   const speechRunning = useRef(false);
   const [hydrated, setHydrated] = useState(false);
   const [narrowTabs, setNarrowTabs] = useState(false);
@@ -2234,10 +2238,13 @@ export default function SiteShell({
     if (!narration.enabled || !message.trim()) return;
     const parts = narration.language === "both" ? message.split(/\s·\s/, 2) : [message];
     const languages: Array<"en" | "yue"> = narration.language === "both" ? ["en", "yue"] : [narration.language];
+    const pending: SpeechQueueItem[] = [];
     parts.forEach((text, index) => {
-      if (text.trim()) speechQueue.current.push({ text: text.trim(), language: languages[index] ?? languages[0] });
+      if (text.trim()) pending.push({ text: text.trim().slice(0, 512), language: languages[index] ?? languages[0] });
     });
-    while (speechQueue.current.length > 4) speechQueue.current.shift();
+    // Keep the active utterance, but replace stale pending notifications so a
+    // burst of toasts cannot make speech trail minutes behind the screen.
+    speechQueue.current = pending.slice(0, 2);
     drainSpeech();
   }, [drainSpeech, narration.enabled, narration.language]);
   useEffect(() => {
@@ -3660,7 +3667,10 @@ export default function SiteShell({
   );
   const englishVoices = speechVoices.filter((voice) => /^en([_-]|$)/i.test(voice.lang));
   const cantoneseVoices = speechVoices.filter((voice) => /^(zh[-_]HK|yue)/i.test(voice.lang));
-  const voiceOptionLabel = (voice: SpeechSynthesisVoice) => `${voice.name} · ${voice.lang}`;
+  const voiceOptionLabel = (voice: SpeechSynthesisVoice) =>
+    `${voice.name || voice.voiceURI} · ${voice.lang || "unknown language"} · ${voice.localService ? "local" : "network-backed"}`;
+  const voiceIsMissing = (voiceId: string, voices: SpeechSynthesisVoice[]) =>
+    voiceId !== "auto" && !voices.some((voice) => voice.voiceURI === voiceId);
   const updateNarration = (patch: Partial<NarrationSettings>) =>
     setNarration((current) => normalizeNarration({ ...current, ...patch }) ?? current);
   const narrationVoiceStatus = narrationStatus === "unavailable"
@@ -3698,6 +3708,13 @@ export default function SiteShell({
         settingsQuery,
         `${settingsFlags.i ? "i" : ""}${settingsFlags.m ? "m" : ""}`,
       );
+  const narratorVoiceCoverage = speechVoices.length
+    ? dual(
+        `${englishVoices.length} English and ${cantoneseVoices.length} Cantonese voices are available. Network-backed voices may be silent offline; this site never downloads voices.`,
+        `有 ${englishVoices.length} 把英文聲音同 ${cantoneseVoices.length} 把廣東話聲音。網絡聲音離線時可能冇聲；本網站唔會下載聲音。`,
+        language,
+      )
+    : "";
     } catch (error) {
       settingsPatternError =
         error instanceof Error ? error.message : "Invalid regular expression";
@@ -7196,6 +7213,11 @@ export default function SiteShell({
                   <p id="narration-status" className="supporting-copy" aria-live="polite">
                     {narrationVoiceStatus}
                   </p>
+                  {narratorVoiceCoverage && (
+                    <p className="supporting-copy" aria-live="polite">
+                      {narratorVoiceCoverage}
+                    </p>
+                  )}
                   <label className="narration-field">
                     <span>{dual("Narration language", "旁白語言", language)}</span>
                     <select
@@ -7222,6 +7244,11 @@ export default function SiteShell({
                       <option value="auto">
                         {dual("Choose automatically", "選擇自動", language)}
                       </option>
+                      {voiceIsMissing(narration.englishVoice, englishVoices) && (
+                        <option value={narration.englishVoice}>
+                          {dual("Saved voice unavailable · falling back", "保存嘅聲音未有安裝 · 使用後備聲音", language)}
+                        </option>
+                      )}
                       {englishVoices.map((voice) => (
                         <option key={voice.voiceURI} value={voice.voiceURI}>
                           {voiceOptionLabel(voice)}
@@ -7241,6 +7268,11 @@ export default function SiteShell({
                       <option value="auto">
                         {dual("Choose automatically", "選擇自動", language)}
                       </option>
+                      {voiceIsMissing(narration.cantoneseVoice, cantoneseVoices) && (
+                        <option value={narration.cantoneseVoice}>
+                          {dual("Saved voice unavailable · falling back", "保存嘅聲音未有安裝 · 使用後備聲音", language)}
+                        </option>
+                      )}
                       {cantoneseVoices.map((voice) => (
                         <option key={voice.voiceURI} value={voice.voiceURI}>
                           {voiceOptionLabel(voice)}
@@ -7277,6 +7309,17 @@ export default function SiteShell({
                   <p id="narration-fallback" className="supporting-copy" aria-live="polite">
                     {voiceFallbackNotice}
                   </p>
+                  <div className="narration-actions">
+                    <button
+                      type="button"
+                      className="tonal-button"
+                      disabled={!narration.enabled || narrationStatus === "unavailable"}
+                      onClick={() => enqueueSpeech("Narrator test · 本機旁白測試")}
+                    >
+                      {dual("Speak a local preview", "播放本機預覽", language)}
+                    </button>
+                    <small>{dual("Preview uses the selected language and voices; no network request is made.", "預覽會使用已揀語言同聲音；唔會發出網絡請求。", language)}</small>
+                  </div>
                 </div>
               </SettingCard>
               <SettingCard

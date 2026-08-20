@@ -10,7 +10,7 @@
 - [Tab pinning](tab-pinning.md) — persistent local pins, a stable pinned region, and future bulk-close protection.
 - [Tab reordering](tab-reordering.md) — persistent six-tab ordering with axis-aware accessible move controls.
 - [Tab groups](tab-groups.md) — bounded local grouping, group management, and the searchable Move… into group… picker.
-- [Site narrator](narration.md) — opt-in local speech, runtime voice pickers, serialized bilingual narration, and bounded rate/pitch controls.
+- [Site narrator](narration.md) — opt-in local speech, runtime voice pickers with local/network status, serialized bilingual narration with pending replacement, a local preview action, and bounded rate/pitch controls.
 - [Scheduled settings](scheduled-settings.md) — bounded browser-local date/time/weekday overrides with deterministic precedence and base-setting restoration.
 - [School mode](school-mode.md) — a local renamed English-only UX mode with hashed unlock and honest browser-storage recovery.
 - [Toy locks and Support Tickets](toy-locks.md) — per-target local UX locks, unlock durations, and a fictional self-service recovery desk.

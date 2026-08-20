@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — Pages narrator parity
+
+- Extended the Pages narrator with a factual local/network voice label, an explicit unavailable saved-voice option that retains its stable `voiceURI`, a local preview action, and pending-notification replacement while an active utterance finishes. English, Cantonese, bilingual ordering, local persistence, and bounded rate/pitch behavior remain unchanged. No tests, lint, reviews, runtime interaction, captures, or release are claimed for this lane.
+
 - Expanded the local converter catalog from category summaries to individually enumerated formats across Documents/PDF, Images, Audio, Video, Archives, Structured Data/Spreadsheets, Code/Text, and Binary Encodings. Every unavailable format is visibly disabled with its exact missing bundled-adapter reason, while JSON/CSV/JSONL/TSV adapters and bounded queue behavior remain unchanged. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
 - Added the desktop in-app offline documentation browser. Build preparation now validates and bundles every checked-in application and site Markdown article; the Docs route renders escaped Markdown locally, follows internal article links, and searches plain text by default with the shared anchored regex builder. Built-artifact interaction and captures remain unverified for this lane.
 
