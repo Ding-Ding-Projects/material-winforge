@@ -1,6 +1,8 @@
 # Toy locks and Support Tickets
 
-The landing surface provides a bounded, local toy-lock wizard for major site targets: Site Settings, Documentation, Feature map, and the desktop Settings target. Each target has an independent credential hash and salt, an explicit unlock duration (until reload, 15 minutes, 1 hour, or 24 hours), and a visible locked state. Locked targets remain discoverable in the Settings search and command palette and say that unlocking is required.
+The landing surface provides one reusable, anchored, local toy-lock wizard for every rendered target. Existing appearance targets and every rendered descendant receive a deterministic `element-*` target ID, so a user can open the same wizard from that element's context menu, its keyboard `Enter`/`F2` path, or a locked activation. Each target has an independent salted credential hash, an explicit unlock duration (until reload, 15 minutes, 1 hour, or 24 hours), and a visible locked state. Locked targets remain discoverable in the Settings search and command palette and say that unlocking is required.
+
+The context menu keeps both actions: **Lock this element…** and **Edit appearance…**. A lock blocks only the local preview activation and never hides or deletes the target. Target IDs are exact and bounded; hashes and durations are stored per target rather than shared. Support Tickets and the browser-storage recovery route remain available even when a target is locked.
 
 Toy locks are a self-imposed UX speed bump. They are not security, encryption, authentication, or data protection. Only salted hashes are persisted in browser storage; plaintext credentials are cleared after use and never enter exports, history, logs, or network requests. Relocking is always available.
 

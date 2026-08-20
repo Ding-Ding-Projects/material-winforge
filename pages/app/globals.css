@@ -166,6 +166,16 @@ button {
 .appearance-color-translations { display:grid; gap:7px; margin-top:16px; padding:12px; border:1px solid var(--outline-variant); border-radius:var(--radius-md); background:var(--surface-container); }
 .appearance-color-translations code { overflow-wrap:anywhere; font-size:12px; }
 .appearance-editor-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.toy-lock-context-menu,.toy-lock-wizard { position:fixed; z-index:1300; width:min(340px,calc(100vw - 24px)); max-height:calc(100vh - 24px); overflow:auto; display:grid; gap:12px; padding:16px; border:1px solid var(--outline-variant); border-radius:var(--radius-lg); background:var(--surface-container-highest); color:var(--on-surface); box-shadow:0 12px 32px var(--shadow); }
+.toy-lock-context-menu { width:min(280px,calc(100vw - 24px)); }
+.toy-lock-context-menu button { min-height:44px; border:0; border-radius:var(--radius-sm); background:transparent; color:inherit; text-align:left; padding:8px 10px; cursor:pointer; }
+.toy-lock-context-menu button:hover,.toy-lock-context-menu button:focus-visible { background:var(--surface-container-high); outline:2px solid var(--primary); outline-offset:2px; }
+.toy-lock-wizard header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.toy-lock-wizard header button { min-width:36px; min-height:36px; border:0; border-radius:999px; background:transparent; color:inherit; font-size:22px; }
+.toy-lock-wizard label { display:grid; gap:6px; font-weight:600; }
+.toy-lock-wizard input,.toy-lock-wizard select { min-height:44px; border:1px solid var(--outline); border-radius:var(--radius-sm); padding:8px 10px; background:var(--surface-bright); color:var(--on-surface); font:inherit; }
+.toy-lock-wizard-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+[data-toy-locked="true"] { outline:2px dashed var(--error); outline-offset:3px; }
 .feature-card, .setting-card, .tab-entry { position:relative; }
 .feature-card > .appearance-edit-trigger, .setting-card > .appearance-edit-trigger { position:absolute; top:12px; right:12px; opacity:.82; }
 .tab-entry > .appearance-edit-trigger { position:absolute; top:4px; right:4px; z-index:2; opacity:.75; }

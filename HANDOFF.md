@@ -179,6 +179,14 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Verification boundary: no tests, lint, reviews, screenshots, packaged runtime interaction, release, or publication were run in this requested lane.
 ## Toy locks and Support Tickets lane — `luna/toy-locks`
 
+## Every-rendered-target toy-lock follow-up — `codex/luna-every-element-locks`
+
+Implemented from `a55edf0d8c9d56280c6e3db71381d8b5b3029a21` in a fresh task-owned linked checkout. `pages/app/SiteShell.tsx` now assigns deterministic bounded `element-*` target IDs to rendered descendants, keeps `Lock this element…` and `Edit appearance…` together in an anchored context menu, opens the same local UX wizard from context menu, Enter, F2, locked activation, and command-palette entries, and stores each target's salted hash and duration independently. Locked targets remain visible and discoverable. `pages/app/globals.css` supplies the bounded M3 wizard/menu and locked-state treatment. The checked-in design reference, toy-lock docs, completeness inventory, changelog, and handoff state the same every-target contract and preserve Support Tickets/recovery.
+
+The boundary is explicit: this is local UX-only, not security, encryption, authentication, network behavior, or deletion. Recovery remains browser-storage clearing or user-directed desktop application-data-folder deletion; Support Tickets never contact a service and never delete data.
+
+Verification: `git diff --check` passed. Tests, lint, reviews, screenshots, built-artifact interaction, packaged desktop verification, release, and external issue/discussion updates were not run in this requested lane.
+
 Implemented on branch `luna/toy-locks` from base `72644297a61e7ca5765497088cae47eec5e99987`.
 
 Changed `pages/app/SiteShell.tsx`, `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, the site/application toy-lock articles and indexes, the completeness inventory, `CHANGELOG.md`, and this handoff. The site persists only bounded salted hashes and local ticket metadata; it makes no network request and exposes self-service browser-storage or local application-data recovery without deleting anything.
