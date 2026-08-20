@@ -13,6 +13,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Personal vocabulary JSON](personal-vocabulary.md)
 - [Message emoji preference](message-emoji-preference.md)
 - [Scheduled settings and external sources](scheduled-settings.md)
+- [Desktop narrator](narration.md)
 - [School mode](school-mode.md)
 - [Changelog viewer](changelog-viewer.md)
 - [Flush DNS](flush-dns.md)

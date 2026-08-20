@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added the desktop narrator counterpart: opt-in local notification speech, English/Cantonese/bilingual serialization, runtime voice enumeration with stable IDs, automatic and missing-voice fallback, bounded rate/pitch controls, local persistence, Settings search, and command-palette routing. Tests, lint, packaged runtime interaction, accessibility review, and captures remain unrun for this slice.
+
 - Added local, user-renamable School mode to the Pages shell and desktop design/runtime surface: salted Web Crypto unlock hashes, immediate English-only presentation, hidden funny-level/personal-vocabulary/dim-sum affordances while enabled, prior-choice restoration, command-palette discovery, and honest local-storage recovery. Tests, lint, runtime interaction, accessibility review, captures, release, and publication remain unrun for this slice.
 
 - Added a bounded browser-local scheduled-settings editor with local-time date, time, and weekday matching, deterministic last-match precedence, temporary overrides that restore base ownership/settings, Settings search and command-palette routing, and explicit no-external-source disclosure.

@@ -658,6 +658,22 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         </section>
         </sc-if>
 
+        <sc-if value="{{ showSettingsNarrator }}" hint-placeholder-val="{{ true }}">
+        <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <h2 style="margin:0 0 4px;font-size:16px;font-weight:500">Narrator</h2>
+          <p style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">Optional local speech for app notifications. It is off until enabled, uses the platform voices installed on this computer, and makes no network request.</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px"><span style="font-size:13.5px">Speak app notifications</span><button onClick="{{ toggleNarrator }}" role="switch" aria-checked="{{ narratorEnabled }}" aria-label="Speak app notifications" style="width:52px;height:32px;padding:3px;border:none;border-radius:999px;background:{{ narratorToggleBg }};display:flex;justify-content:{{ narratorToggleJustify }};align-items:center"><span aria-hidden="true" style="width:26px;height:26px;border-radius:50%;background:var(--md-sys-color-surface);box-shadow:var(--md-sys-elevation-level1)"></span></button></div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">Narrated language<select value="{{ narratorLanguage }}" onChange="{{ setNarratorLanguage }}" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:10px;background:var(--md-sys-color-surface);color:inherit"><option value="English">English</option><option value="Cantonese">粵語</option><option value="Bilingual">English + 粵語</option></select></label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">English voice<select value="{{ narratorEnglishVoiceId }}" onChange="{{ setNarratorEnglishVoice }}" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:10px;background:var(--md-sys-color-surface);color:inherit"><sc-for list="{{ narratorEnglishVoices }}" as="voice" hint-placeholder-count="1"><option value="{{ voice.id }}">{{ voice.label }}</option></sc-for></select></label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">Cantonese voice<select value="{{ narratorCantoneseVoiceId }}" onChange="{{ setNarratorCantoneseVoice }}" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:10px;background:var(--md-sys-color-surface);color:inherit"><sc-for list="{{ narratorCantoneseVoices }}" as="voice" hint-placeholder-count="1"><option value="{{ voice.id }}">{{ voice.label }}</option></sc-for></select></label>
+            <div style="font-size:12.5px;color:var(--md-sys-color-on-surface-variant);display:flex;align-items:end">{{ narratorStatus }}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px"><label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">Rate · {{ narratorRate }}<input type="range" min="0.5" max="2" step="0.1" value="{{ narratorRate }}" onInput="{{ setNarratorRate }}" aria-label="Narrator rate"></label><label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">Pitch · {{ narratorPitch }}<input type="range" min="0.5" max="2" step="0.1" value="{{ narratorPitch }}" onInput="{{ setNarratorPitch }}" aria-label="Narrator pitch"></label></div>
+          <button onClick="{{ testNarrator }}" style="height:36px;margin-top:16px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-weight:500">Test narrator</button>
+        </section>
+        </sc-if>
+
         <sc-if value="{{ showSettingsSchedule }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Scheduled settings</h2>
@@ -1905,6 +1921,7 @@ const SHIP_ITEMS = [
   { id: 'feat.notifs', group: 'Universal features', label: 'Notification centre + history', dod: 'Bounded cards, 200-entry local history, searchable, information and success auto-dismiss.', where: 'Title bar · bell', def: true },
   { id: 'feat.appearance', group: 'Universal features', label: 'Appearance editor', dod: 'Working light and dark M3 schemes on the Google-blue seed, persisted.', where: 'Title bar · theme button, Settings', def: true },
   { id: 'feat.funny', group: 'Universal features', label: 'Funny levels', dod: 'Independent English and Cantonese 1–5 tone sliders with a live safe-copy preview.', where: 'Settings · Funny levels', def: true },
+  { id: 'feat.narrator', group: 'Universal features', label: 'Narrator and voice pickers', dod: 'Opt-in local notification speech with English/Cantonese/bilingual serialization, runtime stable voice IDs, fallback, bounded rate/pitch, persistence, Settings search, and command-palette routing.', where: 'Settings · Narrator', def: true },
   { id: 'feat.palette', group: 'Universal features', label: 'Command palette', dod: 'Ctrl+Shift+F searches every category, module and tweak and routes to the selected surface.', where: 'Title bar, rail button, Ctrl+Shift+F', def: true },
   { id: 'feat.persist', group: 'Universal features', label: 'Persistence', dod: 'Tweaks, tabs, reactor state, theme, language and notifications all survive reload.', where: 'Everywhere · localStorage', def: true },
   { id: 'feat.electron', group: 'Delivery', label: 'Electron packaging', dod: 'Frameless window, caption-button IPC, Squirrel.Windows target, unsigned by policy.', where: 'electron/ + package.json', def: true },
@@ -1941,6 +1958,8 @@ const ACTION_RX = /\b(open|run|list|show|launch|kill|clear|restart|update|scan|f
 
 const FUNNY_EN = ['', 'Cleared 2.4 GB of temporary files.', 'Cleared 2.4 GB — tidy.', 'Swept out 2.4 GB of junk.', 'Binned 2.4 GB of digital lint. You are welcome.', 'Yeeted 2.4 GB of junk into the void. Disk is living its best life.'];
 const FUNNY_ZH = ['', '已清理 2.4 GB 暫存檔案。', '清走 2.4 GB，乾淨咗。', '掃走 2.4 GB 垃圾檔。', '倒咗 2.4 GB 電子塵，唔使客氣。', '2.4 GB 垃圾飛咗，硬碟即刻精神爆棚。'];
+const NARRATOR_LANGUAGES = ['English', 'Cantonese', 'Bilingual'];
+const NARRATOR_DEFAULT = Object.freeze({ schemaVersion: 1, enabled: false, language: 'English', englishVoiceId: 'auto', cantoneseVoiceId: 'auto', rate: 1, pitch: 1 });
 
 class Component extends DCLogic {
   constructor(props) {
@@ -1980,6 +1999,11 @@ class Component extends DCLogic {
     const effectiveSettings = { ...this.settingsGlobal, ...(activeSettingsProject ? activeSettingsProject.overrides : {}) };
     this.personalVocabulary = this.validateVocabularyPayload(L && L.personalVocabulary);
     this.schoolMode = this.validateSchoolMode(L && L.schoolMode);
+    this.narrator = this.validateNarrator(L && L.narrator);
+    this.narratorVoices = [];
+    this.narratorQueue = [];
+    this.narratorSpeaking = false;
+    this.narratorLastByCategory = new Map();
     this.speed = 1;
     this.seenCount = this.notifs.length;
     this.state = {
@@ -2011,6 +2035,47 @@ class Component extends DCLogic {
   }
 
   load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  validateNarrator(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { ...NARRATOR_DEFAULT };
+    const voice = value => typeof value === 'string' && value.length <= 256 && /^[\w:/.#-]*$/.test(value) ? value : 'auto';
+    const bounded = (value, fallback) => Number.isFinite(Number(value)) ? Math.max(0.5, Math.min(2, Math.round(Number(value) * 10) / 10)) : fallback;
+    return { schemaVersion: 1, enabled: payload.enabled === true, language: NARRATOR_LANGUAGES.includes(payload.language) ? payload.language : 'English', englishVoiceId: voice(payload.englishVoiceId), cantoneseVoiceId: voice(payload.cantoneseVoiceId), rate: bounded(payload.rate, 1), pitch: bounded(payload.pitch, 1) };
+  }
+  enumerateNarratorVoices() {
+    if (!('speechSynthesis' in window)) { this.narratorVoices = []; this.narratorStatus = 'Speech synthesis is unavailable on this computer.'; this.bump(); return; }
+    const voices = window.speechSynthesis.getVoices().filter(v => v && typeof v.voiceURI === 'string' && v.voiceURI.length <= 256).map(v => ({ id: v.voiceURI, name: String(v.name || v.voiceURI).slice(0, 120), lang: String(v.lang || '').slice(0, 32), local: v.localService === true }));
+    this.narratorVoices = voices.filter((v, i, all) => all.findIndex(other => other.id === v.id) === i);
+    this.narratorStatus = this.narratorVoices.length ? 'Voice list updated from the local platform. Choose automatically follows the language.' : 'No platform voices have been reported yet. Choose automatically will retry when voices arrive.';
+    this.bump();
+  }
+  narratorVoicesFor(language) {
+    const isCantonese = language === 'Cantonese';
+    return [{ id: 'auto', label: 'Choose automatically' }, ...this.narratorVoices.filter(v => isCantonese ? /^(zh[-_](HK|TW|Hant)|yue)/i.test(v.lang) : /^en[-_]/i.test(v.lang)).map(v => ({ id: v.id, label: v.name + ' · ' + v.lang + (v.local ? ' · local' : ' · network-backed') }))];
+  }
+  writeNarrator(next) { this.narrator = this.validateNarrator({ ...this.narrator, ...next }); this.persist(); this.bump(); }
+  queueNarration(title, body, sev) {
+    if (!this.narrator.enabled || !('speechSynthesis' in window)) return;
+    const now = Date.now(); const key = String(title || 'notification');
+    if (sev !== 'error' && now - (this.narratorLastByCategory.get(key) || 0) < 2500) return;
+    this.narratorLastByCategory.set(key, now);
+    const item = { title: String(title || 'Notification').slice(0, 120), body: String(body || '').slice(0, 320) };
+    this.narratorQueue = [item];
+    this.speakNextNarration();
+  }
+  speakNextNarration() {
+    if (this.narratorSpeaking || !this.narratorQueue.length || !this.narrator.enabled || !('speechSynthesis' in window)) return;
+    const item = this.narratorQueue.shift(); const language = this.narrator.language;
+    const parts = language === 'Bilingual' ? [{ text: item.title + '. ' + item.body, lang: 'en', id: this.narrator.englishVoiceId }, { text: item.title + '. ' + item.body, lang: 'zh-HK', id: this.narrator.cantoneseVoiceId }] : [{ text: item.title + '. ' + item.body, lang: language === 'Cantonese' ? 'zh-HK' : 'en', id: language === 'Cantonese' ? this.narrator.cantoneseVoiceId : this.narrator.englishVoiceId }];
+    const speakPart = index => {
+      if (index >= parts.length) { this.narratorSpeaking = false; this.speakNextNarration(); return; }
+      const part = parts[index]; const utterance = new SpeechSynthesisUtterance(part.text); utterance.lang = part.lang; utterance.rate = this.narrator.rate; utterance.pitch = this.narrator.pitch;
+      const voice = this.narratorVoices.find(v => v.id === part.id); const platformVoice = voice && window.speechSynthesis.getVoices().find(v => v.voiceURI === voice.id);
+      if (platformVoice) utterance.voice = platformVoice;
+      this.narratorSpeaking = true; utterance.onend = () => speakPart(index + 1); utterance.onerror = () => speakPart(index + 1); window.speechSynthesis.speak(utterance);
+    };
+    speakPart(0);
+  }
+  testNarrator() { this.queueNarration('Narrator test', 'This is local preview speech. No network request was made.', 'info'); this.notify('Narrator', 'A local speech preview was queued.', 'success', true); }
   validateSchoolMode(payload) {
     const fallback = { schemaVersion: 1, enabled: false, name: 'School mode', previousLanguage: 'English', credentialSalt: null, credentialHash: null };
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return fallback;
@@ -2176,6 +2241,7 @@ class Component extends DCLogic {
         schedules: this.schedules.slice(0, 50),
         personalVocabulary: this.personalVocabulary,
         schoolMode: this.schoolMode,
+        narrator: this.narrator,
         reactor: this.rx.snapshot(), rlog: this.rlogLines.slice(0, 60), ship: this.ship || this.savedShip,
       }));
     } catch (e) {}
@@ -2217,6 +2283,8 @@ class Component extends DCLogic {
     this.sysTimer = setInterval(this.pollSystemMetrics, 4000);
     this.saveTimer = setInterval(() => this.persist(), 4000);
     this.scheduleTimer = setInterval(() => this.refreshScheduledSettings(), 15000);
+    this.narratorVoicesChanged = () => this.enumerateNarratorVoices();
+    if ('speechSynthesis' in window) { window.speechSynthesis.addEventListener('voiceschanged', this.narratorVoicesChanged); this.enumerateNarratorVoices(); }
     this.onKey = e => {
       const k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'f') { e.preventDefault(); this.openPalette(); }
@@ -2265,6 +2333,8 @@ class Component extends DCLogic {
   }
   componentWillUnmount() {
     clearInterval(this.simTimer); clearInterval(this.sysTimer); clearInterval(this.saveTimer); clearInterval(this.scheduleTimer);
+    if (this.narratorVoicesChanged && 'speechSynthesis' in window) window.speechSynthesis.removeEventListener('voiceschanged', this.narratorVoicesChanged);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     window.removeEventListener('keydown', this.onKey);
     this.persist();
   }
@@ -2280,6 +2350,7 @@ class Component extends DCLogic {
     if (this.notifs.length > 200) this.notifs.pop();
     const s = { msg: safeBody, sev: sev || 'info' };
     this.snacks.push(s);
+    this.queueNarration(title, safeBody, sev || 'info');
     setTimeout(() => {
       this.snacks = this.snacks.filter(x => x !== s);
       this.setState(st => ({ tick: st.tick + 1 }));
@@ -2704,6 +2775,7 @@ class Component extends DCLogic {
         { title: 'Appearance and language', sub: 'Theme and language mode', query: 'appearance theme language' },
         { title: 'Show emojis in dialogs and message boxes', sub: 'Decorative notification and snackbar emoji', query: 'appearance emoji dialogs message boxes' },
         { title: 'Funny levels', sub: 'English and Cantonese tone', query: 'funny levels' },
+        { title: 'Narrator and voice pickers', sub: 'Optional local speech, language, stable voice IDs, rate and pitch', query: 'narrator voice speech language rate pitch local offline' },
         { title: 'School mode', sub: 'Local renamed English-only UX mode and unlock', query: 'school mode local unlock English-only' },
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
@@ -3123,9 +3195,10 @@ class Component extends DCLogic {
     V.showSettingsProjects = this.match(settingsSearch, 'global defaults project overrides active project picker inherited values reset project create local project');
     V.showSettingsAppearance = this.match(settingsSearch, 'appearance theme dark light language mode English Cantonese bilingual emoji dialogs message boxes current ' + s.theme + ' ' + s.lang + ' ' + s.showEmojis);
     V.showSettingsFunny = !this.schoolMode.enabled && this.isShipped('feat.funny') && this.match(settingsSearch, 'funny levels tone English Cantonese current ' + s.funnyEn + ' ' + s.funnyZh);
+    V.showSettingsNarrator = !this.schoolMode.enabled && this.match(settingsSearch, 'narrator voice speech language rate pitch local offline notifications English Cantonese bilingual');
     V.showSettingsSchedule = this.match(settingsSearch, 'scheduled settings schedule calendar date time weekday timezone local api home assistant temporary override precedence external source credential');
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
-    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsSchedule && !V.showSettingsLocal;
+    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsLocal;
     V.schoolModeEnabled = this.schoolMode.enabled;
     V.schoolModeDisabled = !this.schoolMode.enabled;
     V.schoolModeName = this.schoolMode.name;
@@ -3192,6 +3265,16 @@ class Component extends DCLogic {
       { label: 'English funny level', value: s.funnyEn, preview: FUNNY_EN[s.funnyEn], change: e => writeSetting('funnyEn', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
       { label: '粵語 funny level', value: s.funnyZh, preview: FUNNY_ZH[s.funnyZh], change: e => writeSetting('funnyZh', Math.max(1, Math.min(5, Number(e.target.value) || 1))) },
     ];
+    V.narratorEnabled = this.narrator.enabled; V.narratorLanguage = this.narrator.language; V.narratorEnglishVoiceId = this.narrator.englishVoiceId; V.narratorCantoneseVoiceId = this.narrator.cantoneseVoiceId; V.narratorRate = this.narrator.rate; V.narratorPitch = this.narrator.pitch;
+    V.narratorEnglishVoices = this.narratorVoicesFor('English'); V.narratorCantoneseVoices = this.narratorVoicesFor('Cantonese'); V.narratorStatus = this.narratorStatus || 'Voice list is loaded from the platform at runtime.';
+    V.narratorToggleBg = this.narrator.enabled ? prim : 'var(--md-sys-color-surface-container-highest)'; V.narratorToggleJustify = this.narrator.enabled ? 'flex-end' : 'flex-start';
+    V.toggleNarrator = () => this.writeNarrator({ enabled: !this.narrator.enabled });
+    V.setNarratorLanguage = e => this.writeNarrator({ language: NARRATOR_LANGUAGES.includes(e.target.value) ? e.target.value : 'English' });
+    V.setNarratorEnglishVoice = e => this.writeNarrator({ englishVoiceId: String(e.target.value || 'auto').slice(0, 256) });
+    V.setNarratorCantoneseVoice = e => this.writeNarrator({ cantoneseVoiceId: String(e.target.value || 'auto').slice(0, 256) });
+    V.setNarratorRate = e => this.writeNarrator({ rate: Math.max(0.5, Math.min(2, Number(e.target.value) || 1)) });
+    V.setNarratorPitch = e => this.writeNarrator({ pitch: Math.max(0.5, Math.min(2, Number(e.target.value) || 1)) });
+    V.testNarrator = () => this.testNarrator();
     const scheduleEffective = this.scheduledSettings();
     V.scheduleQuery = this.scheduleQuery;
     V.setScheduleQuery = e => { this.scheduleQuery = String(e.target.value || '').slice(0, 128); this.bump(); };

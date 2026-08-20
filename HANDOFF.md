@@ -1,5 +1,12 @@
 # Handoff
 
+## Desktop narrator lane — `codex/luna-desktop-narrator`
+
+- Added the desktop narrator card to `main-app-design/WinForge M3.dc.html`: opt-in local notification speech, English/Cantonese/bilingual serialized queue, runtime voice enumeration using stable platform `voiceURI` IDs, automatic and missing-voice fallback, bounded rate/pitch controls, local persistence, Settings search, and `Ctrl+Shift+F` command-palette routing.
+- Added `docs/application/narration.md`, its application-documentation index entry, the desktop completeness inventory row, and an Unreleased changelog entry.
+- No network request or credential path is used by the narrator. Network-backed platform voices are labelled as a platform fact and are not claimed to work offline.
+- Tests, lint, reviews, packaged/runtime interaction, actual voice enumeration, accessibility review, captures, release, and publication are unverified and intentionally unrun for this bounded lane.
+
 ## School-mode lane — `codex/luna-school-mode`
 
 - Added local user-renamable School mode to `pages/app/SiteShell.tsx` and `main-app-design/WinForge M3.dc.html`.
