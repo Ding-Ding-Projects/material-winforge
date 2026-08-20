@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — toy locks and Support Tickets
+
+- Added a bounded local UX lock wizard for major site and desktop targets with independent salted credential hashes, unlock durations, relock, locked-state discovery, and self-service recovery copy.
+- Added fictional local Support Tickets that never contact a service or delete local data.
+- Runtime interaction, tests, lint, captures, and packaged verification remain unverified for this slice.
+
 ## Unreleased
 
 - Added an anchored, per-element appearance editor for major Pages cards and tabs, with bounded local persistence/reset, typography basics, continuous HEX/RGB/HSL/HSV/HWB/CMYK representations, alpha and contrast disclosure, and explicit unsupported OKLab copy. The desktop design reference carries a matching local editor preview. Tests, lint, reviews, packaged interaction, and captures remain unrun for this slice.

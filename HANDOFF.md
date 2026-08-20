@@ -177,3 +177,10 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - Added plain installed-tag search plus an anchored JavaScript regex builder, with no cloud, payment, prompt-history, credential, telemetry, or arbitrary-shell path. Hardware and free-storage fit are explicitly not claimed by the browser surface.
 - Added the matching checked-in design reference and `docs/site/ollama.md` / `docs/application/ollama.md` articles and index entries; updated the universal inventory row.
 - Verification boundary: no tests, lint, reviews, screenshots, packaged runtime interaction, release, or publication were run in this requested lane.
+## Toy locks and Support Tickets lane — `luna/toy-locks`
+
+Implemented on branch `luna/toy-locks` from base `72644297a61e7ca5765497088cae47eec5e99987`.
+
+Changed `pages/app/SiteShell.tsx`, `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, the site/application toy-lock articles and indexes, the completeness inventory, `CHANGELOG.md`, and this handoff. The site persists only bounded salted hashes and local ticket metadata; it makes no network request and exposes self-service browser-storage or local application-data recovery without deleting anything.
+
+Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verification, release, and issue/discussion updates were not run in this bounded lane.
