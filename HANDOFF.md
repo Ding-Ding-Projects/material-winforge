@@ -1,5 +1,11 @@
 # Handoff
 
+## Luna Pages narrator parity lane — `codex/luna-site-narrator-parity`
+
+- Extended `pages/app/SiteShell.tsx` and `pages/app/globals.css` with factual local/network voice labels, an explicit unavailable saved-voice option that retains its stable `voiceURI`, a local preview action, and pending-notification replacement while an active utterance finishes.
+- Updated `docs/site/narration.md`, `docs/site/README.md`, the universal-feature inventory, and `CHANGELOG.md`. The site remains browser-local: no voice download, credentials, network request, or remote speech service was added.
+- Tests, lint, reviews, runtime browser interaction, accessibility review, captures, release, and publication are intentionally unrun/unverified in this lane. Build and publication preflights are the permitted evidence.
+
 ## Unlock ladder lane — `codex/luna-unlock-ladder`
 
 - Added the local-only unlock ladder waiting aid to `pages/app/SiteShell.tsx` and `pages/app/globals.css`. It starts at a four-choice dim-sum rung unless School mode is enabled, advances through ten sums and a timed mole round, and falls to clock-only after a lost round.
