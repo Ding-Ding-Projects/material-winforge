@@ -1,5 +1,7 @@
 # Changelog
 
+- Extended the local file converter with a bounded multi-file queue (two concurrent workers in the site surface), pause/resume/cancel controls, per-file converted/skipped/cancelled/failed outcomes, browser-download storage disclosure, searchable adapter catalog, anchored JavaScript regex builder state, and explicit unsupported/lossy boundaries. Tests, lint, runtime interaction, screenshots, reviews, release, and publication remain unrun for this lane.
+
 ## Unreleased — redacted local Git history
 
 - Added a bounded append-only redacted journal for Settings, authenticator, and toy-lock mutations. The packaged local Git capability may commit neutral metadata privately; restore is a new event, never a history rewrite, and secrets, hashes, QR payloads, credentials, and vocabulary are excluded.

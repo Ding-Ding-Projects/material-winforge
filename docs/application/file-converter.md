@@ -1,10 +1,10 @@
 # Desktop local file converter
 
-The desktop design/runtime reference now describes the same local converter contract: bounded byte inspection, a categorized adapter catalog, and only an offline JSON ↔ CSV adapter enabled. The landing site remains a preview and does not claim operating-system file actions.
+The desktop design/runtime reference now describes the same local converter contract: bounded byte inspection, a categorized adapter catalog, a bounded multi-file queue, and only an offline JSON ↔ CSV adapter enabled. The landing site remains a preview and does not claim operating-system file actions.
 
 ## Behavior
 
-JSON and CSV files are selected through a real local picker, previewed, converted in memory, and downloaded atomically by the browser surface. Unsupported categories remain visible with an exact unavailable-adapter reason. No converter is discovered from PATH and no network service is used.
+JSON and CSV files are selected through a real local picker, previewed, queued, converted in memory with concurrency two, and downloaded atomically by the browser surface. Pause/resume/cancel and per-file converted/skipped/cancelled/failed outcomes are explicit. Unsupported categories remain visible with an exact unavailable-adapter reason and lossy conversion is not implied. No converter is discovered from PATH and no network service is used.
 
 ## Security and failure handling
 

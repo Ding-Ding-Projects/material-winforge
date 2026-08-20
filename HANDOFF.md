@@ -205,3 +205,8 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Added the matching Status Hub reference treatment in `main-app-design/WinForge M3.dc.html`, `docs/site/status-hub.md`, `docs/application/status-hub.md`, both documentation indexes, and `docs/completeness/universal-feature-inventory.md`.
 - The dashboard explicitly says authenticated Status Hub delivery is unavailable and offers a copy-for-chat fallback. It does not invent credentials, remote verdicts, or deployment state.
 - Verification boundary: tests, lint, reviews, screenshots, packaged/runtime interaction, external Status Hub delivery, release, and publication were intentionally not run for this bounded lane.
+## Local file-converter depth lane — `codex/luna-converter-depth`
+
+- Extended `pages/app/SiteShell.tsx` with a bounded 100-file queue, two-worker JSON↔CSV processing, pause/resume/cancel, per-file outcomes, browser-download destination disclosure, and adapter-catalog plain search plus anchored regex-builder state.
+- Updated `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, both converter articles and indexes, the universal inventory, and the changelog. Only the real offline JSON↔CSV adapter remains enabled; no PATH, network, PDF, image, audio, video, archive, or binary converter was added.
+- Evidence boundary: source/diff only. No tests, lint, runtime interaction, accessibility review, screenshots, release, publication, or issue scan was run in this no-verification lane.
