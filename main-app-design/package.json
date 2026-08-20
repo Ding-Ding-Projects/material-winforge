@@ -16,7 +16,8 @@
   "scripts": {
     "stage:vendor": "node scripts/stage-vendor.mjs",
     "generate:assets": "node scripts/generate-assets.mjs",
-    "prepare:runtime": "npm run stage:vendor && npm run generate:assets",
+    "generate:docs": "node scripts/generate-docs-browser.mjs",
+    "prepare:runtime": "npm run stage:vendor && npm run generate:assets && npm run generate:docs",
     "prestart": "npm run prepare:runtime",
     "start": "electron .",
     "prebuild": "npm run prepare:runtime",
@@ -62,7 +63,8 @@
       "vendor/**/*",
       "WinForge M3.dc.html",
       "winforge-m3-data.js",
-      "support.js"
+      "support.js",
+      "docs-browser-data.js"
     ],
     "win": {
       "target": [

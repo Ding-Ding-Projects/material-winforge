@@ -241,3 +241,9 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Extended `main-app-design/WinForge M3.dc.html` with the matching deterministic local reference preview and v2 local appearance record.
 - Updated the site/application articles and indexes, universal inventory row, and Unreleased changelog.
 - No network, credential, remote-font, or source-file path is used. Tests, lint, reviews, runtime interaction, accessibility review, captures, release, and publication remain unrun/unverified for this lane.
+
+## Offline documentation browser lane — `codex/luna-offline-docs-browser`
+
+- Added `main-app-design/scripts/generate-docs-browser.mjs`, which validates and bundles all checked-in application and site Markdown articles into `main-app-design/docs-browser-data.js` during runtime preparation.
+- Added the desktop Docs route with escaped Markdown rendering, local article-to-article links, plain-text-first search, and an adjacent shared regex-builder action. Added the completeness inventory row and application documentation article.
+- Verification boundary: `git diff --check`, vocabulary/publication preflights, and supported build remain to be run before handoff; tests, lint, reviews, screenshots, and packaged runtime interaction were not run in this bounded lane.
