@@ -4,7 +4,9 @@ The landing page provides a bounded, local TOTP authenticator. A user can regist
 
 Codes are generated in the browser with Web Crypto HMAC and the RFC 6238 counter calculation. Each entry shows the current code, seconds remaining in the period, and a next-code countdown cue. Entries are searchable by issuer or account and can be removed individually or cleared together. The command palette routes directly to the authenticator card.
 
-Storage is bounded browser-local storage, not an operating-system credential vault. It is convenience, not security. Secrets never appear in ordinary redacted JSON exports or settings history. This build has no declared local QR renderer, so it does not render a QR image and never calls a remote QR service. No network request is needed for registration or code generation.
+After a successful registration, the page renders a version-5 byte-mode QR in-process from the bounded `otpauth://totp/` URI. The SVG uses a white quiet zone and black modules for dark/light contrast, and the same URI remains available as a selectable text alternative. Payloads above the local renderer's 100-byte bound stay usable through the copyable URI and report the limit instead of calling a remote QR service. The temporary QR and URI live only in memory; browser storage continues to hold only the existing local authenticator record.
+
+Storage is bounded browser-local storage, not an operating-system credential vault. It is convenience, not security. Secrets never appear in ordinary redacted JSON exports or settings history. QR rendering is local-only and has no network dependency; registration and code generation make no network request.
 
 ## Failure modes and recovery
 

@@ -1249,6 +1249,43 @@ function parseOtpInput(value: string, issuer: string, account: string): Omit<Aut
   if (!["SHA-1", "SHA-256", "SHA-512"].includes(algorithm) || ![6, 8].includes(digits) || !Number.isInteger(period) || period < 15 || period > 120) throw new Error("Algorithm, digits, or period is unsupported.");
   return { issuer: parsedIssuer, account: parsedAccount, secret, algorithm, digits, period };
 }
+const QR_VERSION = 5;
+const QR_SIZE = 17 + QR_VERSION * 4;
+const QR_DATA_CODEWORDS = 108;
+const QR_ECC_CODEWORDS = 26;
+function qrGfMultiply(left: number, right: number): number {
+  let result = 0;
+  for (let value = right; value; value >>>= 1) { if (value & 1) result ^= left; left = (left << 1) ^ ((left & 0x80) ? 0x11d : 0); }
+  return result;
+}
+function qrReedSolomon(data: Uint8Array): Uint8Array {
+  const generator = new Uint8Array(QR_ECC_CODEWORDS + 1); generator[0] = 1;
+  const alpha = (power: number) => { let value = 1; for (let i = 0; i < power; i += 1) value = qrGfMultiply(value, 2); return value; };
+  for (let i = 0; i < QR_ECC_CODEWORDS; i += 1) { const factor = alpha(i); for (let j = i + 1; j > 0; j -= 1) generator[j] ^= qrGfMultiply(generator[j - 1], factor); }
+  const result = new Uint8Array(QR_ECC_CODEWORDS);
+  for (const byte of data) { const factor = byte ^ result[0]; result.copyWithin(0, 1); result[QR_ECC_CODEWORDS - 1] = 0; for (let i = 0; i < QR_ECC_CODEWORDS; i += 1) result[i] ^= qrGfMultiply(generator[i + 1], factor); }
+  return result;
+}
+function qrBitStream(payload: Uint8Array): number[] {
+  if (payload.length > 100) throw new Error("The otpauth URI is too long for this local QR renderer; use the copyable URI instead.");
+  const bits: number[] = []; const push = (value: number, count: number) => { for (let i = count - 1; i >= 0; i -= 1) bits.push((value >>> i) & 1); };
+  push(0b0100, 4); push(payload.length, 8); payload.forEach((byte) => push(byte, 8)); push(0, Math.min(4, QR_DATA_CODEWORDS * 8 - bits.length)); while (bits.length % 8) bits.push(0);
+  const bytes: number[] = []; for (let i = 0; i < bits.length; i += 8) bytes.push(bits.slice(i, i + 8).reduce((value, bit) => (value << 1) | bit, 0));
+  let pad = 0; while (bytes.length < QR_DATA_CODEWORDS) bytes.push((pad++ % 2) ? 0x11 : 0xec); const data = new Uint8Array(bytes); const ecc = qrReedSolomon(data); return [...data, ...ecc].flatMap((byte) => Array.from({ length: 8 }, (_, index) => (byte >>> (7 - index)) & 1));
+}
+function qrMatrix(text: string): boolean[][] {
+  const payload = new TextEncoder().encode(text); const bits = qrBitStream(payload); const matrix = Array.from({ length: QR_SIZE }, () => Array<boolean>(QR_SIZE).fill(false)); const reserved = Array.from({ length: QR_SIZE }, () => Array<boolean>(QR_SIZE).fill(false));
+  const set = (row: number, col: number, value: boolean, protect = true) => { if (row >= 0 && row < QR_SIZE && col >= 0 && col < QR_SIZE) { matrix[row][col] = value; if (protect) reserved[row][col] = true; } };
+  const finder = (top: number, left: number) => { for (let row = -1; row <= 7; row += 1) for (let col = -1; col <= 7; col += 1) set(top + row, left + col, row >= 0 && row <= 6 && col >= 0 && col <= 6 && (row === 0 || row === 6 || col === 0 || col === 6 || (row >= 2 && row <= 4 && col >= 2 && col <= 4))); };
+  finder(0, 0); finder(0, QR_SIZE - 7); finder(QR_SIZE - 7, 0);
+  for (let i = 8; i < QR_SIZE - 8; i += 1) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  for (const center of [6, 30]) for (const other of [6, 30]) if (!((center === 6 && other === 6) || (center === 6 && other === 30) || (center === 30 && other === 6))) for (let row = -2; row <= 2; row += 1) for (let col = -2; col <= 2; col += 1) set(center + row, other + col, Math.max(Math.abs(row), Math.abs(col)) !== 1);
+  const format = 0x77c4; for (let i = 0; i < 15; i += 1) { const bit = ((format >>> i) & 1) !== 0; if (i < 6) set(i, 8, bit); else if (i < 8) set(i + 1, 8, bit); else set(QR_SIZE - 15 + i, 8, bit); if (i < 8) set(8, QR_SIZE - i - 1, bit); else if (i < 9) set(8, 15 - i, bit); else set(8, 15 - i - 1, bit); } set(QR_SIZE - 8, 8, true);
+  let bitIndex = 0; let row = QR_SIZE - 1; let direction = -1; for (let col = QR_SIZE - 1; col > 0; col -= 2) { if (col === 6) col -= 1; while (true) { for (let offset = 0; offset < 2; offset += 1) { const currentCol = col - offset; if (!reserved[row][currentCol]) { const bit = bitIndex < bits.length ? bits[bitIndex++] === 1 : false; matrix[row][currentCol] = bit !== ((row + currentCol) % 2 === 0); } } row += direction; if (row < 0 || row >= QR_SIZE) { row -= direction; direction = -direction; break; } } }
+  return matrix;
+}
+function otpAuthUri(entry: Omit<AuthenticatorEntry, "id" | "createdAt">): string { const label = encodeURIComponent(`${entry.issuer}:${entry.account}`); return `otpauth://totp/${label}?secret=${entry.secret}&issuer=${encodeURIComponent(entry.issuer)}&algorithm=${entry.algorithm.replace("-", "")}&digits=${entry.digits}&period=${entry.period}`; }
+function qrSvg(text: string): string { const matrix = qrMatrix(text); const cells = matrix.flatMap((row, rowIndex) => row.map((filled, colIndex) => filled ? `<rect x="${colIndex + 4}" y="${rowIndex + 4}" width="1" height="1"/>` : "")).join(""); return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${QR_SIZE + 8} ${QR_SIZE + 8}" role="img" aria-label="QR code for local authenticator registration" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="white"/><g fill="black">${cells}</g></svg>`; }
 async function generateTotp(entry: AuthenticatorEntry, now = Date.now()): Promise<string> {
   const counter = Math.floor(now / 1000 / entry.period); const data = new ArrayBuffer(8); const view = new DataView(data); view.setUint32(4, counter, false);
   const key = await crypto.subtle.importKey("raw", base32Bytes(entry.secret), { name: "HMAC", hash: entry.algorithm }, false, ["sign"]);
@@ -1393,6 +1430,7 @@ export default function SiteShell({
   const [authAccount, setAuthAccount] = useState("");
   const [authSecretOrUri, setAuthSecretOrUri] = useState("");
   const [authMessage, setAuthMessage] = useState("");
+  const [authQr, setAuthQr] = useState<{ uri: string; svg: string } | null>(null);
   const [authQuery, setAuthQuery] = useState("");
   const [authCodes, setAuthCodes] = useState<Record<string, string>>({});
   const [authSeconds, setAuthSeconds] = useState(0);
@@ -3061,7 +3099,8 @@ export default function SiteShell({
       if (authenticator.entries.length >= 50) throw new Error("The local authenticator limit is 50 entries.");
       const entry: AuthenticatorEntry = { ...parsed, id: `auth-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`, createdAt: new Date().toISOString() };
       setAuthenticator((current) => ({ schemaVersion: 1, entries: [entry, ...current.entries] }));
-      setAuthIssuer(""); setAuthAccount(""); setAuthSecretOrUri(""); setAuthMessage(dual("Entry added locally. Secret material is omitted from ordinary exports and settings history.", "記錄已加入本機；秘密資料唔會出現喺普通匯出或者設定記錄。", language));
+      const uri = otpAuthUri(entry); let svg = ""; try { svg = qrSvg(uri); } catch (error) { setAuthMessage(error instanceof Error ? error.message : "The local QR payload is too long; use the copyable URI instead."); } setAuthQr({ uri, svg });
+      setAuthIssuer(""); setAuthAccount(""); setAuthSecretOrUri(""); setAuthMessage(dual("Entry added locally. The QR is rendered in-process and the copyable URI is temporary, never persisted.", "記錄已加入本機；QR 喺本機程序繪製，可複製 URI 只係暫存，唔會保存。", language));
     } catch (error) { setAuthMessage(error instanceof Error ? error.message : "The authenticator input is invalid."); }
   };
   const removeAuthenticator = (id: string) => {
@@ -3069,7 +3108,7 @@ export default function SiteShell({
     setAuthMessage(dual("Entry removed locally. No secret was exported.", "記錄已喺本機移除；冇秘密資料被匯出。", language));
   };
   const clearAuthenticator = () => {
-    setAuthenticator(DEFAULT_AUTHENTICATOR); setAuthCodes({});
+    setAuthenticator(DEFAULT_AUTHENTICATOR); setAuthCodes({}); setAuthQr(null);
     setAuthMessage(dual("All local authenticator entries cleared. This does not affect any external account.", "所有本機驗證器記錄已清除；唔會影響任何外部帳戶。", language));
   };
   const exportAuthenticatorRedacted = () => {
@@ -5679,13 +5718,14 @@ export default function SiteShell({
                 provenance={dual(`${authenticator.entries.length} local entries · secrets omitted from ordinary exports and settings history`, `${authenticator.entries.length} 個本機記錄 · 秘密資料唔會出現喺普通匯出同設定記錄`, language)}
               >
                 <div className="authenticator-card">
-                  <p className="supporting-copy">{dual("This site uses browser storage, not an operating-system vault. It is local convenience, not security. No QR service or network dependency is used; this build has no declared local QR renderer.", "呢個網站用瀏覽器儲存，唔係作業系統保管庫。只係本機方便，唔係安全功能。冇 QR 服務或者網絡依賴；呢個版本未有已宣告嘅本機 QR 繪圖器。", language)}</p>
+                  <p className="supporting-copy">{dual("This site uses browser storage, not an operating-system vault. It is local convenience, not security. QR registration is rendered in-process with bounded local data; no QR service or network request is used.", "呢個網站用瀏覽器儲存，唔係作業系統保管庫。只係本機方便，唔係安全功能。QR 登記喺本機程序內用有限資料繪製；冇 QR 服務或者網絡請求。", language)}</p>
                   <div className="authenticator-register-grid">
                     <label><span>{dual("Issuer", "發行者", language)}</span><input value={authIssuer} maxLength={96} onChange={(event) => setAuthIssuer(event.target.value)} /></label>
                     <label><span>{dual("Account", "帳戶", language)}</span><input value={authAccount} maxLength={160} onChange={(event) => setAuthAccount(event.target.value)} /></label>
                     <label className="authenticator-secret"><span>{dual("Base32 secret or otpauth:// URI", "Base32 秘密或者 otpauth:// URI", language)}</span><input value={authSecretOrUri} maxLength={512} onChange={(event) => setAuthSecretOrUri(event.target.value)} autoComplete="off" /></label>
                   </div>
                   <div className="authenticator-actions"><button type="button" className="filled-button" onClick={registerAuthenticator}>{dual("Add local entry", "加入本機記錄", language)}</button><button type="button" className="outlined-button" onClick={exportAuthenticatorRedacted} disabled={!authenticator.entries.length}>{dual("Export redacted JSON", "匯出刪走秘密資料嘅 JSON", language)}</button><button type="button" className="outlined-button" onClick={clearAuthenticator} disabled={!authenticator.entries.length}>{dual("Clear all entries", "清除全部記錄", language)}</button></div>
+                  {authQr && <div className="authenticator-qr" aria-live="polite">{authQr.svg ? <div className="authenticator-qr-image" dangerouslySetInnerHTML={{ __html: authQr.svg }} /> : <div className="authenticator-qr-image authenticator-qr-unavailable" role="img" aria-label={dual("QR unavailable because the bounded payload is too long; use the text alternative.", "QR 暫時用唔到，因為資料太長；請使用文字替代方案。", language)}>QR</div>}<div className="authenticator-qr-copy"><strong>{dual("Temporary QR registration", "暫存 QR 登記", language)}</strong><p>{dual("Scan this local QR with your authenticator, or use the copyable text alternative. It is held in memory only and is cleared when you clear the entries or reload.", "用驗證器掃描呢個本機 QR，或者使用可複製文字替代方案。資料只喺記憶體暫存，清除記錄或者重新載入就會消失。", language)}</p><label><span>{dual("Copyable otpauth URI text alternative", "可複製 otpauth URI 文字替代方案", language)}</span><textarea readOnly value={authQr.uri} aria-label={dual("Copyable otpauth URI for QR registration", "可複製 QR 登記 otpauth URI", language)} onFocus={(event) => event.currentTarget.select()} /></label></div></div>}
                   {authMessage && <p className="supporting-copy" role="status">{authMessage}</p>}
                   <div className="authenticator-search"><label className="search-field"><span aria-hidden="true">⌕</span><input value={authQuery} maxLength={128} onChange={(event) => setAuthQuery(event.target.value)} placeholder={dual("Search issuer or account", "搜尋發行者或者帳戶", language)} aria-label={dual("Search authenticator entries", "搜尋驗證器記錄", language)} /></label><button type="button" className="outlined-button" onClick={() => setAuthQuery("")}>{dual("Plain text", "純文字", language)}</button></div>
                   <div className="authenticator-list" aria-live="polite">

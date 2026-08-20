@@ -15,7 +15,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Scheduled settings and external sources](scheduled-settings.md)
 - [Desktop narrator](narration.md)
 - [School mode](school-mode.md)
-- [Built-in authenticator](authenticator.md)
+- [Built-in authenticator](authenticator.md) — desktop reference for local TOTP registration, including the in-process QR intent and URI text alternative.
 - [Changelog viewer](changelog-viewer.md)
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)

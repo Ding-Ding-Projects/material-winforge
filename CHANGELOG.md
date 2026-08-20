@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add a bounded local built-in authenticator to the Pages shell and desktop design reference. It accepts validated TOTP `otpauth://` URIs or Base32 secrets, computes RFC 6238-compatible HMAC codes locally, shows a live countdown, supports search and command-palette routing, and offers redacted ordinary export plus explicit clear/remove actions. No QR service or new network dependency is added because no declared local QR renderer exists.
+- Add a bounded local built-in authenticator to the Pages shell and desktop design reference. It accepts validated TOTP `otpauth://` URIs or Base32 secrets, computes RFC 6238-compatible HMAC codes locally, shows a live countdown, supports search and command-palette routing, offers redacted ordinary export plus explicit clear/remove actions, and renders a bounded in-process QR with a copyable URI text alternative. No QR service or new network dependency is added.
 
 ## Unreleased
 
