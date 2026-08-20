@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>WinForge · Material 3 Preview</title>
+<title>{{ displayName }}</title>
 <link href="./vendor/fonts.css" rel="stylesheet">
 <script src="./support.js"></script>
 </head>
@@ -97,8 +97,8 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 <div class="{{ themeClass }}" style="height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font-size:14px">
 
   <div style="height:48px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding-left:12px;background:var(--md-sys-color-surface-container-low);-webkit-app-region:drag">
-    <img src="{{ logoSrc }}" alt="WinForge app logo" width="26" height="26" style="border-radius:var(--md-sys-shape-corner-small);flex-shrink:0;object-fit:cover">
-    <span style="font-size:14px;font-weight:500;letter-spacing:.1px;white-space:nowrap">WinForge · Material 3 Preview</span>
+    <img src="{{ logoSrc }}" alt="{{ displayName }} app logo" width="26" height="26" style="border-radius:var(--md-sys-shape-corner-small);flex-shrink:0;object-fit:cover">
+    <span style="font-size:14px;font-weight:500;letter-spacing:.1px;white-space:nowrap">{{ displayName }}</span>
     <button onClick="{{ goReactor }}" title="Reactor status" style="-webkit-app-region:no-drag;display:flex;align-items:center;gap:7px;height:28px;padding:0 12px 0 10px;border:none;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);margin-left:6px" style-hover="filter:brightness(1.15)">
       <span style="width:7px;height:7px;border-radius:999px;background:{{ reactorDotColor }};animation:wf-pulse 2s ease-in-out infinite"></span>
       <span style="font-family:'Roboto Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.4px">{{ reactorPill }}</span>
@@ -619,6 +619,15 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         <p style="margin:6px 0 24px;font-size:14px;color:var(--md-sys-color-on-surface-variant)">Appearance, language and tone. Everything here is persisted locally.</p>
         <div style="display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;margin-bottom:16px;border-radius:999px;background:var(--md-sys-color-surface-container-high)" role="search"><span class="ms" aria-hidden="true">search</span><input value="{{ settingsQuery }}" onInput="{{ setSettingsQuery }}" maxlength="128" aria-label="Search Settings sections" placeholder="Search Settings sections and current values" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:inherit"><button onClick="{{ rbSettings }}" title="Advanced regex builder" aria-label="Open Settings regex builder" style="width:36px;height:36px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center"><span class="ms" style="font-size:17px">regular_expression</span></button></div>
         <sc-if value="{{ settingsNoMatch }}" hint-placeholder-val="{{ false }}"><div style="margin-bottom:16px;padding:14px 16px;border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-medium);color:var(--md-sys-color-on-surface-variant)" role="status">No Settings section matches this search. Persisted values and the active project are unchanged.</div></sc-if>
+
+        <sc-if value="{{ showSettingsDisplayName }}" hint-placeholder-val="{{ true }}">
+        <section id="display-name-settings" style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
+          <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">App display name</h2>
+          <p style="margin:0 0 14px;font-size:12.5px;color:var(--md-sys-color-on-surface-variant)">Rename the title, About, notifications, and introductions shown by this desktop preview. This changes presentation only; package identity, data location, executable name, diagnostic records, and update feed keep the shipped identity.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><label style="display:flex;flex-direction:column;gap:5px;min-width:280px;font-size:12px">Display name<input value="{{ displayNameInput }}" onInput="{{ setDisplayNameInput }}" maxlength="64" aria-describedby="display-name-help" style="height:40px;padding:0 12px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><button onClick="{{ applyDisplayName }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Apply display name</button><button onClick="{{ resetDisplayName }}" disabled="{{ displayName === 'WinForge · Material 3 Preview' }}" style="height:40px;padding:0 18px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">Reset shipped name</button></div>
+          <p id="display-name-help" style="margin:12px 0 0;font-size:12px;color:var(--md-sys-color-on-surface-variant)">Use 1–64 characters. The stable package, application-data, executable, installer, update, and diagnostic identities are never derived from this label.</p>
+        </section>
+        </sc-if>
 
         <sc-if value="{{ showSettingsSchool }}" hint-placeholder-val="{{ true }}">
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
@@ -1629,6 +1638,8 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
 const KEY = 'winforge.m3.v1';
+const SHIPPED_DISPLAY_NAME = 'WinForge · Material 3 Preview';
+const DISPLAY_NAME_MAX_LENGTH = 64;
 const LOGO_PRESETS = Object.freeze([
   { id: 'forge', label: 'Forge mark', src: './assets/app-icon.svg' },
   { id: 'aurora', label: 'Aurora glass', src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8ab4f8"/><stop offset="1" stop-color="#6dd58c"/></linearGradient></defs><rect width="128" height="128" rx="30" fill="#10233f"/><path d="M24 82 49 25l17 31 14-21 24 47H24Z" fill="url(#g)"/><circle cx="94" cy="30" r="9" fill="#f2c94c"/></svg>') },
@@ -2129,6 +2140,7 @@ class Component extends DCLogic {
     this.settingsGlobal = { ...fallbackGlobal, ...Object.fromEntries(APP_SETTING_KEYS.filter(key => validSetting(key, storedGlobal[key])).map(key => [key, storedGlobal[key]])) };
     const seenProjects = new Set();
     this.settingsProjects = (L && Array.isArray(L.settingsProjects) ? L.settingsProjects : []).slice(0, 50).filter(project => project && typeof project.id === 'string' && /^project-[a-z0-9-]{6,48}$/.test(project.id) && !seenProjects.has(project.id) && typeof project.name === 'string' && project.name.trim().length >= 1 && project.name.trim().length <= 64 && project.overrides && typeof project.overrides === 'object' && !Array.isArray(project.overrides) && Object.keys(project.overrides).every(key => APP_SETTING_KEYS.includes(key) && validSetting(key, project.overrides[key])) && (seenProjects.add(project.id) || true)).map(project => ({ id: project.id, name: project.name.trim(), overrides: { ...project.overrides } }));
+    this.displayName = typeof (L && L.displayName) === 'string' && L.displayName.trim().length > 0 && L.displayName.trim().length <= DISPLAY_NAME_MAX_LENGTH && !/[\u0000-\u001f\u007f]/.test(L.displayName) ? L.displayName.trim() : SHIPPED_DISPLAY_NAME;
     this.schedules = this.validateSchedules(L && L.schedules);
     this.scheduleQuery = '';
     this.activeProjectId = L && typeof L.activeProjectId === 'string' && this.settingsProjects.some(project => project.id === L.activeProjectId) ? L.activeProjectId : null;
@@ -2151,6 +2163,7 @@ class Component extends DCLogic {
     this.seenCount = this.notifs.length;
     this.state = {
       tick: 0,
+      displayNameInput: this.displayName,
       theme: effectiveSettings.theme,
       lang: effectiveSettings.lang,
       funnyEn: effectiveSettings.funnyEn,
@@ -2512,11 +2525,27 @@ class Component extends DCLogic {
       this.setState({ externalEditorStatus: result.status === 'opened' ? 'listed' : result.status, externalEditorMessage: result.message });
     }).catch(() => this.setState({ externalEditorStatus: 'error', externalEditorMessage: 'The external-editor request failed. No target was changed.' }));
   }
+  applyDisplayName() {
+    const value = String(this.state.displayNameInput || '').trim();
+    if (!value || value.length > DISPLAY_NAME_MAX_LENGTH || /[\u0000-\u001f\u007f]/.test(value)) {
+      this.notify('Display name', 'Use 1–64 characters without control characters. The shipped identity remains active.', 'warning', true);
+      return;
+    }
+    this.displayName = value;
+    this.persist();
+    this.bump();
+    this.notify('Display name', value + ' is now shown in the title, About, notifications, and introductions. Package, data, executable, and update identities remain unchanged.', 'success', true);
+  }
+  resetDisplayName() {
+    this.displayName = SHIPPED_DISPLAY_NAME;
+    this.setState({ displayNameInput: SHIPPED_DISPLAY_NAME }, () => { this.persist(); this.bump(); });
+    this.notify('Display name', 'The shipped display name is restored. Diagnostic and package records continue using the fixed identity.', 'success', true);
+  }
   persist() {
     try {
       localStorage.setItem(KEY, JSON.stringify({
         tweaks: this.tweaks, notifs: this.notifs.slice(0, 200), tabs: this.tabs,
-        theme: this.state.theme, lang: this.state.lang, funnyEn: this.state.funnyEn,
+        displayName: this.displayName, theme: this.state.theme, lang: this.state.lang, funnyEn: this.state.funnyEn,
         funnyZh: this.state.funnyZh, showEmojis: this.state.showEmojis, route: this.state.route,
         settingsGlobal: this.settingsGlobal, settingsProjects: this.settingsProjects, activeProjectId: this.activeProjectId,
         authenticator: this.authenticator,
@@ -3067,12 +3096,12 @@ class Component extends DCLogic {
     };
     V.notifications = this.notifs.filter(n => this.match(this.notifQuery, n.title + ' ' + n.body)).slice(0, 60).map(n => {
       const m = sevMap[n.sev] || sevMap.info;
-      return { title: n.title, body: n.body, time: n.time, bg: m.bg, fg: m.fg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis };
+      return { title: this.displayName + ' · ' + n.title, body: n.body, time: n.time, bg: m.bg, fg: m.fg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis };
     });
     V.notifFooter = this.notifs.length + ' of 200 kept locally · information and success auto-dismiss, warnings and errors are retained';
     V.snacks = this.snacks.map(x => {
       const m = sevMap[x.sev] || sevMap.info;
-      return { msg: x.msg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis, color: x.sev === 'error' ? err : (x.sev === 'success' ? green : prim) };
+      return { msg: this.displayName + ' · ' + x.msg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis, color: x.sev === 'error' ? err : (x.sev === 'success' ? green : prim) };
     });
 
     // tabs
@@ -3128,6 +3157,7 @@ class Component extends DCLogic {
       }
       const settingsCommands = [
         { title: 'Search Settings', sub: 'Top-level Settings section search', query: '' },
+        { title: 'App display name', sub: 'Rename title, About, notifications, and introductions without changing package or data identity', query: 'display name' },
         { title: 'Global defaults and project overrides', sub: 'Projects, inheritance and active scope', query: 'global project overrides inheritance' },
         { title: 'Appearance and language', sub: 'Theme and language mode', query: 'appearance theme language' },
         { title: 'Show emojis in dialogs and message boxes', sub: 'Decorative notification and snackbar emoji', query: 'appearance emoji dialogs message boxes' },
@@ -3565,6 +3595,12 @@ class Component extends DCLogic {
 
     // settings
     const settingsSearch = this.settingsQuery || '';
+    V.displayName = this.displayName;
+    V.displayNameInput = s.displayNameInput;
+    V.setDisplayNameInput = e => this.setState({ displayNameInput: String(e.target.value || '').slice(0, DISPLAY_NAME_MAX_LENGTH) });
+    V.applyDisplayName = () => this.applyDisplayName();
+    V.resetDisplayName = () => this.resetDisplayName();
+    V.showSettingsDisplayName = this.match(settingsSearch, 'display name rename title about notifications introductions reset shipped package data executable update identity ' + this.displayName);
     V.showSettingsSchool = this.match(settingsSearch, 'school mode local unlock English-only rename reset UX mode ' + this.schoolMode.name);
     V.showSettingsAuthenticator = this.match(settingsSearch, 'built-in authenticator TOTP RFC 6238 otpauth Base32 QR current code countdown next code search issuer account redacted export clear local entries ' + this.authenticator.entries.length);
     V.showSettingsProjects = this.match(settingsSearch, 'global defaults project overrides active project picker inherited values reset project create local project');
@@ -3574,7 +3610,7 @@ class Component extends DCLogic {
     V.showSettingsSchedule = this.match(settingsSearch, 'scheduled settings schedule calendar date time weekday timezone local api home assistant temporary override precedence external source credential');
     V.showSettingsExternalEditor = this.match(settingsSearch, 'external editor Visual Studio Code VS Code Notepad++ project folder file export open editor installed PATH preference');
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
-    V.settingsNoMatch = !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsExternalEditor && !V.showSettingsAuthenticator && !V.showSettingsLocal;
+    V.settingsNoMatch = !V.showSettingsDisplayName && !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsExternalEditor && !V.showSettingsAuthenticator && !V.showSettingsLocal;
     V.logoSrc = this.logoSrc(); V.logoStatus = this.state.logoStatus; V.logoMessage = this.state.logoMessage;
     V.logoPresets = LOGO_PRESETS.map(preset => ({ label: preset.label, src: preset.src, selected: this.logo.preset === preset.id && !this.logo.customDataUrl, choose: () => this.setLogoPreset(preset.id) }));
     V.handleLogoFile = event => this.handleLogoFile(event); V.resetLogo = () => this.resetLogo();

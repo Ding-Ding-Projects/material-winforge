@@ -192,6 +192,7 @@ type ElementAppearance = {
 type AppearanceState = { schemaVersion: 1; elements: Record<string, ElementAppearance> };
 type Preferences = SiteSettingValues & {
   schemaVersion: 1;
+  displayName: string;
   pinnedTabs: TabId[];
   tabOrder: TabId[];
   tabGroups: TabGroupsState;
@@ -401,6 +402,8 @@ function convertJsonToTsv(value: unknown): string {
 function converterOutputExtension(target: ConverterQueueItem["target"]): string { return target; }
 
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
+const SHIPPED_DISPLAY_NAME = "WinForge · Material 3 Preview";
+const DISPLAY_NAME_MAX_LENGTH = 64;
 const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
 const SETTINGS_HISTORY_KEY = "winforge-material-preview-settings-history-v1";
 const NARRATION_KEY = "winforge-material-preview-narration-v1";
@@ -457,6 +460,7 @@ const DEFAULT_ELEMENT_APPEARANCE: ElementAppearance = {
 };
 const DEFAULTS: Preferences = {
   schemaVersion: 1,
+  displayName: SHIPPED_DISPLAY_NAME,
   ...DEFAULT_SITE_SETTINGS,
   pinnedTabs: [],
   tabOrder: ["home", "features", "docs", "settings", "changelog", "status", "exports"],
@@ -490,6 +494,7 @@ const SITE_SETTING_KEYS: SiteSettingKey[] = [
 ];
 const PREFERENCE_KEYS = new Set<string>([
   "schemaVersion",
+  "displayName",
   ...SITE_SETTING_KEYS,
   "pinnedTabs",
   "tabOrder",
@@ -1518,6 +1523,11 @@ function normalizePreferences(value: unknown): Preferences | null {
         ? (v.tabOrder as TabId[])
         : null;
   const tabGroups = normalizeTabGroups(v.tabGroups);
+  const displayName = v.displayName === undefined
+    ? SHIPPED_DISPLAY_NAME
+    : typeof v.displayName === "string" && v.displayName.trim().length > 0 && v.displayName.trim().length <= DISPLAY_NAME_MAX_LENGTH && !/[\u0000-\u001f\u007f]/.test(v.displayName)
+      ? v.displayName.trim()
+      : null;
   const valid =
     ["en", "yue", "both"].includes(v.language ?? "") &&
     ["system", "light", "dark"].includes(v.theme ?? "") &&
@@ -1541,6 +1551,7 @@ function normalizePreferences(value: unknown): Preferences | null {
       : normalizeVocabularyCache(v.personalVocabulary);
   if (
     !valid ||
+    displayName === null ||
     !(
       v.personalVocabulary === undefined ||
       v.personalVocabulary === null ||
@@ -1561,6 +1572,7 @@ function normalizePreferences(value: unknown): Preferences | null {
   };
   return {
     schemaVersion: 1,
+    displayName,
     language: effective.language,
     funnyEnglish: effective.funnyEnglish,
     funnyCantonese: effective.funnyCantonese,
@@ -1891,6 +1903,7 @@ export default function SiteShell({
 }) {
   const bootManifest = validManifest(initialManifest) ? initialManifest : null;
   const [prefs, setPrefs] = useState(DEFAULTS);
+  const [displayNameInput, setDisplayNameInput] = useState(DEFAULTS.displayName);
   const [schoolMode, setSchoolMode] = useState<SchoolModeState>(DEFAULT_SCHOOL_MODE);
   const [schoolNameInput, setSchoolNameInput] = useState("");
   const [schoolCredentialInput, setSchoolCredentialInput] = useState("");
@@ -2414,6 +2427,7 @@ export default function SiteShell({
         const parsed = normalizePreferences(JSON.parse(preferenceRecord.raw));
         if (parsed) {
           setPrefs(parsed);
+          setDisplayNameInput(parsed.displayName);
           setVocabStatus(parsed.personalVocabulary ? "loaded" : "no-file");
           setLogoStatus(parsed.customLogo ? "loaded" : "no-custom");
         } else removeLocalRecord(STORAGE_KEY);
@@ -2730,7 +2744,7 @@ export default function SiteShell({
         "setting-accent",
       ].forEach((id, index) => {
         const card = grid?.children.item(index);
-        if (card instanceof HTMLElement) {
+        if (card instanceof HTMLElement && !card.id) {
           card.id = id;
           card.tabIndex = -1;
         }
@@ -2770,6 +2784,9 @@ export default function SiteShell({
     document.documentElement.lang =
       prefs.language === "yue" ? "zh-Hant-HK" : "en";
   }, [prefs.language, prefs.theme]);
+  useEffect(() => {
+    document.title = prefs.displayName;
+  }, [prefs.displayName]);
   useEffect(() => {
     fetch(`${assetBase}/release-manifest.json`, { cache: "no-store" })
       .then((r) => {
@@ -3279,6 +3296,7 @@ export default function SiteShell({
         activeProjectId: null,
       },
     };
+    setDisplayNameInput(next.displayName);
     setPrefs(next);
     appendSettingsHistory(
       "global-reset",
@@ -3376,6 +3394,25 @@ export default function SiteShell({
       next,
     );
     announce(note);
+  };
+  const updateDisplayName = (raw: string) => {
+    const value = raw.trim();
+    setDisplayNameInput(raw.slice(0, DISPLAY_NAME_MAX_LENGTH));
+    if (!value || value.length > DISPLAY_NAME_MAX_LENGTH || /[\u0000-\u001f\u007f]/.test(value)) {
+      announce("Display name must be 1–64 characters and cannot contain control characters.", "warning", "Display name");
+      return;
+    }
+    const next = { ...prefs, displayName: value };
+    setPrefs(next);
+    appendSettingsHistory("global-setting-changed", "Display name changed", next);
+    announce(`${value} is now the local display name. Package, data, executable, and update identities remain unchanged.`, "success", "Display name");
+  };
+  const resetDisplayName = () => {
+    const next = { ...prefs, displayName: SHIPPED_DISPLAY_NAME };
+    setDisplayNameInput(SHIPPED_DISPLAY_NAME);
+    setPrefs(next);
+    appendSettingsHistory("global-setting-changed", "Display name reset to shipped identity", next);
+    announce("Display name reset to the shipped name. Package, data, executable, and update identities were not changed.", "success", "Display name");
   };
   const enableSchoolMode = async () => {
     const name = schoolNameInput.trim();
@@ -3875,6 +3912,7 @@ export default function SiteShell({
       "ownership",
       `Global defaults project overrides active inherited reset ${activeSettingsProject?.name ?? "global"}`,
     ],
+    ["display-name", `Display name rename app title About notifications introductions reset shipped name ${prefs.displayName}`],
     ["language", `Language mode English Cantonese bilingual ${prefs.language}`],
     ["school-mode", `School mode ${schoolMode.name} ${schoolMode.enabled ? "enabled English only locked" : "off local unlock"}`],
     ["unlock-ladder", "Unlock ladder waiting aid dim sum four choices ten sums whack-a-mole timed round clock-only replay expiry early submission School mode starts at sums credentials session cookie"],
@@ -4690,6 +4728,17 @@ export default function SiteShell({
     ),
   });
   commands.push({
+    id: "display-name",
+    label: dual("App display name", "應用程式顯示名稱", language),
+    detail: dual("Rename the local title without changing package or data identity", "改本機標題，但唔會改套件或者資料身份", language),
+    action: () => openSetting("display-name"),
+    control: (
+      <button type="button" className="palette-reset" onClick={() => openSetting("display-name")}>
+        {dual("Open display-name setting", "開啟顯示名稱設定", language)}
+      </button>
+    ),
+  });
+  commands.push({
     id: "app-logo",
     label: dual("App logo preset", "應用程式標誌預設", language),
     detail: dual("Forge, tile, or mono", "Forge、Tile 或 Mono", language),
@@ -5340,7 +5389,7 @@ export default function SiteShell({
           className="brand"
           type="button"
           onClick={() => selectTab("home")}
-          aria-label="WinForge home"
+          aria-label={`${prefs.displayName} home`}
         >
           <img
             src={logoSrc}
@@ -5350,8 +5399,8 @@ export default function SiteShell({
             alt=""
           />
           <span>
-            <strong>WinForge</strong>
-            <small>Material 3 Preview</small>
+            <strong>{prefs.displayName}</strong>
+            <small>Display name is presentation only</small>
           </span>
         </button>
         <div className="top-actions">
@@ -6720,6 +6769,45 @@ export default function SiteShell({
               </div>
             )}
             <div className="settings-grid">
+              <SettingCard
+                id="display-name"
+                hidden={!settingsVisible("display-name")}
+                title={dual("App display name", "應用程式顯示名稱", language)}
+                description={dual(
+                  "Rename the title, About, notifications, and introductions shown by this site. This changes presentation only; package identity, data location, executable name, and update feed stay fixed.",
+                  "改呢個網站顯示嘅標題、關於、通知同介紹。只會改顯示；套件身份、資料位置、執行檔名稱同更新來源保持不變。",
+                  language,
+                )}
+                provenance={dual(
+                  `Current local display name: ${prefs.displayName}`,
+                  `目前本機顯示名稱：${prefs.displayName}`,
+                  language,
+                )}
+              >
+                <div className="display-name-controls">
+                  <label>
+                    <span>{dual("Display name", "顯示名稱", language)}</span>
+                    <input
+                      id="display-name-input"
+                      value={displayNameInput}
+                      maxLength={DISPLAY_NAME_MAX_LENGTH}
+                      onChange={(event) => setDisplayNameInput(event.target.value)}
+                      aria-describedby="display-name-help"
+                    />
+                  </label>
+                  <div className="settings-inline-actions">
+                    <button type="button" className="filled-button" onClick={() => updateDisplayName(displayNameInput)}>
+                      {dual("Apply display name", "套用顯示名稱", language)}
+                    </button>
+                    <button type="button" className="outlined-button" onClick={resetDisplayName} disabled={prefs.displayName === SHIPPED_DISPLAY_NAME}>
+                      {dual("Reset shipped name", "重設原裝名稱", language)}
+                    </button>
+                  </div>
+                  <p id="display-name-help" className="supporting-copy">
+                    {dual("1–64 characters. Diagnostics and package records continue to use the shipped identity so support evidence remains unambiguous.", "1 至 64 個字元。診斷同套件記錄繼續使用原裝身份，令支援證據保持清楚。", language)}
+                  </p>
+                </div>
+              </SettingCard>
               <SettingCard
                 id="school-mode"
                 hidden={!settingsVisible("school-mode")}
@@ -8249,7 +8337,7 @@ export default function SiteShell({
           )}
       </div>
       <footer>
-        <span>WinForge · Material 3 Preview</span>
+        <span>{prefs.displayName}</span>
         <span>
           {dual(
             "Site preferences stay in this browser.",

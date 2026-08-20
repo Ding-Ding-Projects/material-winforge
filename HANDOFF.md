@@ -1,5 +1,11 @@
 # Handoff
 
+## Luna display-name customization lane — `codex/luna-display-name-customization`
+
+- Added the bounded user-renamable display-name setting to `pages/app/SiteShell.tsx` and `main-app-design/WinForge M3.dc.html`. Pages persists the label through its allowlisted preferences record and routes it through Settings search and the command palette; the desktop reference persists the corresponding local preview value and exposes the same reset path.
+- The label applies to title/brand, footer or introduction, notification/snackbar presentation, and About-facing copy while stable package, data, executable, installer, update, and diagnostic identity stay on `WinForge · Material 3 Preview`.
+- Added `docs/site/display-name.md`, `docs/application/display-name.md`, category indexes, the universal inventory row, and the Unreleased changelog entry. Tests, lint, runtime interaction, captures, release, and publication remain unrun in this bounded lane.
+
 ## Luna Pages narrator parity lane — `codex/luna-site-narrator-parity`
 
 - Extended `pages/app/SiteShell.tsx` and `pages/app/globals.css` with factual local/network voice labels, an explicit unavailable saved-voice option that retains its stable `voiceURI`, a local preview action, and pending-notification replacement while an active utterance finishes.
