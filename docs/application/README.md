@@ -13,6 +13,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Global defaults and project overrides](project-settings-overrides.md)
 - [App-logo customization](app-logo.md)
 - [App display name](display-name.md) — bounded title/notification presentation label; package, data, update, and diagnostic identity stay fixed.
+- [Desktop notification center](notifications.md) — bounded local history, unread/read state, plain-text-first search with anchored regex opt-in, keyboard selection, bulk actions, and local JSON export.
 - [Personal vocabulary JSON](personal-vocabulary.md)
 - [Message emoji preference](message-emoji-preference.md)
 - [Scheduled settings and external sources](scheduled-settings.md)

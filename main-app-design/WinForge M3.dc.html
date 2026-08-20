@@ -1409,29 +1409,36 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
 
     <sc-if value="{{ notifsOpen }}" hint-placeholder-val="{{ false }}">
       <aside style="width:360px;flex-shrink:0;display:flex;flex-direction:column;background:var(--md-sys-color-surface-container-low);border-left:1px solid var(--md-sys-color-outline-variant)">
+        <div role="dialog" aria-modal="false" aria-labelledby="notification-center-title" tabindex="-1" style="display:flex;flex-direction:column;min-height:0;height:100%">
         <div style="display:flex;align-items:center;gap:10px;padding:16px 12px 12px 20px">
-          <h2 style="margin:0;flex:1;font-size:16px;font-weight:500">Notifications</h2>
-          <button onClick="{{ clearNotifs }}" style="height:32px;padding:0 14px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:12.5px;font-weight:500" style-hover="background:var(--md-sys-color-surface-container-high)">Clear</button>
+          <div style="flex:1;min-width:0"><h2 id="notification-center-title" style="margin:0;font-size:16px;font-weight:500">Notifications</h2><div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);margin-top:3px">{{ notifUnreadLabel }}</div></div>
+          <button onClick="{{ markVisibleRead }}" disabled="{{ notifVisibleUnread === 0 }}" aria-label="Mark visible notifications read" style="height:32px;padding:0 10px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:12px;font-weight:500" style-hover="background:var(--md-sys-color-surface-container-high)">Read</button>
+          <button onClick="{{ clearNotifs }}" aria-label="Dismiss all notifications" style="height:32px;padding:0 10px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:12px;font-weight:500" style-hover="background:var(--md-sys-color-surface-container-high)">Clear</button>
           <button onClick="{{ toggleNotifs }}" style="width:32px;height:32px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-on-surface-variant);display:grid;place-items:center" style-hover="background:var(--md-sys-color-surface-container-high)"><span class="ms" style="font-size:18px">close</span></button>
         </div>
         <div style="display:flex;align-items:center;gap:6px;height:40px;margin:0 12px 12px;padding:0 4px 0 12px;border-radius:999px;background:var(--md-sys-color-surface-container-high)">
           <span class="ms" style="font-size:18px;color:var(--md-sys-color-on-surface-variant)">search</span>
           <input value="{{ notifQuery }}" onInput="{{ setNotifQuery }}" placeholder="Search history" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--md-sys-color-on-surface);font-size:13px">
-          <button onClick="{{ rbNotifs }}" title="Advanced regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center" style-hover="filter:brightness(1.12)"><span class="ms" style="font-size:16px">regular_expression</span></button>
+          <button onClick="{{ useNotifPlain }}" disabled="{{ !notifRegexMode }}" aria-label="Use plain text notification search" title="Plain text search is the default" style="height:30px;padding:0 8px;border:none;border-radius:999px;background:transparent;color:var(--md-sys-color-primary);font-size:11px">Plain</button>
+          <button onClick="{{ rbNotifs }}" title="Advanced regex builder" aria-label="Open notification regex builder" style="width:32px;height:32px;border:none;border-radius:999px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);display:grid;place-items:center" style-hover="filter:brightness(1.12)"><span class="ms" aria-hidden="true" style="font-size:16px">regular_expression</span></button>
         </div>
+        <div style="display:flex;gap:6px;align-items:center;padding:0 12px 10px;flex-wrap:wrap"><button onClick="{{ selectAllNotifs }}" style="height:32px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit;font-size:11px">Select page</button><button onClick="{{ invertNotifs }}" style="height:32px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit;font-size:11px">Invert</button><button onClick="{{ bulkReadNotifs }}" disabled="{{ notifSelectedCount === 0 }}" style="height:32px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit;font-size:11px">Mark read</button><button onClick="{{ bulkDismissNotifs }}" disabled="{{ notifSelectedCount === 0 }}" style="height:32px;padding:0 10px;border:1px solid var(--md-sys-color-error);border-radius:999px;background:transparent;color:var(--md-sys-color-error);font-size:11px">Dismiss selected</button><button onClick="{{ exportNotifs }}" disabled="{{ notifVisibleCount === 0 }}" style="height:32px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit;font-size:11px">Export</button></div>
         <div style="flex:1;overflow-y:auto;padding:0 12px 16px;display:flex;flex-direction:column;gap:8px">
+          <sc-if value="{{ notifNoMatch }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding:12px 4px;color:var(--md-sys-color-on-surface-variant);font-size:12px">No notifications match this search.</div></sc-if>
           <sc-for list="{{ notifications }}" as="n" hint-placeholder-count="4">
-            <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--md-sys-shape-corner-medium);background:{{ n.bg }};color:{{ n.fg }}">
+            <div tabindex="0" role="article" aria-label="{{ n.ariaLabel }}" onClick="{{ n.open }}" onKeydown="{{ n.keydown }}" style="display:flex;align-items:flex-start;gap:9px;padding:12px 10px;border-radius:var(--md-sys-shape-corner-medium);background:{{ n.bg }};color:{{ n.fg }};outline:{{ n.outline }}">
+              <button onClick="{{ n.toggle }}" onKeydown="{{ n.keydown }}" role="checkbox" aria-checked="{{ n.selected }}" aria-label="Select notification {{ n.title }}" style="width:24px;height:24px;flex-shrink:0;border-radius:6px;border:2px solid {{ n.checkBorder }};background:{{ n.checkBg }};display:grid;place-items:center;padding:0"><span class="ms" aria-hidden="true" style="font-size:17px;color:{{ n.checkColor }};opacity:{{ n.checkOpacity }}">check</span></button>
               <span class="ms" aria-hidden="true" style="font-size:19px;flex-shrink:0">{{ n.icon }}</span>
               <sc-if value="{{ n.showEmoji }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="font-size:18px;flex-shrink:0">{{ n.emoji }}</span></sc-if>
               <div style="flex:1;min-width:0">
-                <div style="font-size:13px;font-weight:500">{{ n.title }}</div>
+                <div style="font-size:13px;font-weight:500;display:flex;gap:6px;align-items:center"><span>{{ n.title }}</span><sc-if value="{{ n.unread }}" hint-placeholder-val="{{ false }}"><span aria-label="Unread" title="Unread" style="width:7px;height:7px;border-radius:50%;background:var(--md-sys-color-primary);display:inline-block"></span></sc-if></div>
                 <div style="font-size:12.5px;opacity:.9;margin-top:2px;word-break:break-word">{{ n.body }}</div>
                 <div style="font-family:'Roboto Mono',monospace;font-size:10.5px;opacity:.65;margin-top:6px">{{ n.time }}</div>
               </div>
             </div>
           </sc-for>
           <div style="padding:8px 4px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">{{ notifFooter }}</div>
+        </div>
         </div>
       </aside>
     </sc-if>
@@ -2108,7 +2115,7 @@ class Component extends DCLogic {
     super(props);
     const L = this.load();
     this.tweaks = (L && L.tweaks) || {};
-    this.notifs = (L && L.notifs) || [];
+    this.notifs = this.validateNotifications(L && L.notifs);
     const LEGACY_ICONS = { nuclear: 'electric_bolt', radioactive: 'electric_bolt' };
     this.tabs = (L && L.tabs && L.tabs.length) ? L.tabs : [{ id: 'dashboard', label: 'Dashboard', icon: 'space_dashboard', route: { view: 'dashboard' } }];
     this.tabs = this.tabs.map(t => Object.assign({}, t, { icon: LEGACY_ICONS[t.icon] || t.icon || 'tab' }));
@@ -2130,6 +2137,9 @@ class Component extends DCLogic {
     this.changelogFrom = '';
     this.changelogTo = '';
     this.changelogRegexMode = false;
+    this.notifQuery = '';
+    this.notifRegexMode = false;
+    this.notifSelection = new Set();
     this.docsQuery = '';
     this.docsRegexMode = false;
     this.exportFormat = 'json';
@@ -2194,6 +2204,23 @@ class Component extends DCLogic {
   }
 
   load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  validateNotifications(payload) {
+    if (!Array.isArray(payload)) return [];
+    const allowed = new Set(['info', 'success', 'warning', 'error']);
+    const seen = new Set();
+    return payload.slice(0, 200).filter(item => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+      const id = typeof item.id === 'string' && /^notif-[a-z0-9-]{6,80}$/.test(item.id) ? item.id : 'notif-legacy-' + Math.random().toString(36).slice(2, 12);
+      if (seen.has(id) || typeof item.title !== 'string' || typeof item.body !== 'string' || item.title.length > 128 || item.body.length > 2048 || !allowed.has(item.sev) || typeof item.time !== 'string') return false;
+      seen.add(id); item.id = id; item.read = item.read === true; item.selected = false; return true;
+    });
+  }
+  notificationMatches(query, text) {
+    const q = String(query || '').slice(0, 128);
+    if (!q) return true;
+    if (!this.notifRegexMode) return String(text || '').toLocaleLowerCase().includes(q.toLocaleLowerCase());
+    try { return new RegExp(q, 'i').test(String(text || '')); } catch { return false; }
+  }
   validateLogo(payload) {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.schemaVersion !== 1) return { ...DEFAULT_LOGO };
     const preset = LOGO_PRESETS.some(item => item.id === payload.preset) ? payload.preset : DEFAULT_LOGO.preset;
@@ -2716,7 +2743,7 @@ class Component extends DCLogic {
   }
   notify(title, body, sev, realAction) {
     const safeBody = realAction ? body : 'Preview sample — ' + body + ' No operating-system, file, service, account, network, or hardware change was made.';
-    this.notifs.unshift({ title, body: safeBody, sev: sev || 'info', time: this.stamp() });
+    this.notifs.unshift({ id: 'notif-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), title: String(title).slice(0, 128), body: String(safeBody).slice(0, 2048), sev: sev || 'info', time: this.stamp(), read: false });
     if (this.notifs.length > 200) this.notifs.pop();
     const s = { msg: safeBody, sev: sev || 'info' };
     this.snacks.push(s);
@@ -2726,6 +2753,20 @@ class Component extends DCLogic {
       this.setState(st => ({ tick: st.tick + 1 }));
     }, (sev === 'error' || sev === 'warning') ? 7000 : 4200);
     this.setState(st => ({ tick: st.tick + 1 }));
+  }
+  notificationVisible() { return this.notifs.filter(n => this.notificationMatches(this.notifQuery, n.title + ' ' + n.body)).slice(0, 60); }
+  markNotificationRead(id) { const item = this.notifs.find(n => n.id === id); if (item) { item.read = true; this.persist(); this.bump(); } }
+  toggleNotificationSelection(id, event) { if (event && event.stopPropagation) event.stopPropagation(); const item = this.notifs.find(n => n.id === id); if (!item) return; if (this.notifSelection.has(id)) this.notifSelection.delete(id); else this.notifSelection.add(id); this.bump(); }
+  selectAllVisibleNotifications() { this.notificationVisible().forEach(n => this.notifSelection.add(n.id)); this.bump(); }
+  invertVisibleNotifications() { this.notificationVisible().forEach(n => this.notifSelection.has(n.id) ? this.notifSelection.delete(n.id) : this.notifSelection.add(n.id)); this.bump(); }
+  bulkMarkNotificationsRead() { const ids = this.notifSelection; this.notifs.forEach(n => { if (ids.has(n.id)) n.read = true; }); this.notifSelection.clear(); this.persist(); this.bump(); }
+  bulkDismissNotifications() { const ids = this.notifSelection; this.notifs = this.notifs.filter(n => !ids.has(n.id)); this.notifSelection.clear(); this.persist(); this.bump(); }
+  markVisibleNotificationsRead() { const visible = new Set(this.notificationVisible().map(n => n.id)); this.notifs.forEach(n => { if (visible.has(n.id)) n.read = true; }); this.persist(); this.bump(); }
+  exportNotifications() {
+    const visible = this.notificationVisible(); const selected = visible.filter(n => this.notifSelection.has(n.id)); const records = (selected.length ? selected : visible).map(n => ({ id: n.id, title: n.title, body: n.body, severity: n.sev, timestamp: n.time, read: n.read }));
+    if (!records.length) return;
+    const body = JSON.stringify({ schemaVersion: 1, scope: selected.length ? 'selected visible notifications' : 'visible notification page', records }, null, 2);
+    const url = URL.createObjectURL(new Blob([body + '\n'], { type: 'application/json;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'winforge-notifications.json'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0); this.notify('Notification history', records.length + ' notification record' + (records.length === 1 ? '' : 's') + ' exported locally. No network request was made.', 'success', true);
   }
   slug(s) { return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
   go(route, label, icon) {
@@ -3038,6 +3079,7 @@ class Component extends DCLogic {
       rb.history.unshift(rbPattern);
       if (rb.target === 'changelog') this.changelogRegexMode = true;
       if (rb.target === 'docs') this.docsRegexMode = true;
+      if (rb.target === 'notifs') this.notifRegexMode = true;
       rb.target = null;
       this.notify('Pattern builder', 'Filter applied · ' + rbRes.matches.length + ' sample matches', 'success');
     };
@@ -3084,21 +3126,36 @@ class Component extends DCLogic {
 
     // notifications
     V.notifsOpen = s.notifsOpen;
-    V.hasUnread = this.notifs.length > this.seenCount;
-    V.unreadCount = Math.min(99, this.notifs.length - this.seenCount);
-    V.toggleNotifs = () => { if (!s.notifsOpen) this.seenCount = this.notifs.length; this.setState({ notifsOpen: !s.notifsOpen }); };
-    V.clearNotifs = () => { this.notifs = []; this.seenCount = 0; this.persist(); this.setState(st => ({ tick: st.tick + 1 })); };
+    V.hasUnread = this.notifs.some(n => !n.read);
+    V.unreadCount = Math.min(99, this.notifs.filter(n => !n.read).length);
+    V.notifUnreadLabel = V.unreadCount ? V.unreadCount + ' unread · local only' : 'All notifications read · local only';
+    V.toggleNotifs = () => { this.setState({ notifsOpen: !s.notifsOpen }); };
+    V.clearNotifs = () => { this.notifs = []; this.notifSelection.clear(); this.persist(); this.setState(st => ({ tick: st.tick + 1 })); };
+    V.useNotifPlain = () => { this.notifRegexMode = false; this.bump(); };
+    V.selectAllNotifs = () => this.selectAllVisibleNotifications();
+    V.invertNotifs = () => this.invertVisibleNotifications();
+    V.bulkReadNotifs = () => this.bulkMarkNotificationsRead();
+    V.bulkDismissNotifs = () => this.bulkDismissNotifications();
+    V.markVisibleRead = () => this.markVisibleNotificationsRead();
+    V.exportNotifs = () => this.exportNotifications();
+    const visibleNotifs = this.notificationVisible();
+    V.notifVisibleCount = visibleNotifs.length;
+    V.notifVisibleUnread = visibleNotifs.filter(n => !n.read).length;
+    V.notifSelectedCount = visibleNotifs.filter(n => this.notifSelection.has(n.id)).length;
     const sevMap = {
       info: { bg: 'var(--md-sys-color-surface-container-high)', fg: onSurf, icon: 'info', emoji: 'ℹ️' },
       success: { bg: 'var(--dm-green-container)', fg: 'var(--dm-green-on-container)', icon: 'check_circle', emoji: '✅' },
       warning: { bg: 'var(--dm-amber-container)', fg: 'var(--dm-amber-on-container)', icon: 'warning', emoji: '⚠️' },
       error: { bg: 'var(--md-sys-color-error-container)', fg: 'var(--md-sys-color-on-error-container)', icon: 'error', emoji: '❌' },
     };
-    V.notifications = this.notifs.filter(n => this.match(this.notifQuery, n.title + ' ' + n.body)).slice(0, 60).map(n => {
+    V.notifications = visibleNotifs.map(n => {
       const m = sevMap[n.sev] || sevMap.info;
-      return { title: this.displayName + ' · ' + n.title, body: n.body, time: n.time, bg: m.bg, fg: m.fg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis };
+      const selected = this.notifSelection.has(n.id);
+      return { title: this.displayName + ' · ' + n.title, body: n.body, time: n.time, bg: m.bg, fg: m.fg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis, unread: !n.read, selected, checkBorder: selected ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-outline)', checkBg: selected ? 'var(--md-sys-color-primary-container)' : 'transparent', checkColor: 'var(--md-sys-color-primary)', checkOpacity: selected ? 1 : 0, outline: !n.read ? '2px solid color-mix(in srgb, var(--md-sys-color-primary) 28%, transparent)' : 'none', ariaLabel: (n.read ? 'Read' : 'Unread') + ' notification: ' + n.title + '. ' + n.body, toggle: e => this.toggleNotificationSelection(n.id, e), open: () => this.markNotificationRead(n.id), keydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.markNotificationRead(n.id); } } };
     });
-    V.notifFooter = this.notifs.length + ' of 200 kept locally · information and success auto-dismiss, warnings and errors are retained';
+    V.notifNoMatch = !!this.notifQuery && !visibleNotifs.length;
+    V.notifRegexMode = this.notifRegexMode;
+    V.notifFooter = this.notifs.length + ' of 200 kept locally · selected ' + V.notifSelectedCount + ' · no network or secret storage';
     V.snacks = this.snacks.map(x => {
       const m = sevMap[x.sev] || sevMap.info;
       return { msg: this.displayName + ' · ' + x.msg, icon: m.icon, emoji: m.emoji, showEmoji: s.showEmojis, color: x.sev === 'error' ? err : (x.sev === 'success' ? green : prim) };
