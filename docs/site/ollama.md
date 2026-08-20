@@ -8,6 +8,12 @@ The Features surface reads only `http://127.0.0.1:11434/api/version` and `/api/t
 
 Installed tags have a plain-text search by default. The adjacent anchored regex builder explicitly opts into the browser JavaScript `RegExp` dialect, with `i` and `m` flags, sample text, syntax feedback, match count, and capture display. Tag names, size, and modified time come from the local API; missing metadata remains labelled as not reported.
 
+## Variant catalog and hardware fit
+
+The catalog cards are variant-level records from the verified local `/api/tags` response. Each record keeps its digest, blob size, modified time, parameter-size and quantization metadata when Ollama supplies them, plus an explicit installed flag. The refresh record names `Local Ollama /api/tags`, stores an ISO timestamp, reports whether the bounded 200-record response was complete, and marks the last catalog stale when the loopback service is offline or the refresh is more than 24 hours old. No catalog entry is invented while offline.
+
+The catalog has independent Installed-only and fit-verdict filters. The hardware evidence shown beside it is conservative browser evidence: `navigator.deviceMemory` for RAM, the browser storage estimate for free quota, and an explicit unknown VRAM value because this surface cannot inspect a GPU. A model is **Runs well**, **Runs with limits**, **Unlikely**, or **Unknown** only from reported blob size, context, RAM, disk, and available metadata. Missing required evidence produces **Unknown**; a model name or parameter label alone never becomes a promise.
+
 ## Failure modes
 
 Stopped/missing Ollama, loopback timeout, non-OK responses, malformed JSON, oversized responses, cancelled pulls, and timed-out chat remain explicit status states. An empty list before a successful refresh is not presented as a healthy empty catalogue.
@@ -18,10 +24,10 @@ Model pulls accept a bounded model-tag grammar and never accept shell text. Chat
 
 ## Security and privacy
 
-Only loopback URLs are used. The surface does not collect credentials, prompts, model payloads, history, exports, telemetry, or remote URLs. No local response is persisted, and no payment or cloud semantics are presented.
+Only loopback URLs are used. The surface does not collect credentials, prompts, model payloads, history, exports, telemetry, or remote URLs. No local response is persisted, and no payment or cloud semantics are presented. Hardware values are read only for the visible conservative fit explanation and are never sent anywhere.
 
 ## Verification boundary
 
-This lane is source-level only. Tests, lint, packaged interaction, hardware/storage telemetry, screenshots, release, and publication remain unverified.
+This lane proves the source-level bounded catalog model, refresh/stale/offline states, filters, and conservative verdict calculation. Tests, lint, packaged interaction, and screenshots remain unverified; VRAM remains explicitly unavailable in the browser equivalent.
 
 Suggested articles: [Search and regex builder](search-and-regex.md), [Preview boundary](landing-page.md).

@@ -293,15 +293,49 @@ type ConverterQueueItem = {
 type OllamaState = {
   status: "idle" | "checking" | "healthy" | "stopped" | "offline" | "error";
   version: string | null;
-  models: Array<{ name: string; size: number | null; modifiedAt: string | null }>;
+  models: OllamaModelRecord[];
   message: string;
   checkedAt: string | null;
+  catalog: { source: string; refreshedAt: string | null; complete: boolean; stale: boolean; offline: boolean };
+  hardware: OllamaHardwareEvidence;
 };
+type OllamaModelRecord = {
+  name: string;
+  digest: string | null;
+  size: number | null;
+  modifiedAt: string | null;
+  parameterSize: string | null;
+  quantization: string | null;
+  contextLength: number | null;
+  installed: boolean;
+};
+type OllamaHardwareEvidence = { ramGiB: number | null; vramGiB: number | null; diskGiB: number | null; source: string };
+type OllamaFitVerdict = "Runs well" | "Runs with limits" | "Unlikely" | "Unknown";
 type OllamaOperation = { status: "idle" | "running" | "complete" | "cancelled" | "error"; message: string; progress: number };
 
 const CONVERTER_MAX_BYTES = 2 * 1024 * 1024;
 const OLLAMA_MAX_BYTES = 512 * 1024;
 const OLLAMA_ENDPOINT = "http://127.0.0.1:11434";
+const OLLAMA_CATALOG_STALE_MS = 24 * 60 * 60 * 1000;
+const ollamaParameterGiB = (value: string | null) => {
+  if (!value) return null;
+  const match = value.match(/([0-9]+(?:\.[0-9]+)?)\s*([bmk])/i);
+  if (!match) return null;
+  const number = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  return unit === "b" ? number : unit === "m" ? number / 1024 : number / 1024;
+};
+const ollamaFitVerdict = (model: OllamaModelRecord, hardware: OllamaHardwareEvidence): OllamaFitVerdict => {
+  if (model.size === null || model.contextLength === null || hardware.ramGiB === null || hardware.diskGiB === null) return "Unknown";
+  const blobGiB = model.size / (1024 ** 3);
+  const contextGiB = Math.max(0.25, model.contextLength / 4096 * 0.25);
+  const requiredRam = blobGiB * 1.15 + contextGiB;
+  if (hardware.diskGiB < blobGiB * 1.2) return "Unlikely";
+  if (hardware.ramGiB < requiredRam) return "Unlikely";
+  if (hardware.vramGiB !== null && hardware.vramGiB < blobGiB * 0.9) return "Runs with limits";
+  if (model.quantization === null || model.parameterSize === null) return "Runs with limits";
+  return hardware.ramGiB >= requiredRam * 1.75 ? "Runs well" : "Runs with limits";
+};
 type ConverterCatalogFormat = { name: string; status: "enabled" | "unavailable"; reason: string };
 type ConverterCatalogCategory = { category: string; formats: readonly ConverterCatalogFormat[] };
 const unavailable = (name: string, adapter: string): ConverterCatalogFormat => ({
@@ -2049,12 +2083,14 @@ export default function SiteShell({
   const [converterCatalogBuilderOpen, setConverterCatalogBuilderOpen] = useState(false);
   const [converterCatalogFlags, setConverterCatalogFlags] = useState({ i: true, m: false });
   const [converterCatalogSample, setConverterCatalogSample] = useState("Documents / PDF\nStructured Data / Spreadsheets\nBinary Encodings");
-  const [ollama, setOllama] = useState<OllamaState>({ status: "idle", version: null, models: [], message: "Not checked yet.", checkedAt: null });
+  const [ollama, setOllama] = useState<OllamaState>({ status: "idle", version: null, models: [], message: "Not checked yet.", checkedAt: null, catalog: { source: "Local Ollama /api/tags", refreshedAt: null, complete: false, stale: true, offline: false }, hardware: { ramGiB: typeof navigator !== "undefined" && typeof (navigator as Navigator & { deviceMemory?: number }).deviceMemory === "number" ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? null : null, vramGiB: null, diskGiB: null, source: "navigator.deviceMemory; browser storage estimate" } });
   const [ollamaQuery, setOllamaQuery] = useState("");
   const [ollamaRegex, setOllamaRegex] = useState(false);
   const [ollamaBuilderOpen, setOllamaBuilderOpen] = useState(false);
   const [ollamaFlags, setOllamaFlags] = useState({ i: true, m: false });
   const [ollamaSample, setOllamaSample] = useState("llama3.2:latest\nqwen2.5:7b\nNo installed models");
+  const [ollamaFitFilter, setOllamaFitFilter] = useState<"all" | OllamaFitVerdict>("all");
+  const [ollamaInstalledOnly, setOllamaInstalledOnly] = useState(false);
   const converterTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const converterCancel = useRef(false);
   const ollamaAbort = useRef<AbortController | null>(null);
@@ -2233,12 +2269,17 @@ export default function SiteShell({
       const rawModels = typeof tagsPayload === "object" && tagsPayload !== null && "models" in tagsPayload && Array.isArray(tagsPayload.models) ? tagsPayload.models : [];
       const models = rawModels.slice(0, 200).flatMap((item) => {
         if (!item || typeof item !== "object" || !("name" in item) || typeof item.name !== "string") return [];
-        return [{ name: item.name.slice(0, 160), size: "size" in item && typeof item.size === "number" ? item.size : null, modifiedAt: "modified_at" in item && typeof item.modified_at === "string" ? item.modified_at : null }];
+        const details = "details" in item && item.details && typeof item.details === "object" ? item.details as Record<string, unknown> : {};
+        return [{ name: item.name.slice(0, 160), digest: "digest" in item && typeof item.digest === "string" ? item.digest.slice(0, 160) : null, size: "size" in item && typeof item.size === "number" ? item.size : null, modifiedAt: "modified_at" in item && typeof item.modified_at === "string" ? item.modified_at : null, parameterSize: typeof details.parameter_size === "string" ? details.parameter_size.slice(0, 32) : null, quantization: typeof details.quantization_level === "string" ? details.quantization_level.slice(0, 32) : null, contextLength: null, installed: true }];
       });
-      setOllama({ status: "healthy", version, models, checkedAt: new Date().toISOString(), message: `Local Ollama is reachable; ${models.length} installed tag${models.length === 1 ? "" : "s"} verified.` });
+      const estimate = await navigator.storage?.estimate?.();
+      const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+      const hardware = { ramGiB: typeof deviceMemory === "number" ? deviceMemory : null, vramGiB: null, diskGiB: typeof estimate?.quota === "number" && typeof estimate.usage === "number" ? Math.max(0, (estimate.quota - estimate.usage) / (1024 ** 3)) : null, source: "navigator.deviceMemory; browser storage estimate; VRAM unavailable in this surface" };
+      const refreshedAt = new Date().toISOString();
+      setOllama({ status: "healthy", version, models, checkedAt: refreshedAt, catalog: { source: "Local Ollama /api/tags", refreshedAt, complete: rawModels.length <= 200 && models.length === rawModels.length, stale: false, offline: false }, hardware, message: `Local Ollama is reachable; ${models.length} installed variant${models.length === 1 ? "" : "s"} verified.` });
     } catch (error) {
       const aborted = controller.signal.aborted;
-      setOllama((current) => ({ ...current, status: aborted ? "offline" : error instanceof TypeError ? "stopped" : "error", checkedAt: new Date().toISOString(), message: aborted ? "Local Ollama did not answer within two seconds; it may be stopped or offline." : error instanceof TypeError ? "Ollama is not reachable on the local loopback endpoint." : error instanceof Error ? error.message : "Local Ollama returned unusable data." }));
+      setOllama((current) => ({ ...current, status: aborted ? "offline" : error instanceof TypeError ? "stopped" : "error", checkedAt: new Date().toISOString(), catalog: { ...current.catalog, stale: true, offline: true }, message: aborted ? "Local Ollama did not answer within two seconds; the last catalog is stale and may be offline." : error instanceof TypeError ? "Ollama is not reachable on the local loopback endpoint; the last catalog is stale." : error instanceof Error ? error.message : "Local Ollama returned unusable data; the last catalog is stale." }));
     } finally { window.clearTimeout(timeout); }
   }, []);
   const runOllamaPull = useCallback(async () => {
@@ -2274,10 +2315,10 @@ export default function SiteShell({
     finally { window.clearTimeout(timeout); }
   }, [ollamaChatModel, ollamaChatPrompt]);
   const ollamaRegexResult = useMemo(() => {
-    const values = ollama.models.map((model) => model.name);
-    if (!ollamaRegex) return { matches: values.filter((value) => value.toLocaleLowerCase().includes(ollamaQuery.toLocaleLowerCase())), error: "" };
-    try { const re = new RegExp(ollamaQuery, `${ollamaFlags.i ? "i" : ""}${ollamaFlags.m ? "m" : ""}`); return { matches: values.filter((value) => re.test(value)), error: "" }; } catch (error) { return { matches: [], error: error instanceof Error ? error.message : "Invalid regular expression." }; }
-  }, [ollama.models, ollamaQuery, ollamaRegex, ollamaFlags]);
+    const values = ollama.models.filter((model) => !ollamaInstalledOnly || model.installed).filter((model) => ollamaFitFilter === "all" || ollamaFitVerdict(model, ollama.hardware) === ollamaFitFilter);
+    if (!ollamaRegex) return { matches: values.filter((model) => model.name.toLocaleLowerCase().includes(ollamaQuery.toLocaleLowerCase())), error: "" };
+    try { const re = new RegExp(ollamaQuery, `${ollamaFlags.i ? "i" : ""}${ollamaFlags.m ? "m" : ""}`); return { matches: values.filter((model) => re.test(model.name)), error: "" }; } catch (error) { return { matches: [], error: error instanceof Error ? error.message : "Invalid regular expression." }; }
+  }, [ollama.models, ollama.hardware, ollamaQuery, ollamaRegex, ollamaFlags, ollamaFitFilter, ollamaInstalledOnly]);
   const inspectConverterFiles = useCallback(async (files: File[]) => {
     const items: ConverterQueueItem[] = [];
     for (const file of files.slice(0, 100)) {
@@ -6732,9 +6773,10 @@ export default function SiteShell({
               <div className="ollama-actions"><button type="button" className="filled-button" onClick={() => void checkOllama()} disabled={ollama.status === "checking"}>{dual("Check local Ollama", "檢查本機 Ollama", language)}</button><span className={`ollama-status ollama-${ollama.status}`} role="status">{ollama.status === "healthy" ? "● Healthy" : ollama.status === "stopped" ? "● Stopped or missing" : ollama.status === "offline" ? "● Offline / timed out" : ollama.status === "checking" ? "● Checking" : ollama.status === "error" ? "● Response error" : "● Not checked"}</span></div>
               <p className="supporting-copy" role="status" aria-live="polite">{ollama.message}{ollama.version ? ` Version ${ollama.version}.` : ""}</p>
               <div className="ollama-search"><label className="search-field" htmlFor="ollama-model-search"><span aria-hidden="true">⌕</span><input id="ollama-model-search" value={ollamaQuery} onChange={(event) => setOllamaQuery(event.target.value)} placeholder={dual("Search installed model tags", "搜尋已安裝 model tags", language)} /><button type="button" className={ollamaRegex ? "active" : ""} onClick={() => setOllamaRegex((current) => !current)}>{ollamaRegex ? "Regex" : "Plain"}</button></label><div className="builder-anchor"><button type="button" className={`builder-button ${ollamaBuilderOpen ? "active" : ""}`} onClick={() => setOllamaBuilderOpen((current) => !current)} aria-expanded={ollamaBuilderOpen} aria-controls="ollama-regex-builder">.* {dual("Regex builder", "正規表示式工具", language)}</button>{ollamaBuilderOpen && <RegexBuilder builderId="ollama-regex-builder" query={ollamaQuery} setQuery={setOllamaQuery} regexMode={ollamaRegex} setRegexMode={setOllamaRegex} flags={ollamaFlags} setFlags={setOllamaFlags} error={ollamaRegexResult.error} sample={ollamaSample} setSample={setOllamaSample} matches={ollamaRegexResult.matches} announce={announce} close={() => setOllamaBuilderOpen(false)} />}</div></div>
-              <p className="search-meta" aria-live="polite">{ollamaRegexResult.error || `${ollamaRegexResult.matches.length} installed tag${ollamaRegexResult.matches.length === 1 ? "" : "s"} matched`}</p>
-              {ollama.models.length ? <div className="ollama-model-grid">{ollamaRegexResult.matches.map((name) => { const model = ollama.models.find((item) => item.name === name); return <article key={name} className="ollama-model-card"><strong>{name}</strong><span>{model?.size ? formatBytes(model.size) : "Size not reported"}</span><small>{model?.modifiedAt ? `Modified ${model.modifiedAt}` : "Modified time not reported"}</small></article>; })}</div> : <div className="empty-state"><span aria-hidden="true">◌</span><h2>{dual("No installed tags loaded", "未載入已安裝 tags", language)}</h2><p>{dual("Check local Ollama to read the verified list. A blank state is not treated as success.", "檢查本機 Ollama 先可以讀已驗證清單；空白唔會當成功。", language)}</p></div>}
-              <div className="ollama-evidence"><strong>{dual("Conservative local evidence", "保守本機證據", language)}</strong><span>{dual("Hardware and free-storage telemetry are not claimed by this browser preview. No model is promised to run from a name alone.", "呢個瀏覽器預覽唔會聲稱有硬件或者儲存 telemetry；唔會單靠 model 名稱保證可以運行。", language)}</span></div>
+              <div className="ollama-catalog-controls"><label><input type="checkbox" checked={ollamaInstalledOnly} onChange={(event) => setOllamaInstalledOnly(event.target.checked)} /> {dual("Installed only", "只顯示已安裝", language)}</label><label>{dual("Fit verdict", "運行評估", language)} <select value={ollamaFitFilter} onChange={(event) => setOllamaFitFilter(event.target.value as "all" | OllamaFitVerdict)}><option value="all">All verdicts</option><option>Runs well</option><option>Runs with limits</option><option>Unlikely</option><option>Unknown</option></select></label></div>
+              <p className="search-meta" aria-live="polite">{ollamaRegexResult.error || `${ollamaRegexResult.matches.length} catalog variant${ollamaRegexResult.matches.length === 1 ? "" : "s"} matched`}</p>
+              {ollama.models.length ? <div className="ollama-model-grid">{ollamaRegexResult.matches.map((model) => { const verdict = ollamaFitVerdict(model, ollama.hardware); return <article key={model.name} className="ollama-model-card"><strong>{model.name}</strong><span>{model.size !== null ? formatBytes(model.size) : "Blob size not reported"} · {model.installed ? "Installed" : "Catalog only"}</span><small>{model.parameterSize ?? "Parameter count not reported"} · {model.quantization ?? "Quantization not reported"} · context {model.contextLength ?? "not reported"}</small><b className={`ollama-fit-${verdict.toLowerCase().replaceAll(" ", "-")}`}>{verdict}</b><small>{model.digest ? `Digest ${model.digest}` : "Digest not reported"}</small></article>; })}</div> : <div className="empty-state"><span aria-hidden="true">◌</span><h2>{dual("No catalog variants loaded", "未載入模型目錄 variants", language)}</h2><p>{dual("Refresh local Ollama to read the verified variant list. A blank state is not treated as a complete catalog.", "重新整理本機 Ollama 先可以讀已驗證 variants；空白唔會當完整目錄。", language)}</p></div>}
+              <div className="ollama-evidence"><strong>{dual("Catalog evidence", "目錄證據", language)}</strong><span>{ollama.catalog.source} · {ollama.catalog.refreshedAt ? `refreshed ${ollama.catalog.refreshedAt}` : "not refreshed"} · {ollama.catalog.complete ? "complete within the 200-record bound" : "completeness not proven"} · {ollama.catalog.stale ? "stale" : "current"}{ollama.catalog.offline ? " · offline fallback" : ""}</span><span>{dual("Hardware evidence", "硬件證據", language)}: RAM {ollama.hardware.ramGiB === null ? "unknown" : `${ollama.hardware.ramGiB} GiB`} · VRAM {ollama.hardware.vramGiB === null ? "unknown" : `${ollama.hardware.vramGiB} GiB`} · free browser storage {ollama.hardware.diskGiB === null ? "unknown" : `${ollama.hardware.diskGiB.toFixed(1)} GiB`}. Missing evidence produces Unknown; no model is promised from its name alone.</span></div>
               <div className="ollama-operation-grid">
                 <article className="ollama-operation-card"><h3>{dual("Pull a model", "Pull 模型", language)}</h3><p>{dual("Enter a verified model tag. The request is bounded, cancellable by starting another operation, and never runs a shell.", "輸入已驗證 model tag；請求有界、可以由另一個操作取消，亦唔會行 shell。", language)}</p><div className="ollama-inline-form"><input value={ollamaPullName} onChange={(event) => setOllamaPullName(event.target.value)} placeholder="llama3.2:latest" aria-label="Model tag to pull" /><button type="button" className="filled-button" onClick={() => void runOllamaPull()} disabled={ollamaPull.status === "running"}>{dual("Start pull", "開始 pull", language)}</button></div><p className="supporting-copy" role="status" aria-live="polite">{ollamaPull.message}</p><progress max="100" value={ollamaPull.progress}>{ollamaPull.progress}%</progress></article>
                 <article className="ollama-operation-card"><h3>{dual("Local chat", "本機聊天", language)}</h3><p>{dual("Chat stays on the loopback API. Prompt and response are bounded in memory and are not exported or logged.", "聊天只留喺 loopback API；prompt 同回應都有記憶體上限，唔會 export 或寫入 log。", language)}</p><div className="ollama-inline-form"><select value={ollamaChatModel} onChange={(event) => setOllamaChatModel(event.target.value)} aria-label="Installed model for local chat"><option value="">Choose an installed model…</option>{ollama.models.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</select><textarea value={ollamaChatPrompt} onChange={(event) => setOllamaChatPrompt(event.target.value)} maxLength={8000} placeholder="Ask the local model" aria-label="Local chat prompt" /><button type="button" className="filled-button" onClick={() => void runOllamaChat()} disabled={ollamaChat.status === "running"}>{dual("Send locally", "本機傳送", language)}</button></div><p className="supporting-copy" role="status" aria-live="polite">{ollamaChat.message}</p>{ollamaChat.response && <pre className="ollama-chat-response">{ollamaChat.response}</pre>}</article>
