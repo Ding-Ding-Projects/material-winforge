@@ -11,7 +11,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [External editor handoff](external-editor.md)
 - [Package engine discovery](package-engine-discovery.md)
 - [Global defaults and project overrides](project-settings-overrides.md)
-- [App-logo customization](app-logo.md)
+- [App-logo customization](app-logo.md) — local presets and PNG/JPEG upload with keyboard crop/focal controls, fit/background treatments, validated 26/64/128px derivatives, transactional rollback, and identity-preserving reset.
 - [App display name](display-name.md) — bounded title/notification presentation label; package, data, update, and diagnostic identity stay fixed.
 - [Desktop notification center](notifications.md) — bounded local history, unread/read state, plain-text-first search with anchored regex opt-in, keyboard selection, bulk actions, and local JSON export.
 - [Personal vocabulary JSON](personal-vocabulary.md)

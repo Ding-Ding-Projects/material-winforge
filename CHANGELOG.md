@@ -21,6 +21,8 @@
 
 ## Unreleased — desktop app-logo customization
 
+- Extended the desktop logo editor with keyboard-accessible focal-point crop coordinates, bounded zoom, contain/cover/fill fit treatment, transparent or selected background treatment, validated 26/64/128px PNG derivatives, and transactional rollback when conversion fails. The display mark remains separate from package, installer, update-feed, and application-data identity.
+
 - Added four bundled desktop logo presets and a local PNG/JPEG picker. The picker checks MIME and magic bytes, caps files at 512 KiB and decoded dimensions at 2048×2048, bounds the local cache, and preserves the previous valid mark on every invalid or undecodable input. The selected logo updates the title bar and Settings preview locally; package identity, installer identity, update feed, and application-data location remain unchanged. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
 
 ## Unreleased — desktop appearance editor depth

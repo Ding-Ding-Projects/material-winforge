@@ -730,6 +730,7 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
         <section style="padding:20px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low)">
           <div style="display:flex;justify-content:space-between;gap:16px;align-items:start;flex-wrap:wrap"><div><h2 style="margin:0 0 6px;font-size:16px;font-weight:500">App logo</h2><p style="margin:0;color:var(--md-sys-color-on-surface-variant);font-size:12.5px">Choose a shipped local preset or select a PNG/JPEG from this computer. The mark updates the title bar and this preview immediately; package identity, installer identity, and the application-data folder never change.</p></div><button onClick="{{ resetLogo }}" style="height:36px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Reset to shipped mark</button></div>
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px"><img src="{{ logoSrc }}" alt="Selected WinForge app logo" width="64" height="64" style="border-radius:16px;object-fit:cover;background:var(--md-sys-color-surface-container-highest)"><div><strong>Preview</strong><div style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">Current logo is applied live to the title bar.</div></div></div>
+          <fieldset style="margin-top:16px;padding:14px;border:1px solid var(--md-sys-color-outline-variant);border-radius:12px"><legend style="font-size:12px;font-weight:500">Crop and conversion</legend><div style="display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px"><label style="display:grid;gap:5px;font-size:12px">Focal point X (%)<input type="number" min="0" max="100" step="1" value="{{ logoCropX }}" onInput="{{ setLogoCropX }}" aria-describedby="logo-editor-help" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><label style="display:grid;gap:5px;font-size:12px">Focal point Y (%)<input type="number" min="0" max="100" step="1" value="{{ logoCropY }}" onInput="{{ setLogoCropY }}" aria-describedby="logo-editor-help" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><label style="display:grid;gap:5px;font-size:12px">Zoom (1–4)<input type="number" min="1" max="4" step="0.1" value="{{ logoZoom }}" onInput="{{ setLogoZoom }}" aria-describedby="logo-editor-help" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"></label><label style="display:grid;gap:5px;font-size:12px">Fit treatment<select value="{{ logoFit }}" onChange="{{ setLogoFit }}" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"><option value="contain">Contain</option><option value="cover">Cover</option><option value="fill">Fill</option></select></label><label style="display:grid;gap:5px;font-size:12px">Background<select value="{{ logoBackground }}" onChange="{{ setLogoBackground }}" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container-high);color:inherit"><option value="transparent">Transparent</option><option value="surface">Surface</option><option value="primary">Primary container</option></select></label></div><p id="logo-editor-help" style="margin:10px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:11.5px">The editor crops locally around the focal point and creates validated 26, 64, and 128 pixel PNG derivatives. A conversion failure rolls back the last valid logo and crop. Preset and custom display changes never alter package identity, installer identity, update feed, or application-data location.</p></fieldset>
           <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px" role="listbox" aria-label="Shipped app logo presets"><sc-for list="{{ logoPresets }}" as="preset" hint-placeholder-count="4"><button onClick="{{ preset.choose }}" aria-selected="{{ preset.selected }}" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border:1px solid {{ preset.selected ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-outline)' }};border-radius:999px;background:{{ preset.selected ? 'var(--md-sys-color-primary-container)' : 'transparent' }};color:inherit"><img src="{{ preset.src }}" alt="" width="24" height="24" style="border-radius:6px;object-fit:cover">{{ preset.label }}</button></sc-for></div>
           <label style="display:flex;flex-direction:column;gap:6px;margin-top:16px;font-size:12.5px">Custom local PNG or JPEG<input type="file" accept="image/png,image/jpeg" onChange="{{ handleLogoFile }}" aria-describedby="logo-validation-status" style="min-height:44px;padding:8px;border:1px solid var(--md-sys-color-outline);border-radius:10px;background:var(--md-sys-color-surface-container-high);color:inherit"></label>
           <p id="logo-validation-status" role="status" aria-live="polite" style="margin:10px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px">{{ logoMessage }}</p>
@@ -1661,7 +1662,7 @@ const LOGO_PRESETS = Object.freeze([
   { id: 'signal', label: 'Signal grid', src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="30" fill="#251d3d"/><path d="M26 91V67h14v24H26Zm22 0V49h14v42H48Zm22 0V31h14v60H70Z" fill="#c2e7ff"/><circle cx="99" cy="29" r="10" fill="#f2b8b5"/></svg>') },
   { id: 'orbit', label: 'Orbit loop', src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="30" fill="#132f2d"/><circle cx="64" cy="64" r="25" fill="none" stroke="#6dd58c" stroke-width="10"/><ellipse cx="64" cy="64" rx="45" ry="18" fill="none" stroke="#a8c7fa" stroke-width="6" transform="rotate(-28 64 64)"/><circle cx="99" cy="43" r="8" fill="#f2c94c"/></svg>') },
 ]);
-const DEFAULT_LOGO = Object.freeze({ schemaVersion: 1, preset: 'forge', customDataUrl: null });
+const DEFAULT_LOGO = Object.freeze({ schemaVersion: 2, preset: 'forge', customDataUrl: null, cropX: 0.5, cropY: 0.5, zoom: 1, fit: 'contain', background: 'transparent', derivatives: {} });
 
 // ── PWR point kinetics, ported from Services/ReactorSimService.cs ─────────────
 const BETA_I = [0.000215, 0.001424, 0.001274, 0.002568, 0.000748, 0.000273];
@@ -2234,10 +2235,15 @@ class Component extends DCLogic {
     try { return new RegExp(q, 'i').test(String(text || '')); } catch { return false; }
   }
   validateLogo(payload) {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.schemaVersion !== 1) return { ...DEFAULT_LOGO };
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) || ![1, 2].includes(payload.schemaVersion)) return { ...DEFAULT_LOGO };
     const preset = LOGO_PRESETS.some(item => item.id === payload.preset) ? payload.preset : DEFAULT_LOGO.preset;
     const customDataUrl = typeof payload.customDataUrl === 'string' && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(payload.customDataUrl) && payload.customDataUrl.length <= 360000 ? payload.customDataUrl : null;
-    return { schemaVersion: 1, preset, customDataUrl };
+    const clamp = (value, fallback) => Number.isFinite(Number(value)) ? Math.max(0, Math.min(1, Number(value))) : fallback;
+    const zoom = Number.isFinite(Number(payload.zoom)) ? Math.max(1, Math.min(4, Number(payload.zoom))) : 1;
+    const fit = ['contain', 'cover', 'fill'].includes(payload.fit) ? payload.fit : 'contain';
+    const background = ['transparent', 'surface', 'primary'].includes(payload.background) ? payload.background : 'transparent';
+    const derivatives = payload.derivatives && typeof payload.derivatives === 'object' && !Array.isArray(payload.derivatives) ? Object.fromEntries(['26','64','128'].filter(size => typeof payload.derivatives[size] === 'string' && payload.derivatives[size].length <= 80000).map(size => [size, payload.derivatives[size]])) : {};
+    return { schemaVersion: 2, preset, customDataUrl, cropX: clamp(payload.cropX, 0.5), cropY: clamp(payload.cropY, 0.5), zoom, fit, background, derivatives };
   }
   logoSrc() { return this.logo.customDataUrl || (LOGO_PRESETS.find(item => item.id === this.logo.preset) || LOGO_PRESETS[0]).src; }
   setLogoPreset(id) {
@@ -2249,6 +2255,46 @@ class Component extends DCLogic {
   resetLogo() {
     this.logo = { ...DEFAULT_LOGO }; this.persist(); this.bump();
     this.notify('App logo', 'The shipped Forge mark is restored locally.', 'success', true);
+  }
+  setLogoEditorField(field, event) {
+    const value = event && event.target ? event.target.value : event;
+    const next = { ...this.logo };
+    if (field === 'cropX' || field === 'cropY') next[field] = Math.max(0, Math.min(1, Number(value) / 100));
+    else if (field === 'zoom') next.zoom = Math.max(1, Math.min(4, Number(value)));
+    else if (field === 'fit' || field === 'background') next[field] = String(value);
+    else return;
+    const previous = this.logo;
+    this.logo = next;
+    this.regenerateLogoDerivatives(previous);
+  }
+  regenerateLogoDerivatives(previousLogo = this.logo) {
+    if (!this.logo.customDataUrl) { this.persist(); this.bump(); return; }
+    const candidate = { ...this.logo };
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const derivatives = {};
+        [26, 64, 128].forEach(size => {
+          const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+          const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Canvas conversion is unavailable.');
+          if (candidate.background !== 'transparent') { ctx.fillStyle = candidate.background === 'primary' ? '#d0bcff' : '#e6e1e9'; ctx.fillRect(0, 0, size, size); }
+          const sourceRatio = image.naturalWidth / image.naturalHeight;
+          let sw = image.naturalWidth, sh = image.naturalHeight;
+          if (candidate.fit !== 'fill') { if ((candidate.fit === 'cover') === (sourceRatio > 1)) sw = image.naturalHeight, sh = image.naturalHeight; else sw = image.naturalWidth, sh = image.naturalWidth; }
+          const zoom = candidate.zoom; sw /= zoom; sh /= zoom;
+          const sx = Math.max(0, Math.min(image.naturalWidth - sw, candidate.cropX * image.naturalWidth - sw / 2));
+          const sy = Math.max(0, Math.min(image.naturalHeight - sh, candidate.cropY * image.naturalHeight - sh / 2));
+          if (candidate.fit === 'fill') ctx.drawImage(image, 0, 0, size, size); else ctx.drawImage(image, sx, sy, sw, sh, 0, 0, size, size);
+          derivatives[String(size)] = canvas.toDataURL('image/png');
+        });
+        const total = Object.values(derivatives).reduce((sum, value) => sum + value.length, 0);
+        if (total > 240000) throw new Error('The selected crop exceeds the local derivative cache limit.');
+        this.logo = { ...candidate, derivatives };
+        this.setState({ logoStatus: 'loaded', logoMessage: 'Crop and conversion applied locally · 26, 64, and 128 pixel PNG derivatives ready.' }, () => { this.persist(); this.bump(); });
+      } catch (error) { this.logo = previousLogo; this.setState({ logoStatus: 'invalid', logoMessage: error instanceof Error ? error.message + ' Previous logo and crop remain active.' : 'Conversion failed. Previous logo and crop remain active.' }); }
+    };
+    image.onerror = () => { this.logo = previousLogo; this.setState({ logoStatus: 'invalid', logoMessage: 'Conversion failed. Previous logo and crop remain active.' }); };
+    image.src = candidate.customDataUrl;
   }
   handleLogoFile(event) {
     const input = event && event.target;
@@ -2268,8 +2314,9 @@ class Component extends DCLogic {
       const image = new Image();
       image.onload = () => {
         if (!Number.isInteger(image.naturalWidth) || !Number.isInteger(image.naturalHeight) || image.naturalWidth < 1 || image.naturalHeight < 1 || image.naturalWidth > 2048 || image.naturalHeight > 2048) return fail('Invalid logo: dimensions must be between 1 and 2048 pixels on each side. The previous logo remains active.');
-        this.logo = { schemaVersion: 1, preset: DEFAULT_LOGO.preset, customDataUrl: data };
-        this.setState({ logoStatus: 'loaded', logoMessage: file.name + ' loaded locally · ' + image.naturalWidth + '×' + image.naturalHeight + ' pixels.' }, () => { this.persist(); this.bump(); });
+        const previousLogo = this.logo;
+        this.logo = { ...DEFAULT_LOGO, preset: DEFAULT_LOGO.preset, customDataUrl: data };
+        this.setState({ logoStatus: 'loaded', logoMessage: file.name + ' loaded locally · ' + image.naturalWidth + '×' + image.naturalHeight + ' pixels.' }, () => { this.regenerateLogoDerivatives(previousLogo); });
       };
       image.onerror = () => fail('Invalid logo: the image could not be decoded. The previous logo remains active.');
       image.src = data;
@@ -3742,6 +3789,8 @@ class Component extends DCLogic {
     V.showSettingsLocal = this.match(settingsSearch, 'local state persistence wipe reset browser storage');
     V.settingsNoMatch = !V.showSettingsDisplayName && !V.showSettingsSchool && !V.showSettingsProjects && !V.showSettingsAppearance && !V.showSettingsFunny && !V.showSettingsNarrator && !V.showSettingsSchedule && !V.showSettingsExternalEditor && !V.showSettingsAuthenticator && !V.showSettingsLocal;
     V.logoSrc = this.logoSrc(); V.logoStatus = this.state.logoStatus; V.logoMessage = this.state.logoMessage;
+    V.logoCropX = Math.round(this.logo.cropX * 100); V.logoCropY = Math.round(this.logo.cropY * 100); V.logoZoom = this.logo.zoom; V.logoFit = this.logo.fit; V.logoBackground = this.logo.background;
+    V.setLogoCropX = event => this.setLogoEditorField('cropX', event); V.setLogoCropY = event => this.setLogoEditorField('cropY', event); V.setLogoZoom = event => this.setLogoEditorField('zoom', event); V.setLogoFit = event => this.setLogoEditorField('fit', event); V.setLogoBackground = event => this.setLogoEditorField('background', event);
     V.logoPresets = LOGO_PRESETS.map(preset => ({ label: preset.label, src: preset.src, selected: this.logo.preset === preset.id && !this.logo.customDataUrl, choose: () => this.setLogoPreset(preset.id) }));
     V.handleLogoFile = event => this.handleLogoFile(event); V.resetLogo = () => this.resetLogo();
     V.authIssuer = this.state.authIssuer; V.setAuthIssuer = e => this.setState({ authIssuer: String(e.target.value || '').slice(0, 96) });
