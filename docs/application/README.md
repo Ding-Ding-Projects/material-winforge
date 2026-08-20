@@ -16,6 +16,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Desktop narrator](narration.md)
 - [School mode](school-mode.md)
 - [Toy locks and Support Tickets](toy-locks.md)
+- [Unlock ladder](unlock-ladder.md) — desktop design contract for a bounded waiting aid; never authentication.
 - [Built-in authenticator](authenticator.md) — desktop reference for local TOTP registration, including the in-process QR intent and URI text alternative.
 - [Local file converter](file-converter.md) — desktop design/runtime counterpart for the bounded offline JSON ↔ CSV adapter.
 - [Ollama suite manager](ollama.md) — desktop reference for bounded local version/tag reads and honest unavailable states.

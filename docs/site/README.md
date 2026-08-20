@@ -14,6 +14,7 @@
 - [Scheduled settings](scheduled-settings.md) — bounded browser-local date/time/weekday overrides with deterministic precedence and base-setting restoration.
 - [School mode](school-mode.md) — a local renamed English-only UX mode with hashed unlock and honest browser-storage recovery.
 - [Toy locks and Support Tickets](toy-locks.md) — per-target local UX locks, unlock durations, and a fictional self-service recovery desk.
+- [Unlock ladder](unlock-ladder.md) — bounded local waiting aid with dim-sum, sums, timed mole, and clock-only fallbacks.
 - [Built-in authenticator](authenticator.md) — bounded local TOTP registration, in-process QR plus URI text alternative, live codes, countdown, and redacted exports.
 - [Local file converter](file-converter.md) — bounded local JSON ↔ CSV conversion with truthful unavailable-adapter catalog.
 - [Local Ollama suite manager](ollama.md) — bounded loopback version/tag reads with explicit stopped and offline states.

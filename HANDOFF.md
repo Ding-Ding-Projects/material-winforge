@@ -1,5 +1,12 @@
 # Handoff
 
+## Unlock ladder lane — `codex/luna-unlock-ladder`
+
+- Added the local-only unlock ladder waiting aid to `pages/app/SiteShell.tsx` and `pages/app/globals.css`. It starts at a four-choice dim-sum rung unless School mode is enabled, advances through ten sums and a timed mole round, and falls to clock-only after a lost round.
+- Added explicit expiry, nonce refresh, early timed submission, bounded attempt budget, School-mode omission, and waiting-only/no-credential/session disclosure. No network or secret handling is present.
+- Added the desktop design-reference copy, categorized site/application docs and indexes, completeness inventory row, and Unreleased changelog entry.
+- Tests, lint, reviews, screenshots, packaged runtime interaction, release, and publication are intentionally unrun/unverified for this lane.
+
 ## Local redacted Git-history lane — `codex/luna-git-history`
 
 - Added `LocalHistoryJournal` to `pages/app/SiteShell.tsx`. Settings, authenticator, and toy-lock mutations append bounded neutral metadata; restore is recorded as a new event through the existing settings-history path. Secrets, hashes, TOTP material, QR payloads, credentials, and personal vocabulary are excluded.

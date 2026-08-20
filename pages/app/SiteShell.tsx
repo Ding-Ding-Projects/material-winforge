@@ -117,6 +117,21 @@ type AuthenticatorEntry = {
 type AuthenticatorState = { schemaVersion: 1; entries: AuthenticatorEntry[] };
 type ToyLock = { id: string; label: string; salt: string; hash: string; durationMinutes: number; locked: boolean; unlockedUntil: string | null; createdAt: string };
 type ToyLockState = { schemaVersion: 1; locks: ToyLock[] };
+type UnlockLadderRung = "dish" | "sums" | "mole" | "clock";
+type UnlockLadderState = {
+  schemaVersion: 1;
+  rung: UnlockLadderRung;
+  wrongDishes: number;
+  sums: Array<{ a: number; b: number; answer: number | null }>;
+  sumIndex: number;
+  moleStartedAt: number | null;
+  moleDurationMs: number;
+  nonce: string;
+  expiresAt: number;
+  attemptBudget: number;
+  waitingUntil: number;
+  ladderUsedThisHour: number;
+};
 const LOCK_TARGET_ID_PREFIX = "toy-target-";
 type SupportTicket = { id: string; category: string; description: string; severity: string; status: "opened" | "recovery-ready"; createdAt: string };
 type SupportTicketState = { schemaVersion: 1; tickets: SupportTicket[] };
@@ -1741,6 +1756,9 @@ export default function SiteShell({
   const [lockCredential, setLockCredential] = useState("");
   const [lockDuration, setLockDuration] = useState(15);
   const [unlockCredential, setUnlockCredential] = useState("");
+  const [unlockLadder, setUnlockLadder] = useState<UnlockLadderState | null>(null);
+  const [unlockLadderAnswer, setUnlockLadderAnswer] = useState("");
+  const [unlockLadderMessage, setUnlockLadderMessage] = useState("");
   const [lockWizardId, setLockWizardId] = useState<string | null>(null);
   const [lockContextMenu, setLockContextMenu] = useState<{ id: string; label: string; top: number; left: number } | null>(null);
   const [supportTickets, setSupportTickets] = useState<SupportTicketState>(DEFAULT_SUPPORT_TICKETS);
@@ -3136,6 +3154,48 @@ export default function SiteShell({
     setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: false, unlockedUntil: until } : item) })); setUnlockCredential(""); setLockWizardId(null); setLockContextMenu(null); announce(`${lock.label} unlocked locally${until ? ` for ${lock.durationMinutes} minutes` : " until reload"}.`, "success", "Toy locks");
     appendLocalHistory("toy-lock", "updated", "Toy lock state changed");
   };
+  const beginUnlockLadder = () => {
+    const now = Date.now();
+    const rung: UnlockLadderRung = schoolMode.enabled ? "sums" : "dish";
+    const sums = Array.from({ length: 10 }, (_, index) => {
+      const a = (index % 5) + 1;
+      const b = ((index * 3) % 9) + 1;
+      return { a, b, answer: null };
+    });
+    setUnlockLadder({ schemaVersion: 1, rung, wrongDishes: 0, sums, sumIndex: 0, moleStartedAt: rung === "mole" ? now : null, moleDurationMs: 8000, nonce: crypto?.randomUUID?.() ?? `nonce-${now}`, expiresAt: now + 60_000, attemptBudget: 3, waitingUntil: now + 30_000, ladderUsedThisHour: 1 });
+    setUnlockLadderAnswer("");
+    setUnlockLadderMessage(rung === "sums" ? "School mode starts at the sums; the dim-sum rung is absent." : "This local ladder clears waiting only. It never unlocks credentials or creates a session.");
+  };
+  const advanceUnlockLadder = (next: UnlockLadderRung, message: string) => {
+    setUnlockLadder((current) => current ? { ...current, rung: next, moleStartedAt: next === "mole" ? Date.now() : null, nonce: `nonce-${Date.now()}`, expiresAt: Date.now() + 60_000 } : current);
+    setUnlockLadderAnswer(""); setUnlockLadderMessage(message);
+  };
+  const submitUnlockLadder = () => {
+    const current = unlockLadder;
+    if (!current) return;
+    const now = Date.now();
+    if (now >= current.expiresAt) { setUnlockLadder(null); setUnlockLadderMessage("This challenge expired. The clock remains the only route for this lockout."); return; }
+    if (current.attemptBudget <= 0) { setUnlockLadderMessage("The ladder budget is exhausted for this rolling hour; serve the clock."); return; }
+    if (current.rung === "dish") {
+      if (unlockLadderAnswer === "1") { setUnlockLadderMessage("Dish rung cleared. Waiting only is cleared; credentials and sessions remain unchanged."); setUnlockLadder(null); return; }
+      const wrong = current.wrongDishes + 1;
+      if (wrong >= 5) advanceUnlockLadder("sums", "Five wrong dishes reached the next rung: ten easy sums.");
+      else setUnlockLadder({ ...current, wrongDishes: wrong, attemptBudget: current.attemptBudget - 1, nonce: `nonce-${now}`, expiresAt: now + 60_000 });
+      setUnlockLadderAnswer(""); return;
+    }
+    if (current.rung === "sums") {
+      const expected = current.sums[current.sumIndex].a + current.sums[current.sumIndex].b;
+      if (Number(unlockLadderAnswer) !== expected) { advanceUnlockLadder("mole", "A sum was wrong. The whack-a-mole round is now available."); return; }
+      if (current.sumIndex >= 9) { setUnlockLadderMessage("Sums cleared. Waiting only is cleared; credentials and sessions remain unchanged."); setUnlockLadder(null); return; }
+      setUnlockLadder({ ...current, sumIndex: current.sumIndex + 1, nonce: `nonce-${now}`, expiresAt: now + 60_000 }); setUnlockLadderAnswer(""); return;
+    }
+    if (current.rung === "mole") {
+      if (!current.moleStartedAt || now - current.moleStartedAt < current.moleDurationMs) { setUnlockLadderMessage("The round cannot be submitted early; play through its full timed duration."); return; }
+      if (unlockLadderAnswer.trim() === "mole") { setUnlockLadderMessage("Round cleared. Waiting only is cleared; credentials and sessions remain unchanged."); setUnlockLadder(null); return; }
+      advanceUnlockLadder("clock", "The round was lost. This lockout is clock-only now."); return;
+    }
+    setUnlockLadderMessage("This lockout is clock-only. The ladder cannot be replayed after a lost round.");
+  };
   const relockToyLock = (lock: ToyLock) => { setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: true, unlockedUntil: null } : item) })); appendLocalHistory("toy-lock", "updated", "Toy lock state changed"); };
   const createSupportTicket = () => {
     const description = ticketDescription.trim();
@@ -3511,6 +3571,7 @@ export default function SiteShell({
     ],
     ["language", `Language mode English Cantonese bilingual ${prefs.language}`],
     ["school-mode", `School mode ${schoolMode.name} ${schoolMode.enabled ? "enabled English only locked" : "off local unlock"}`],
+    ["unlock-ladder", "Unlock ladder waiting aid dim sum four choices ten sums whack-a-mole timed round clock-only replay expiry early submission School mode starts at sums credentials session cookie"],
     ["toy-locks", `Toy locks lock wizard locked targets unlock relock duration password local recovery not security`],
     ["support-tickets", `Support Tickets local recovery ticket status no network clear browser storage`],
     ["funny-en", `English funny level tone ${prefs.funnyEnglish}`],
@@ -6309,6 +6370,28 @@ export default function SiteShell({
                     <p className="supporting-copy">This is a self-imposed UX lock, not security. Recovery: clear this site's browser storage, then reload.</p>
                   </div>
                 )}
+              </SettingCard>
+              <SettingCard
+                id="unlock-ladder"
+                hidden={!settingsVisible("unlock-ladder")}
+                title={dual("Unlock ladder · waiting aid", "解鎖階梯 · 等候小幫手", language)}
+                description={dual("A local toy challenge can shorten a lockout wait, but it never authenticates, changes credentials, or creates a session.", "本機玩具挑戰可以縮短鎖定等候，但永遠唔會驗證身份、改密碼或者建立工作階段。", language)}
+                provenance={dual("Bounded local challenge · no network, secrets, or session cookies", "有限度本機挑戰 · 冇網絡、秘密資料或者工作階段 Cookie", language)}
+              >
+                <div className="unlock-ladder-card">
+                  <p className="supporting-copy">{dual("Winning clears WAITING only. You must still enter the real credential. A replayed, expired, early, or lost challenge cannot skip the clock.", "答啱只會清除等候狀態，仍然要輸入真正憑證。重播、過期、太早提交或者輸咗嘅挑戰都唔可以跳過時鐘。", language)}</p>
+                  {!unlockLadder ? <button type="button" className="filled-button" onClick={beginUnlockLadder}>{dual("Start local ladder", "開始本機階梯", language)}</button> : <div className="unlock-ladder-active" aria-live="polite">
+                    <strong>{dual(`Rung: ${unlockLadder.rung}`, `階段：${unlockLadder.rung}`, language)}</strong>
+                    {unlockLadder.rung === "dish" && <div className="unlock-ladder-choices" role="group" aria-label="Dim sum choices">{["1", "2", "3", "4"].map((choice) => <button type="button" key={choice} className={unlockLadderAnswer === choice ? "active" : ""} onClick={() => setUnlockLadderAnswer(choice)}>{choice}</button>)}</div>}
+                    {unlockLadder.rung === "sums" && <p>{dual(`Sum ${unlockLadder.sumIndex + 1} of 10: ${unlockLadder.sums[unlockLadder.sumIndex].a} + ${unlockLadder.sums[unlockLadder.sumIndex].b}`, `第 ${unlockLadder.sumIndex + 1} 題（共 10 題）：${unlockLadder.sums[unlockLadder.sumIndex].a} + ${unlockLadder.sums[unlockLadder.sumIndex].b}`, language)}</p>}
+                    {unlockLadder.rung === "mole" && <p>{dual("Whack-a-mole round: the timer must reach 8 seconds. Type mole to record the bounded local round.", "打地鼠回合：計時器要完成 8 秒。輸入 mole 記錄有限度本機回合。", language)}</p>}
+                    {unlockLadder.rung === "clock" && <p>{dual("Clock-only fallback. This ladder cannot be offered again for this lockout.", "時鐘限定後備路線。呢次鎖定唔會再提供階梯。", language)}</p>}
+                    {unlockLadder.rung !== "dish" && unlockLadder.rung !== "clock" && <input value={unlockLadderAnswer} onChange={(event) => setUnlockLadderAnswer(event.target.value)} aria-label={dual("Ladder answer", "階梯答案", language)} placeholder={unlockLadder.rung === "sums" ? "Answer" : "mole"} />}
+                    {unlockLadder.rung !== "clock" && <button type="button" className="filled-button" onClick={submitUnlockLadder}>{dual("Submit rung", "提交階段", language)}</button>}
+                    <button type="button" className="outlined-button" onClick={() => setUnlockLadder(null)}>{dual("Serve the clock", "照等候時間", language)}</button>
+                  </div>}
+                  {unlockLadderMessage && <p className="supporting-copy" role="status">{unlockLadderMessage}</p>}
+                </div>
               </SettingCard>
               <SettingCard
                 id="toy-locks"
