@@ -576,6 +576,22 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
       </div>
       </sc-if>
 
+      <sc-if value="{{ isExportCenter }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px 32px 48px;max-width:1080px;animation:wf-in .32s var(--emph) both">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px">
+          <div><h1 style="margin:0;font-size:32px;font-weight:400">Export center</h1><p style="margin:6px 0 0;color:var(--md-sys-color-on-surface-variant)">Review local records, choose a scope, and export only what is selected. Nothing leaves this computer.</p></div>
+          <span style="padding:6px 10px;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-family:'Roboto Mono',monospace;font-size:11px">{{ exportSelectedCount }} selected · {{ exportRecordCount }} available</span>
+        </div>
+        <div style="padding:16px 18px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container-low);border:1px solid var(--md-sys-color-outline-variant)">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><strong>Bulk selection</strong><span style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">Select all means every record on this page; inverse keeps the same scope.</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button onClick="{{ exportSelectAll }}" style="height:38px;padding:0 16px;border:none;border-radius:999px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);font-weight:500">Select all on page</button><button onClick="{{ exportInvertSelection }}" style="height:38px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">Invert selection</button><button onClick="{{ exportClearSelection }}" style="height:38px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit">Clear selection</button></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;margin-bottom:16px;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-high)"><label style="display:flex;align-items:center;gap:8px;font-size:13px">Format<select value="{{ exportFormat }}" onChange="{{ setExportFormat }}" style="height:38px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface);color:inherit"><option value="json">JSON</option><option value="jsonl">JSONL / NDJSON</option><option value="yaml">YAML</option><option value="toml">TOML</option><option value="xml">XML</option><option value="csv">CSV</option><option value="tsv">TSV</option><option value="md">Markdown</option><option value="html">HTML</option></select></label><button onClick="{{ exportSelectedRecords }}" disabled="{{ exportNothingSelected }}" style="height:38px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Export selected locally</button><button onClick="{{ copySelectedRecords }}" disabled="{{ exportNothingSelected }}" style="height:38px;padding:0 16px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:var(--md-sys-color-primary)">Copy selected</button></div>
+        <p style="margin:0 0 16px;padding:12px 14px;border-radius:12px;background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container);font-size:12.5px">Privacy disclosure: exports contain only validated local metadata and redacted records. Credentials, password hashes, TOTP secrets, QR payloads, private vocabulary contents and source paths are always omitted. No network request, upload, or editor handoff is performed by these controls.</p>
+        <div style="display:flex;flex-direction:column;gap:8px"><sc-for list="{{ exportRecords }}" as="record" hint-placeholder-count="4"><label style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid {{ record.border }};border-radius:var(--md-sys-shape-corner-medium);background:{{ record.bg }};cursor:pointer"><input type="checkbox" checked="{{ record.checked }}" onChange="{{ record.toggle }}" aria-label="Select {{ record.title }}" style="width:20px;height:20px;margin-top:2px;accent-color:var(--md-sys-color-primary)"><span class="ms" aria-hidden="true" style="font-size:22px;color:var(--md-sys-color-primary)">{{ record.icon }}</span><span style="display:grid;gap:4px;min-width:0"><strong>{{ record.title }}</strong><span style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">{{ record.summary }}</span><span style="font-size:11px;color:var(--md-sys-color-on-surface-variant)">{{ record.count }} records · {{ record.scope }}</span></span></label></sc-for></div>
+      </div>
+      </sc-if>
+
       <sc-if value="{{ isOfflineDocs }}" hint-placeholder-val="{{ false }}">
       <div style="padding:20px 32px 48px;max-width:1180px;animation:wf-in .32s var(--emph) both">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px">
@@ -2085,6 +2101,8 @@ class Component extends DCLogic {
     this.changelogRegexMode = false;
     this.docsQuery = '';
     this.docsRegexMode = false;
+    this.exportFormat = 'json';
+    this.exportSelected = new Set();
     const validSetting = (key, value) => key === 'theme' ? ['dark', 'light'].includes(value) : key === 'lang' ? ['English', 'Cantonese', 'Bilingual'].includes(value) : key === 'showEmojis' ? typeof value === 'boolean' : Number.isInteger(value) && value >= 1 && value <= 5;
     const fallbackGlobal = { theme: (L && ['dark', 'light'].includes(L.theme)) ? L.theme : 'dark', lang: (L && ['English', 'Cantonese', 'Bilingual'].includes(L.lang)) ? L.lang : 'English', funnyEn: (L && Number.isInteger(L.funnyEn) && L.funnyEn >= 1 && L.funnyEn <= 5) ? L.funnyEn : 3, funnyZh: (L && Number.isInteger(L.funnyZh) && L.funnyZh >= 1 && L.funnyZh <= 5) ? L.funnyZh : 3, showEmojis: true };
     const storedGlobal = L && L.settingsGlobal && typeof L.settingsGlobal === 'object' && !Array.isArray(L.settingsGlobal) ? L.settingsGlobal : {};
@@ -2384,6 +2402,41 @@ class Component extends DCLogic {
       }));
     } catch (e) {}
   }
+  exportRecordPayloads() {
+    const safe = value => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+      if (Array.isArray(value)) return value.slice(0, 256).map(safe);
+      if (typeof value === 'object') return Object.fromEntries(Object.entries(value).slice(0, 256).filter(([key]) => !/(credential|password|secret|hash|qr|vocab|path|token)/i.test(key)).map(([key, item]) => [key, safe(item)]));
+      return String(value).slice(0, 256);
+    };
+    return [
+      { id: 'settings', title: 'Settings and project ownership', icon: 'settings', scope: 'global defaults, active project, schedules', summary: 'Theme, language, tone, emoji preference, project overrides and local schedules.', data: safe({ schemaVersion: 1, global: this.settingsGlobal, projects: this.settingsProjects, activeProjectId: this.activeProjectId, schedules: this.schedules }) },
+      { id: 'history', title: 'Local history journal', icon: 'history', scope: 'redacted journal metadata', summary: 'Validated local snapshot and settings-history entries without credentials or private data.', data: safe({ schemaVersion: 1, entries: this.state.journalEntries || [] }) },
+      { id: 'notifications', title: 'Notification history', icon: 'notifications', scope: 'up to 200 local notifications', summary: 'Current notification records with severity, time, title and factual body.', data: safe({ schemaVersion: 1, entries: this.notifs.slice(0, 200) }) },
+      { id: 'catalog', title: 'Feature catalog', icon: 'inventory_2', scope: 'bundled feature metadata', summary: 'The shipped categories and module metadata; no runtime or operating-system state.', data: safe({ schemaVersion: 1, categories: (this.D?.categories || []).slice(0, 256), modules: (this.D?.modules || []).slice(0, 512) }) },
+    ];
+  }
+  exportFlatRecords() {
+    return this.exportRecordPayloads().filter(record => this.exportSelected.has(record.id)).map(record => ({ id: record.id, type: record.title, scope: record.scope, data: record.data }));
+  }
+  exportSerialize(format, records) {
+    const disclosure = 'Credentials, password hashes, TOTP secrets, QR payloads, private vocabulary contents and source paths are omitted. Local-only export; no network request was made.';
+    const flat = records.map(record => ({ id: record.id, type: record.type, scope: record.scope, data: JSON.stringify(record.data) }));
+    const q = value => '"' + String(value ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
+    if (format === 'json') return JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), disclosure, records: records.map(record => ({ ...record, data: record.data })) }, null, 2);
+    if (format === 'jsonl') return records.map(record => JSON.stringify({ ...record, data: record.data })).join('\n');
+    if (format === 'csv' || format === 'tsv') { const sep = format === 'tsv' ? '\t' : ','; return [['id', 'type', 'scope', 'data'], ...flat.map(record => [record.id, record.type, record.scope, record.data])].map(row => row.map(q).join(sep)).join('\r\n'); }
+    if (format === 'yaml') return ['schemaVersion: 1', 'exportedAt: ' + JSON.stringify(new Date().toISOString()), 'disclosure: ' + JSON.stringify(disclosure), 'records:', ...records.flatMap(record => ['  - id: ' + JSON.stringify(record.id), '    type: ' + JSON.stringify(record.type), '    scope: ' + JSON.stringify(record.scope), '    dataJson: ' + JSON.stringify(JSON.stringify(record.data))])].join('\n');
+    if (format === 'toml') return ['schemaVersion = 1', 'exportedAt = ' + JSON.stringify(new Date().toISOString()), 'disclosure = ' + JSON.stringify(disclosure), ...records.flatMap(record => ['', '[[records]]', 'id = ' + JSON.stringify(record.id), 'type = ' + JSON.stringify(record.type), 'scope = ' + JSON.stringify(record.scope), 'data_json = ' + JSON.stringify(JSON.stringify(record.data))])].join('\n');
+    if (format === 'xml') return '<?xml version="1.0" encoding="UTF-8"?>\n<export schemaVersion="1"><disclosure>' + this.exportEscapeXml(disclosure) + '</disclosure><records>' + records.map(record => '<record id="' + this.exportEscapeXml(record.id) + '"><type>' + this.exportEscapeXml(record.type) + '</type><scope>' + this.exportEscapeXml(record.scope) + '</scope><dataJson>' + this.exportEscapeXml(JSON.stringify(record.data)) + '</dataJson></record>').join('') + '</records></export>';
+    if (format === 'html') return '<!doctype html><meta charset="utf-8"><title>WinForge local export</title><p>' + this.exportEscapeHtml(disclosure) + '</p><table><thead><tr><th>ID</th><th>Type</th><th>Scope</th><th>Data</th></tr></thead><tbody>' + flat.map(record => '<tr><td>' + this.exportEscapeHtml(record.id) + '</td><td>' + this.exportEscapeHtml(record.type) + '</td><td>' + this.exportEscapeHtml(record.scope) + '</td><td><pre>' + this.exportEscapeHtml(record.data) + '</pre></td></tr>').join('') + '</tbody></table>';
+    return records.map(record => '## ' + record.type + '\n\nScope: ' + record.scope + '\n\n```json\n' + JSON.stringify(record.data, null, 2) + '\n```').concat(['', '> ' + disclosure]).join('\n');
+  }
+  exportEscapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])); }
+  exportEscapeXml(value) { return this.exportEscapeHtml(value); }
+  exportSelectedRecords() { const records = this.exportFlatRecords(); if (!records.length) return; const format = this.exportFormat; const body = this.exportSerialize(format, records); const ext = format === 'md' ? 'md' : format; const type = format === 'html' ? 'text/html' : format === 'json' || format === 'jsonl' ? 'application/json' : 'text/plain'; const url = URL.createObjectURL(new Blob([body], { type: type + ';charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'winforge-local-export.' + ext; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0); this.notify('Export center', records.length + ' selected record' + (records.length === 1 ? '' : 's') + ' exported locally as ' + format.toUpperCase() + '.', 'success', true); }
+  copySelectedRecords() { const records = this.exportFlatRecords(); if (!records.length) return; const body = this.exportSerialize('md', records); if (navigator.clipboard?.writeText) navigator.clipboard.writeText(body).then(() => this.notify('Export center', 'Selected records copied locally as Markdown.', 'success', true)).catch(() => this.notify('Export center', 'Clipboard access was unavailable; use Export selected locally.', 'warning', true)); else this.notify('Export center', 'Clipboard access was unavailable; use Export selected locally.', 'warning', true); }
   stamp() { return new Date().toTimeString().slice(0, 8); }
 
   componentDidMount() {
@@ -2646,7 +2699,7 @@ class Component extends DCLogic {
       dashboard: { view: 'dashboard' }, reactor: { view: 'reactor' }, packages: { view: 'packages' },
       applauncher: { view: 'apps' }, cakefactory: { view: 'cake' }, fuelfactory: { view: 'fuel' },
       dimsum: { view: 'dimsum' }, statushub: { view: 'statushub' }, memory: { view: 'memory' },
-      settings: { view: 'settings' }, devterminal: { view: 'terminal' },
+      settings: { view: 'settings' }, exportcenter: { view: 'export' }, devterminal: { view: 'terminal' },
       offlinedocs: { view: 'offlinedocs', id: null },
     };
     if (bespoke[page]) return bespoke[page];
@@ -2868,6 +2921,7 @@ class Component extends DCLogic {
     V.reactorDotColor = rx.melted ? err : (rx.scrammed ? amber : (rx.p >= 0.01 ? green : onVar));
     V.goReactor = () => this.go({ view: 'reactor' }, 'Nuclear Reactor', 'electric_bolt');
     V.goSettings = () => this.go({ view: 'settings' }, 'Settings', 'settings');
+    V.goExport = () => this.go({ view: 'export' }, 'Export center', 'file_download');
     V.goModules = () => this.go({ view: 'modules' }, 'Tweak catalog', 'tune');
 
     // notifications
@@ -2954,6 +3008,7 @@ class Component extends DCLogic {
         { title: 'Local state', sub: 'Persisted state and reset', query: 'local state persistence reset' },
       ];
       for (const command of settingsCommands) if (this.match(q, command.title + ' ' + command.sub)) hits.push({ kind: 'setting', title: command.title, sub: command.sub, icon: 'settings', route: { view: 'settings' }, label: 'Settings', settingsQuery: command.query });
+      if (this.match(q, 'Export center local records settings history notifications catalog bulk selection JSON JSONL YAML TOML XML CSV TSV Markdown HTML')) hits.push({ kind: 'destination', title: 'Export center', sub: 'Local records, bulk selection, and bounded format export', icon: 'file_download', route: { view: 'export' }, label: 'Export center' });
       if (this.match(q, 'Changelog published releases dates commit links copy export')) hits.push({ kind: 'destination', title: 'Changelog', sub: 'Published release history and commit links', icon: 'history', route: { view: 'changelog' }, label: 'Changelog' });
       if (this.match(q, 'Offline documentation bundled feature articles local search')) hits.push({ kind: 'destination', title: 'Offline documentation', sub: 'Bundled feature articles with local search', icon: 'menu_book', route: { view: 'offlinedocs' }, label: 'Docs' });
       const vocabularyCommands = [
@@ -2995,6 +3050,19 @@ class Component extends DCLogic {
     V.isSettings = r.view === 'settings';
     V.isChangelog = r.view === 'changelog';
     V.isOfflineDocs = r.view === 'offlinedocs';
+    V.isExportCenter = r.view === 'export';
+    const exportPayloads = this.exportRecordPayloads();
+    V.exportFormat = this.exportFormat;
+    V.setExportFormat = e => { this.exportFormat = ['json', 'jsonl', 'yaml', 'toml', 'xml', 'csv', 'tsv', 'md', 'html'].includes(e.target.value) ? e.target.value : 'json'; this.bump(); };
+    V.exportRecordCount = exportPayloads.length;
+    V.exportSelectedCount = this.exportSelected.size;
+    V.exportNothingSelected = this.exportSelected.size === 0;
+    V.exportSelectAll = () => { exportPayloads.forEach(record => this.exportSelected.add(record.id)); this.bump(); };
+    V.exportInvertSelection = () => { exportPayloads.forEach(record => this.exportSelected.has(record.id) ? this.exportSelected.delete(record.id) : this.exportSelected.add(record.id)); this.bump(); };
+    V.exportClearSelection = () => { this.exportSelected.clear(); this.bump(); };
+    V.exportSelectedRecords = () => this.exportSelectedRecords();
+    V.copySelectedRecords = () => this.copySelectedRecords();
+    V.exportRecords = exportPayloads.map(record => ({ ...record, checked: this.exportSelected.has(record.id), bg: this.exportSelected.has(record.id) ? 'var(--md-sys-color-secondary-container)' : 'var(--md-sys-color-surface-container)', border: this.exportSelected.has(record.id) ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-outline-variant)', count: Array.isArray(record.data?.entries) ? record.data.entries.length : Array.isArray(record.data?.modules) ? record.data.modules.length : Array.isArray(record.data?.projects) ? record.data.projects.length : 1, toggle: () => { this.exportSelected.has(record.id) ? this.exportSelected.delete(record.id) : this.exportSelected.add(record.id); this.bump(); } }));
 
     const changelogMatches = entry => {
       const text = entry.version + ' ' + entry.category + ' ' + entry.summary + ' ' + entry.sha;

@@ -31,6 +31,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Empty Recycle Bin](empty-recycle-bin.md)
 - [Desktop Status Hub reference](status-hub.md) — evidence-first release and runtime boundary for the design reference.
 - [In-app offline documentation browser](offline-documentation.md) — build-time Markdown bundle, local article navigation, plain-text search, and the anchored regex builder.
+- [Desktop Export center](export-center.md) — local record-family selection, reviewable bulk selection, and bounded JSON/JSONL/YAML/TOML/XML/CSV/TSV/Markdown/HTML export with privacy omissions.
 
 ## Not yet claimed
 
