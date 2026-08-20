@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — site documentation browser
+
+- Added a Pages Documentation search over article titles, bilingual copy, section headings, body text, and related-article labels. Plain text remains the default; the adjacent anchored builder exposes the JavaScript `RegExp` dialect, flags, guided tokens, sample matches, and inline invalid-pattern recovery.
+- Added local article-to-article navigation, bounded browser persistence for the selected article and search mode, and truthful no-article/no-match states. The Pages surface remains local-only; tests, lint, runtime interaction, screenshots, release, and publication remain unrun/unverified for this lane.
+
 - Added the desktop in-app offline documentation browser. Build preparation now validates and bundles every checked-in application and site Markdown article; the Docs route renders escaped Markdown locally, follows internal article links, and searches plain text by default with the shared anchored regex builder. Built-artifact interaction and captures remain unverified for this lane.
 
 - Extended the local appearance editor and desktop design reference with typography weight/style, underline and strikethrough, spacing, line-height, direction/alignment, continuous color fields with alpha and contrast-ratio disclosure, local presets/reset disclosure, and explicit unsupported-property behavior. No network, credentials, remote fonts, or source writes are used. Tests, lint, reviews, runtime interaction, captures, release, and publication remain unrun/unverified for this slice.
