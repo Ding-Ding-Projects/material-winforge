@@ -11,6 +11,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [External editor handoff](external-editor.md)
 - [Package engine discovery](package-engine-discovery.md)
 - [Global defaults and project overrides](project-settings-overrides.md)
+- [App-logo customization](app-logo.md)
 - [Personal vocabulary JSON](personal-vocabulary.md)
 - [Message emoji preference](message-emoji-preference.md)
 - [Scheduled settings and external sources](scheduled-settings.md)

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — desktop app-logo customization
+
+- Added four bundled desktop logo presets and a local PNG/JPEG picker. The picker checks MIME and magic bytes, caps files at 512 KiB and decoded dimensions at 2048×2048, bounds the local cache, and preserves the previous valid mark on every invalid or undecodable input. The selected logo updates the title bar and Settings preview locally; package identity, installer identity, update feed, and application-data location remain unchanged. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
+
 ## Unreleased — Pages narrator parity
 
 - Extended the Pages narrator with a factual local/network voice label, an explicit unavailable saved-voice option that retains its stable `voiceURI`, a local preview action, and pending-notification replacement while an active utterance finishes. English, Cantonese, bilingual ordering, local persistence, and bounded rate/pitch behavior remain unchanged. No tests, lint, reviews, runtime interaction, captures, or release are claimed for this lane.

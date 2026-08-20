@@ -272,3 +272,9 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 ### Desktop authenticator parity
 
 The desktop design/runtime surface in `main-app-design/WinForge M3.dc.html` now owns bounded local TOTP state. It validates `otpauth://totp/` URIs and Base32 secrets, supports SHA-1/SHA-256/SHA-512, 6/8 digits, 15–120 second periods, local Web Crypto HMAC generation, countdown/search/remove/clear, redacted export, palette/settings discovery, and transient QR/text registration state. Secrets and URI payloads remain excluded from ordinary exports/history and no network or credential-vault integration is claimed. Documentation: `docs/application/authenticator.md`.
+-
+## Desktop app-logo customization
+
+The desktop Settings surface now includes four bundled logo presets and a local PNG/JPEG picker. MIME and magic-byte checks, the 512 KiB file bound, decoded 2048×2048 pixel bound, and the 360,000-character local cache bound fail closed while retaining the previous valid mark. Preset/custom selection persists locally and updates the frameless title bar and Settings preview live. Product/package identity, installer identity, update feed, and application-data location remain fixed.
+
+Changed `main-app-design/WinForge M3.dc.html`, `docs/application/app-logo.md`, `docs/application/README.md`, `docs/completeness/universal-feature-inventory.md`, `CHANGELOG.md`, and this handoff. Tests, lint, reviews, packaged runtime interaction, accessibility review, captures, release, and publication were not run in this bounded implementation lane.
