@@ -25,7 +25,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)
 - [Local snapshot](local-snapshot.md)
-- [Local snapshot history and restore](local-snapshot-history.md) — private append-only Git metadata where available, with browser-local fallback and redacted settings/authenticator/lock events.
+- [Local snapshot history and restore](local-snapshot-history.md) — private append-only Git metadata where available, browser-local fallback, browsable redacted settings/authenticator/lock events, and safety-snapshot-first restore evidence.
 - [Reviewed Winget upgrades](winget-upgrades.md)
 - [Empty Recycle Bin](empty-recycle-bin.md)
 - [Desktop Status Hub reference](status-hub.md) — evidence-first release and runtime boundary for the design reference.

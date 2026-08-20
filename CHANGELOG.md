@@ -8,6 +8,7 @@
 
 - Added a bounded append-only redacted journal for Settings, authenticator, and toy-lock mutations. The packaged local Git capability may commit neutral metadata privately; restore is a new event, never a history rewrite, and secrets, hashes, QR payloads, credentials, and vocabulary are excluded.
 - Added a truthful browser-local append-only fallback when Pages cannot execute Git, with visible capability provenance and no network or credential path.
+- Added a browsable local-event panel with literal-first search plus anchored regex construction, ISO date bounds, record-type filtering, redacted restore evidence, and fail-closed downgrade when a packaged bridge append is rejected.
 - Tests, lint, reviews, packaged interaction, captures, release, and publication remain unrun/unverified for this slice.
 ## Unreleased — local Status Hub
 

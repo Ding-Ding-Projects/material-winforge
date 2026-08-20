@@ -2851,6 +2851,12 @@ footer {
   display: grid;
   gap: 4px;
 }
+.local-history-panel { display:grid; gap:12px; margin-top:20px; padding-top:20px; border-top:1px solid var(--outline-variant); }
+.local-history-panel > header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+.local-history-panel > header h3 { margin:4px 0 0; }
+.local-history-panel > header small { color:var(--on-surface-variant); max-width:420px; }
+.local-history-list article { align-items:flex-start; }
+.local-history-list article span { color:var(--on-surface-variant); font-size:.85rem; }
 .settings-history-list small {
   color: var(--on-surface-variant);
 }

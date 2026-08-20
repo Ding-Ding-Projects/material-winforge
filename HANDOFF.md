@@ -14,6 +14,13 @@
 - Updated `main-app-design/WinForge M3.dc.html`, both documentation indexes, the site/application history articles, the universal inventory, and `CHANGELOG.md`.
 - No tests, lint, reviews, screenshots, release, or packaged-runtime interaction were run; bridge-backed Git commit behavior and visual/runtime evidence remain unverified.
 
+## Luna local-history parity lane — `codex/luna-history-parity`
+
+- Added a browsable redacted local-event panel in `pages/app/SiteShell.tsx` for settings, authenticator, and toy-lock mutations. It supports literal-first search with an adjacent regex builder, ISO date bounds, action/type filtering derived from stored events, and explicit restore-evidence copy. Redacted events cannot restore raw state; validated settings restore remains the only presentation restore path and appends a new `restored` event.
+- Improved optional packaged `winforgeGitHistory` handling so a rejected or failed append downgrades visible provenance to the browser-local fallback instead of treating `available: true` as proof of a committed event. Secrets, hashes, QR payloads, credentials, and personal vocabulary remain excluded.
+- Updated the design reference, site/application history articles and indexes, completeness inventory, changelog, and this handoff.
+- No tests, lint, reviews, screenshots, release, or packaged-runtime interaction were run. Bridge response-shape behavior, visual parity, runtime browsing, and installer evidence remain unverified.
+
 ## Element appearance editor lane — `codex/luna-appearance-editor`
 
 - Added the anchored Pages appearance editor in `pages/app/SiteShell.tsx` and `pages/app/globals.css`. Major feature cards, Settings cards, and tabs expose a pencil action and a right-click path; edits apply live and persist in a bounded localStorage record with per-element reset.
