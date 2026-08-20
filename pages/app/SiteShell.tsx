@@ -119,6 +119,20 @@ type ToyLock = { id: string; label: string; salt: string; hash: string; duration
 type ToyLockState = { schemaVersion: 1; locks: ToyLock[] };
 type SupportTicket = { id: string; category: string; description: string; severity: string; status: "opened" | "recovery-ready"; createdAt: string };
 type SupportTicketState = { schemaVersion: 1; tickets: SupportTicket[] };
+type LocalHistoryEvent = {
+  id: string;
+  timestamp: string;
+  action: "settings" | "authenticator" | "toy-lock";
+  verb: "created" | "updated" | "deleted" | "restored";
+  subject: string;
+  redacted: true;
+};
+type LocalHistoryJournal = {
+  schemaVersion: 1;
+  backend: "git" | "browser-local-fallback";
+  gitAvailable: boolean;
+  events: LocalHistoryEvent[];
+};
 type SettingsHistoryAction =
   | "global-setting-changed"
   | "project-setting-changed"
@@ -269,6 +283,7 @@ const AUTHENTICATOR_KEY = "winforge-material-preview-authenticator-v1";
 const APPEARANCE_KEY = "winforge-material-preview-element-appearance-v1";
 const TOY_LOCK_KEY = "winforge-material-preview-toy-locks-v1";
 const SUPPORT_TICKET_KEY = "winforge-material-preview-support-tickets-v1";
+const LOCAL_HISTORY_KEY = "winforge-material-preview-local-history-v1";
 const PREFERENCES_MAX_BYTES = 512 * 1024;
 const NOTIFICATION_MAX_BYTES = 128 * 1024;
 const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
@@ -277,9 +292,11 @@ const SCHEDULE_MAX_BYTES = 64 * 1024;
 const AUTHENTICATOR_MAX_BYTES = 64 * 1024;
 const TOY_LOCK_MAX_BYTES = 64 * 1024;
 const SUPPORT_TICKET_MAX_BYTES = 128 * 1024;
+const LOCAL_HISTORY_MAX_BYTES = 128 * 1024;
 const DEFAULT_AUTHENTICATOR: AuthenticatorState = { schemaVersion: 1, entries: [] };
 const DEFAULT_TOY_LOCKS: ToyLockState = { schemaVersion: 1, locks: [] };
 const DEFAULT_SUPPORT_TICKETS: SupportTicketState = { schemaVersion: 1, tickets: [] };
+const DEFAULT_LOCAL_HISTORY: LocalHistoryJournal = { schemaVersion: 1, backend: "browser-local-fallback", gitAvailable: false, events: [] };
 const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
@@ -799,6 +816,21 @@ function normalizeSupportTickets(value: unknown): SupportTicketState | null {
     tickets.push({ id: ticket.id, category: ticket.category, description: ticket.description, severity: ticket.severity, status: ticket.status as SupportTicket["status"], createdAt: ticket.createdAt });
   }
   return { schemaVersion: 1, tickets };
+}
+function normalizeLocalHistory(value: unknown): LocalHistoryJournal | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Partial<LocalHistoryJournal>;
+  if (root.schemaVersion !== 1 || !["git", "browser-local-fallback"].includes(String(root.backend)) || typeof root.gitAvailable !== "boolean" || !Array.isArray(root.events) || root.events.length > 200) return null;
+  const events: LocalHistoryEvent[] = [];
+  const seen = new Set<string>();
+  for (const item of root.events) {
+    if (!item || typeof item !== "object" || Object.keys(item).length !== 6) return null;
+    const event = item as Partial<LocalHistoryEvent>;
+    if (typeof event.id !== "string" || !/^history-[a-z0-9-]{8,80}$/.test(event.id) || seen.has(event.id) || typeof event.timestamp !== "string" || !Number.isFinite(Date.parse(event.timestamp)) || new Date(event.timestamp).toISOString() !== event.timestamp || !["settings", "authenticator", "toy-lock"].includes(String(event.action)) || !["created", "updated", "deleted", "restored"].includes(String(event.verb)) || typeof event.subject !== "string" || !event.subject || event.subject.length > 120 || event.redacted !== true || /[\u0000-\u001f\u007f]/.test(event.subject)) return null;
+    seen.add(event.id);
+    events.push({ id: event.id, timestamp: event.timestamp, action: event.action as LocalHistoryEvent["action"], verb: event.verb as LocalHistoryEvent["verb"], subject: event.subject, redacted: true });
+  }
+  return { schemaVersion: 1, backend: root.backend as LocalHistoryJournal["backend"], gitAvailable: root.gitAvailable, events };
 }
 function boundSettingsHistory(history: SettingsHistory): SettingsHistory {
   const records: SettingsHistoryRecord[] = [];
@@ -1866,6 +1898,7 @@ export default function SiteShell({
     schemaVersion: 2,
     records: [],
   });
+  const [localHistory, setLocalHistory] = useState<LocalHistoryJournal>(DEFAULT_LOCAL_HISTORY);
   const [appearanceState, setAppearanceState] = useState<AppearanceState>({ schemaVersion: 1, elements: {} });
   const [appearanceEditorId, setAppearanceEditorId] = useState<string | null>(null);
   const [appearanceAnchor, setAppearanceAnchor] = useState<{ top: number; left: number } | null>(null);
@@ -2158,6 +2191,12 @@ export default function SiteShell({
     }
     const toyLockRecord = readLocalRecord(TOY_LOCK_KEY, TOY_LOCK_MAX_BYTES);
     if (toyLockRecord.raw) { try { const parsed = normalizeToyLocks(JSON.parse(toyLockRecord.raw)); if (parsed) setToyLocks(parsed); else removeLocalRecord(TOY_LOCK_KEY); } catch { removeLocalRecord(TOY_LOCK_KEY); } }
+    const historyRecord = readLocalRecord(LOCAL_HISTORY_KEY, LOCAL_HISTORY_MAX_BYTES);
+    if (!historyRecord.available) setPersistenceAvailable(false);
+    if (historyRecord.raw) {
+      try { const parsed = normalizeLocalHistory(JSON.parse(historyRecord.raw)); if (parsed) setLocalHistory(parsed); else removeLocalRecord(LOCAL_HISTORY_KEY); }
+      catch { removeLocalRecord(LOCAL_HISTORY_KEY); }
+    }
     const ticketRecord = readLocalRecord(SUPPORT_TICKET_KEY, SUPPORT_TICKET_MAX_BYTES);
     if (ticketRecord.raw) { try { const parsed = normalizeSupportTickets(JSON.parse(ticketRecord.raw)); if (parsed) setSupportTickets(parsed); else removeLocalRecord(SUPPORT_TICKET_KEY); } catch { removeLocalRecord(SUPPORT_TICKET_KEY); } }
     setHydrated(true);
@@ -2180,6 +2219,7 @@ export default function SiteShell({
   }, [authenticator, hydrated]);
   useEffect(() => { if (hydrated && !writeLocalRecord(TOY_LOCK_KEY, toyLocks, TOY_LOCK_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, toyLocks]);
   useEffect(() => { if (hydrated && !writeLocalRecord(SUPPORT_TICKET_KEY, supportTickets, SUPPORT_TICKET_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, supportTickets]);
+  useEffect(() => { if (hydrated && !writeLocalRecord(LOCAL_HISTORY_KEY, localHistory, LOCAL_HISTORY_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, localHistory]);
   useEffect(() => {
     const tick = () => {
       const now = Date.now(); setAuthSeconds(Math.max(0, 30 - Math.floor((now / 1000) % 30)));
@@ -2829,6 +2869,21 @@ export default function SiteShell({
       logo: { logoPreset: next.logoPreset, customLogo: null },
     };
     setSettingsHistory((history) => boundSettingsHistory({ schemaVersion: 2, records: [record, ...history.records] }));
+    appendLocalHistory("settings", action === "restored" ? "restored" : action === "global-reset" || action === "project-reset" ? "updated" : "updated", "Settings presentation metadata changed; private values omitted");
+  };
+  const appendLocalHistory = (action: LocalHistoryEvent["action"], verb: LocalHistoryEvent["verb"], subject: string) => {
+    const bridge = typeof window !== "undefined" ? (window as unknown as { winforgeGitHistory?: { available?: boolean; append?: (event: Omit<LocalHistoryEvent, "id" | "timestamp">) => void } }).winforgeGitHistory : undefined;
+    const gitAvailable = bridge?.available === true;
+    const event: LocalHistoryEvent = {
+      id: `history-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+      timestamp: new Date().toISOString(),
+      action,
+      verb,
+      subject: subject.slice(0, 120).replace(/[\u0000-\u001f\u007f]/g, " ").trim() || "Local record changed",
+      redacted: true,
+    };
+    setLocalHistory((current) => ({ schemaVersion: 1, backend: gitAvailable ? "git" : "browser-local-fallback", gitAvailable, events: [event, ...current.events].slice(0, 200) }));
+    if (gitAvailable && bridge?.append) bridge.append({ action, verb, subject: event.subject, redacted: true });
   };
   const resetAllSettings = () => {
     const next: Preferences = {
@@ -2985,15 +3040,16 @@ export default function SiteShell({
     const saltBytes = new Uint8Array(16); crypto.getRandomValues(saltBytes); const salt = encodeBytes(saltBytes);
     const hash = await hashSchoolCredential(credential, salt);
     setToyLocks((current) => ({ schemaVersion: 1, locks: [...current.locks.filter((lock) => lock.id !== lockTarget), { id: lockTarget, label, salt, hash, durationMinutes: lockDuration, locked: true, unlockedUntil: null, createdAt: new Date().toISOString() }] }));
+    appendLocalHistory("toy-lock", "created", "Toy lock credential metadata changed");
     setLockCredential(""); announce(`${label} is locked for fun. This is not security or encryption.`, "success", "Toy locks");
   };
   const unlockToyLock = async (lock: ToyLock) => {
     const candidate = await hashSchoolCredential(unlockCredential, lock.salt);
     if (candidate !== lock.hash) { setUnlockCredential(""); announce("That toy-lock credential did not match. Recovery is clearing local app data or this site's browser storage.", "error", "Toy locks"); return; }
     const until = lock.durationMinutes ? new Date(Date.now() + lock.durationMinutes * 60_000).toISOString() : null;
-    setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: false, unlockedUntil: until } : item) })); setUnlockCredential(""); announce(`${lock.label} unlocked locally${until ? ` for ${lock.durationMinutes} minutes` : " until reload"}.`, "success", "Toy locks");
+    setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: false, unlockedUntil: until } : item) })); appendLocalHistory("toy-lock", "updated", "Toy lock state changed"); setUnlockCredential(""); announce(`${lock.label} unlocked locally${until ? ` for ${lock.durationMinutes} minutes` : " until reload"}.`, "success", "Toy locks");
   };
-  const relockToyLock = (lock: ToyLock) => setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: true, unlockedUntil: null } : item) }));
+  const relockToyLock = (lock: ToyLock) => { setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: true, unlockedUntil: null } : item) })); appendLocalHistory("toy-lock", "updated", "Toy lock state changed"); };
   const createSupportTicket = () => {
     const description = ticketDescription.trim();
     if (!description || description.length > 1000) { announce("Describe the local recovery question in 1–1000 characters.", "warning", "Support Tickets"); return; }
@@ -3500,16 +3556,19 @@ export default function SiteShell({
       if (authenticator.entries.length >= 50) throw new Error("The local authenticator limit is 50 entries.");
       const entry: AuthenticatorEntry = { ...parsed, id: `auth-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`, createdAt: new Date().toISOString() };
       setAuthenticator((current) => ({ schemaVersion: 1, entries: [entry, ...current.entries] }));
+      appendLocalHistory("authenticator", "created", "Authenticator entry metadata created; secret omitted");
       const uri = otpAuthUri(entry); let svg = ""; try { svg = qrSvg(uri); } catch (error) { setAuthMessage(error instanceof Error ? error.message : "The local QR payload is too long; use the copyable URI instead."); } setAuthQr({ uri, svg });
       setAuthIssuer(""); setAuthAccount(""); setAuthSecretOrUri(""); setAuthMessage(dual("Entry added locally. The QR is rendered in-process and the copyable URI is temporary, never persisted.", "記錄已加入本機；QR 喺本機程序繪製，可複製 URI 只係暫存，唔會保存。", language));
     } catch (error) { setAuthMessage(error instanceof Error ? error.message : "The authenticator input is invalid."); }
   };
   const removeAuthenticator = (id: string) => {
     setAuthenticator((current) => ({ schemaVersion: 1, entries: current.entries.filter((entry) => entry.id !== id) }));
+    appendLocalHistory("authenticator", "deleted", "Authenticator entry removed; secret omitted");
     setAuthMessage(dual("Entry removed locally. No secret was exported.", "記錄已喺本機移除；冇秘密資料被匯出。", language));
   };
   const clearAuthenticator = () => {
     setAuthenticator(DEFAULT_AUTHENTICATOR); setAuthCodes({}); setAuthQr(null);
+    appendLocalHistory("authenticator", "deleted", "Authenticator entries cleared; secrets omitted");
     setAuthMessage(dual("All local authenticator entries cleared. This does not affect any external account.", "所有本機驗證器記錄已清除；唔會影響任何外部帳戶。", language));
   };
   const exportAuthenticatorRedacted = () => {
@@ -6146,7 +6205,7 @@ export default function SiteShell({
                 hidden={!settingsVisible("toy-locks")}
                 title="Toy locks"
                 description="Lock major site targets behind an individually salted local credential. This is a self-imposed UX speed bump, never security or encryption."
-                provenance={`${toyLocks.locks.length} local target locks · credentials are salted hashes only; no secrets enter exports, history, or logs`}
+                provenance={`${toyLocks.locks.length} local target locks · credentials are salted hashes only; no secrets enter exports, history, or logs · ${localHistory.backend === "git" ? "append-only Git journal available" : "browser-local append-only journal fallback; Git bridge unavailable"}`}
               >
                 <div className="toy-lock-card">
                   <p className="supporting-copy">Each target has its own credential and unlock duration. Locked targets stay discoverable in search and the command palette, labelled locked, then open this wizard. Recovery: clear this site's browser storage; the desktop equivalent is deleting its local application-data folder. Nothing is sent anywhere.</p>
@@ -6179,7 +6238,7 @@ export default function SiteShell({
                 hidden={!settingsVisible("authenticator")}
                 title={dual("Built-in authenticator", "內置驗證器", language)}
                 description={dual("Keep bounded TOTP entries on this device. Register an otpauth:// URI or a Base32 secret; codes are generated locally with RFC 6238-compatible HMAC.", "喺呢部裝置保存有限度 TOTP 記錄。可以登記 otpauth:// URI 或 Base32 秘密；驗證碼用本機 RFC 6238 相容 HMAC 生成。", language)}
-                provenance={dual(`${authenticator.entries.length} local entries · secrets omitted from ordinary exports and settings history`, `${authenticator.entries.length} 個本機記錄 · 秘密資料唔會出現喺普通匯出同設定記錄`, language)}
+                provenance={dual(`${authenticator.entries.length} local entries · secrets omitted from ordinary exports and settings history · ${localHistory.backend === "git" ? "append-only Git journal available" : "browser-local append-only journal fallback; Git bridge unavailable"}`, `${authenticator.entries.length} 個本機記錄 · 秘密資料唔會出現喺普通匯出同設定記錄 · ${localHistory.backend === "git" ? "有追加式 Git 記錄" : "Git bridge 未提供，改用瀏覽器本機追加式記錄"}`, language)}
               >
                 <div className="authenticator-card">
                   <p className="supporting-copy">{dual("This site uses browser storage, not an operating-system vault. It is local convenience, not security. QR registration is rendered in-process with bounded local data; no QR service or network request is used.", "呢個網站用瀏覽器儲存，唔係作業系統保管庫。只係本機方便，唔係安全功能。QR 登記喺本機程序內用有限資料繪製；冇 QR 服務或者網絡請求。", language)}</p>

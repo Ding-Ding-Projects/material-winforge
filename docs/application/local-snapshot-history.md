@@ -18,6 +18,12 @@ The dedicated revision-journal list reads at most the 50 newest validated local 
 
 Journal rows do not offer restore. Each entry contains metadata only, so restoration continues to use the separately validated snapshot file and its safety-snapshot-first confirmation path.
 
+### Settings, authenticator, and toy-lock mutations
+
+The same private append-only Git journal records settings changes, authenticator entry creation/removal, and toy-lock creation/unlock/relock metadata where the packaged runtime exposes its local Git capability. Restore is always a new `restored` event; history is never rewritten. Subjects are neutral and redacted: passwords, hashes, TOTP secrets, QR payloads, personal-vocabulary data, and credential metadata are excluded from snapshots, exports, and journal records.
+
+The browser landing surface cannot execute Git. It uses a bounded browser-local append-only journal fallback and exposes that capability boundary in Settings instead of claiming Git-backed history.
+
 ## Privileged boundary
 
 The main process owns the private snapshot and journal directories. Listing accepts no renderer input. Restore accepts one strict generated snapshot identifier and rejects path separators, traversal, malformed identifiers, oversized files, unexpected record keys, invalid dates, and state outside the existing bounded snapshot schema. The renderer supplies no Git path, command, arguments, identity, remote, or environment. No shell or network is used. Paths, credentials, raw snapshot bytes, and journal contents never cross IPC.

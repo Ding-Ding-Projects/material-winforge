@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — redacted local Git history
+
+- Added a bounded append-only redacted journal for Settings, authenticator, and toy-lock mutations. The packaged local Git capability may commit neutral metadata privately; restore is a new event, never a history rewrite, and secrets, hashes, QR payloads, credentials, and vocabulary are excluded.
+- Added a truthful browser-local append-only fallback when Pages cannot execute Git, with visible capability provenance and no network or credential path.
+- Tests, lint, reviews, packaged interaction, captures, release, and publication remain unrun/unverified for this slice.
+
 ## Unreleased — toy locks and Support Tickets
 
 - Added a bounded local UX lock wizard for major site and desktop targets with independent salted credential hashes, unlock durations, relock, locked-state discovery, and self-service recovery copy.

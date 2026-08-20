@@ -1,5 +1,12 @@
 # Handoff
 
+## Local redacted Git-history lane — `codex/luna-git-history`
+
+- Added `LocalHistoryJournal` to `pages/app/SiteShell.tsx`. Settings, authenticator, and toy-lock mutations append bounded neutral metadata; restore is recorded as a new event through the existing settings-history path. Secrets, hashes, TOTP material, QR payloads, credentials, and personal vocabulary are excluded.
+- When an installed runtime exposes the optional `winforgeGitHistory` bridge, the journal reports Git-backed capability and forwards only redacted event metadata. The Pages browser surface cannot run Git and therefore persists a validated browser-local append-only fallback, with that boundary shown in Settings provenance.
+- Updated `main-app-design/WinForge M3.dc.html`, both documentation indexes, the site/application history articles, the universal inventory, and `CHANGELOG.md`.
+- No tests, lint, reviews, screenshots, release, or packaged-runtime interaction were run; bridge-backed Git commit behavior and visual/runtime evidence remain unverified.
+
 ## Element appearance editor lane — `codex/luna-appearance-editor`
 
 - Added the anchored Pages appearance editor in `pages/app/SiteShell.tsx` and `pages/app/globals.css`. Major feature cards, Settings cards, and tabs expose a pencil action and a right-click path; edits apply live and persist in a bounded localStorage record with per-element reset.

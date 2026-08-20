@@ -1,7 +1,7 @@
 # Site documentation
 
 - [Notification history](notifications.md) — persistent local history, search, bulk dismissal, and filtered Markdown export.
-- [Settings history](settings-history.md) — bounded Global/project revisions, filtering, export, and confirmed restore.
+- [Settings history](settings-history.md) — bounded Global/project revisions, redacted append-only journaling, filtering, export, and confirmed restore.
 - [Rich command palette](command-palette.md) — `Ctrl+Shift+F`, literal-first discovery, an anchored full regex builder, real inline Settings controls, and exact owning-card teleport.
 - [Destructive Settings reset](destructive-confirmation.md) — shared two-key and full-slider confirmation for local reset.
 - [App-logo customization](app-logo.md) — shipped brand treatments and a bounded private local image picker.
