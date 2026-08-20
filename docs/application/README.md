@@ -12,6 +12,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Package engine discovery](package-engine-discovery.md)
 - [Global defaults and project overrides](project-settings-overrides.md)
 - [App-logo customization](app-logo.md)
+- [App display name](display-name.md) — bounded title/notification presentation label; package, data, update, and diagnostic identity stay fixed.
 - [Personal vocabulary JSON](personal-vocabulary.md)
 - [Message emoji preference](message-emoji-preference.md)
 - [Scheduled settings and external sources](scheduled-settings.md)

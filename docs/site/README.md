@@ -8,6 +8,7 @@
 - [Rich command palette](command-palette.md) — `Ctrl+Shift+F`, literal-first discovery, an anchored full regex builder, real inline Settings controls, and exact owning-card teleport.
 - [Destructive Settings reset](destructive-confirmation.md) — shared two-key and full-slider confirmation for local reset.
 - [App-logo customization](app-logo.md) — shipped brand treatments and a bounded private local image picker.
+- [App display name](display-name.md) — a bounded local presentation label with a shipped-identity reset and stable package/data boundary.
 - [Top-level Settings search](settings-search.md) — literal-first filtering across every Settings card with an independent full regex builder.
 - [Tab overflow discovery](tab-overflow.md) — measured six-tab overflow, local search, and an anchored full regex builder.
 - [Tab pinning](tab-pinning.md) — persistent local pins, a stable pinned region, and future bulk-close protection.

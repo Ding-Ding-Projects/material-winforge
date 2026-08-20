@@ -1,11 +1,17 @@
 # Handoff
 
+## Luna display-name customization lane — `codex/luna-display-name-customization`
+
+- Added the bounded user-renamable display-name setting to `pages/app/SiteShell.tsx` and `main-app-design/WinForge M3.dc.html`. Pages persists the label through its allowlisted preferences record and routes it through Settings search and the command palette; the desktop reference persists the corresponding local preview value and exposes the same reset path.
+- The label applies to title/brand, footer or introduction, notification/snackbar presentation, and About-facing copy while stable package, data, executable, installer, update, and diagnostic identity stay on `WinForge · Material 3 Preview`.
+- Added `docs/site/display-name.md`, `docs/application/display-name.md`, category indexes, the universal inventory row, and the Unreleased changelog entry. Tests, lint, runtime interaction, screenshots, release, and publication remain unrun in this bounded lane.
+
 ## Luna desktop appearance translator lane — `codex/luna-desktop-appearance-translator`
 
 - Extended `main-app-design/WinForge M3.dc.html`'s local appearance editor with font-family selection, underline-style and combined decoration controls, and local persistence/reset for all editor values.
 - Added factual bidirectional color disclosures for HEX/HEX8, RGB/RGBA, HSL/HSLA, HSV/HSB, HWB, and CMYK, plus alpha, contrast, and sRGB gamut reporting. CIELAB/LCH and OKLab/OKLCH are visibly marked unsupported rather than guessed.
 - Updated `docs/application/appearance-editor.md`, the application docs index, `docs/completeness/universal-feature-inventory.md`, and `CHANGELOG.md`. No network, credentials, remote fonts, or source writes are used.
-- Tests, lint, reviews, packaged/runtime interaction, and captures remain unrun/unverified in this bounded lane. The next owner should run the normal build/publication preflights and integrate this branch.
+- Tests, lint, reviews, packaged/runtime interaction, and screenshots remain unrun/unverified in this bounded lane. The next owner should run the normal build/publication preflights and integrate this branch.
 
 ## Luna Pages tab-group appearance lane — `codex/luna-site-tab-group-appearance`
 

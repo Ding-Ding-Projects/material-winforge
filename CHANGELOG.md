@@ -4,6 +4,11 @@
 
 - Added a keyboard-accessible, anchored **Edit group appearance…** context-menu action for every Pages tab-group header, with local persistence and per-group reset for icon, text/background colors, corner radius, header size, and header weight. Unsupported gradients, shadows, custom fonts, and color-space translation are disclosed explicitly. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
 
+## Unreleased — user-renamable display name
+
+- Added a bounded local App display name setting to the Pages surface and desktop design reference. The label updates presentation surfaces, notification introductions, Settings search, and the command palette, while reset restores `WinForge · Material 3 Preview`.
+- Kept package identifiers, application-data locations, executable and installer names, update feeds, and diagnostic records on the shipped identity. Invalid, blank, overlong, and control-character input is rejected without replacing the previous valid value. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
+
 ## Unreleased — desktop app-logo customization
 
 - Added four bundled desktop logo presets and a local PNG/JPEG picker. The picker checks MIME and magic bytes, caps files at 512 KiB and decoded dimensions at 2048×2048, bounds the local cache, and preserves the previous valid mark on every invalid or undecodable input. The selected logo updates the title bar and Settings preview locally; package identity, installer identity, update feed, and application-data location remain unchanged. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
