@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — local Status Hub
+
+- Added an interactive local Status Hub projection to the Pages Status tab: manifest-backed commit/release cards, emoji evidence lanes, accessible filters, expandable lane details, a local-read heartbeat, and a truthful authenticated-delivery-unavailable/copy-for-chat fallback.
+- Added matching site and desktop Status Hub documentation, design-reference coverage, and the completeness-inventory row. No remote delivery, credentials, tests, lint, runtime interaction, captures, release, or publication are claimed for this lane.
+
 ## Unreleased — toy locks and Support Tickets
 
 - Added a bounded local UX lock wizard for major site and desktop targets with independent salted credential hashes, unlock durations, relock, locked-state discovery, and self-service recovery copy.

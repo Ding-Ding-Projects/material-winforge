@@ -172,6 +172,41 @@ type Manifest = {
   size: number | null;
   publishedAt: string | null;
 };
+type StatusLane = {
+  id: string;
+  title: string;
+  status: "verified" | "waiting" | "unavailable";
+  summary: string;
+  evidence: string;
+  nextGate: string;
+};
+
+const STATUS_LANES: StatusLane[] = [
+  {
+    id: "manifest",
+    title: "Release manifest",
+    status: "verified",
+    summary: "The browser has a bounded, versioned release-manifest record.",
+    evidence: "The record below is read from pages/public/release-manifest.json.",
+    nextGate: "Keep the published asset URL, digest, and commit aligned.",
+  },
+  {
+    id: "site-build",
+    title: "Site build",
+    status: "waiting",
+    summary: "A source status card does not prove that a built site was deployed.",
+    evidence: "No external build or deployment verdict is bundled into this page.",
+    nextGate: "Run the supported Sites and Pages builds in their owning workflow.",
+  },
+  {
+    id: "runtime",
+    title: "Packaged runtime",
+    status: "waiting",
+    summary: "The landing page cannot inspect or operate the installed desktop runtime.",
+    evidence: "No runtime session, installer execution, or visual capture is claimed here.",
+    nextGate: "Exercise the packaged application through the approved local evidence route.",
+  },
+];
 type CatalogItem = {
   id: string;
   type: "feature" | "article";
@@ -1790,6 +1825,9 @@ export default function SiteShell({
   const [manifestState, setManifestState] = useState<
     "loading" | "ready" | "failed"
   >(bootManifest ? "ready" : "loading");
+  const [statusFilter, setStatusFilter] = useState<"all" | StatusLane["status"]>("all");
+  const [expandedStatusLanes, setExpandedStatusLanes] = useState<string[]>(["manifest"]);
+  const [statusLastUpdated, setStatusLastUpdated] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [articleId, setArticleId] = useState(ARTICLES[0].id);
   const [settingsGridTarget, setSettingsGridTarget] = useState<Element | null>(
@@ -2373,8 +2411,12 @@ export default function SiteShell({
         if (!validManifest(value)) throw new Error();
         setManifest(value);
         setManifestState("ready");
+        setStatusLastUpdated(new Date().toISOString());
       })
-      .catch(() => setManifestState("failed"));
+      .catch(() => {
+        setManifestState("failed");
+        setStatusLastUpdated(new Date().toISOString());
+      });
   }, [assetBase]);
   useEffect(() => {
     const shell = document.querySelector(".site-shell");
@@ -3225,6 +3267,28 @@ export default function SiteShell({
     manifestState === "ready" &&
     manifest?.status === "published" &&
     typeof manifest.url === "string";
+  const visibleStatusLanes = STATUS_LANES.filter(
+    (lane) => statusFilter === "all" || lane.status === statusFilter,
+  );
+  const toggleStatusLane = (id: string) =>
+    setExpandedStatusLanes((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  const copyStatusForChat = async () => {
+    const summary = [
+      `Status Hub: local fallback (authenticated delivery unavailable)`,
+      `Commit: ${manifest?.commit ?? "Unavailable"}`,
+      `Release: ${manifest?.version ?? "Not published"}${manifest?.tag ? ` · ${manifest.tag}` : ""}`,
+      `Manifest state: ${manifestState}`,
+      `Runtime/deployment verdicts: unverified`,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(summary);
+      setToast(dual("Local status copied for chat; nothing was sent remotely.", "本機狀態已複製去聊天；冇傳送到遠端。", language));
+    } catch {
+      setToast(dual("Copy was unavailable; select the visible facts manually.", "複製功能未有；請手動選取頁面上嘅事實。", language));
+    }
+  };
   const iconPath = `${assetBase}/app-icon.svg`;
   const logoSrc = prefs.customLogo ?? iconPath;
   const heroEn = [
@@ -6899,6 +6963,81 @@ export default function SiteShell({
                 language,
               )}
             />
+            <section className="status-hub-dashboard" aria-labelledby="status-hub-title">
+              <div className="status-hub-heading">
+                <div>
+                  <span className="eyebrow">{dual("Live local projection", "即時本機投影", language)}</span>
+                  <h2 id="status-hub-title">{dual("Status Hub", "狀態中心", language)}</h2>
+                  <p className="supporting-copy">
+                    {dual(
+                      "This dashboard reads local release metadata and records the evidence still needed. It does not claim authenticated Hub delivery or remote verdicts.",
+                      "呢個儀表板讀本機發佈資料，亦列出仲欠緊嘅證據；唔會冒認已登入狀態中心、遠端傳送或者遠端結果。",
+                      language,
+                    )}
+                  </p>
+                </div>
+                <span className="status-heartbeat" role="status" aria-live="polite">
+                  {statusLastUpdated
+                    ? `${dual("Updated", "更新於", language)} ${new Date(statusLastUpdated).toLocaleTimeString()}`
+                    : dual("Waiting for local manifest read", "等緊本機清單", language)}
+                </span>
+              </div>
+              <div className="status-hub-summary" role="list" aria-label={dual("Current local status", "目前本機狀態", language)}>
+                <StatusCard
+                  state={manifestState === "failed" ? "error" : published ? "success" : "waiting"}
+                  label={dual("Current commit", "目前 commit", language)}
+                  value={manifest?.commit ?? dual("Unavailable", "未有資料", language)}
+                  detail={dual("Only the manifest-provided commit is shown.", "只顯示清單提供嘅 commit。", language)}
+                />
+                <StatusCard
+                  state={published ? "success" : "waiting"}
+                  label={dual("Release", "發佈", language)}
+                  value={manifest?.version ?? dual("Not published", "未發佈", language)}
+                  detail={manifest?.tag ?? dual("No immutable tag in the local record.", "本機記錄冇不可變標籤。", language)}
+                />
+                <StatusCard
+                  state={manifestState === "failed" ? "error" : "info"}
+                  label={dual("Hub connection", "狀態中心連線", language)}
+                  value={dual("Unavailable · local fallback", "未有連線 · 本機後備", language)}
+                  detail={dual("No authenticated reply channel is configured; copy this status into chat if needed.", "未配置登入回覆頻道；需要時可以複製呢個狀態去聊天。", language)}
+                />
+              </div>
+              <div className="status-hub-controls" role="group" aria-label={dual("Filter evidence lanes", "篩選證據工作道", language)}>
+                <span>{dual("Show", "顯示", language)}</span>
+                {(["all", "verified", "waiting", "unavailable"] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    className={statusFilter === filter ? "filled-button" : "outlined-button"}
+                    aria-pressed={statusFilter === filter}
+                    onClick={() => setStatusFilter(filter)}
+                  >
+                    {filter === "all" ? dual("All", "全部", language) : filter === "verified" ? dual("Verified", "已驗證", language) : filter === "waiting" ? dual("Waiting", "等緊", language) : dual("Unavailable", "未有資料", language)}
+                  </button>
+                ))}
+              </div>
+              <div className="status-lane-list" role="list">
+                {visibleStatusLanes.map((lane) => {
+                  const expanded = expandedStatusLanes.includes(lane.id);
+                  const effectiveStatus = lane.id === "manifest" && manifestState === "failed" ? "unavailable" : lane.status;
+                  return (
+                    <article key={lane.id} className="status-lane" role="listitem">
+                      <button type="button" className="status-lane-trigger" aria-expanded={expanded} aria-controls={`status-lane-${lane.id}`} onClick={() => toggleStatusLane(lane.id)}>
+                        <span className={`status-lane-dot status-lane-${effectiveStatus}`} aria-hidden="true">{effectiveStatus === "verified" ? "✅" : effectiveStatus === "waiting" ? "⏳" : "⚠️"}</span>
+                        <span><strong>{lane.title}</strong><small>{lane.summary}</small></span>
+                        <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
+                      </button>
+                      {expanded && <div id={`status-lane-${lane.id}`} className="status-lane-details"><p><strong>{dual("Evidence", "證據", language)}:</strong> {lane.id === "manifest" ? dual("Local manifest state", "本機清單狀態", language) : lane.evidence}</p><p><strong>{dual("Next gate", "下一個 Chut", language)}:</strong> {lane.nextGate}</p></div>}
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="status-fallback" role="note">
+                <strong>{dual("Authenticated Status Hub unavailable", "登入狀態中心未有連線", language)}</strong>
+                <p>{dual("This local dashboard remains interactive and truthful. It cannot send an answer or update a shared inbox. Use the visible local facts and copy them into chat; do not treat this page as delivery proof.", "呢個本機儀表板仍然可以操作，亦會如實報告；但佢唔可以傳答案或者更新共享收件匣。用頁面見到嘅本機事實複製去聊天，唔好當成已傳送證據。", language)}</p>
+                <button type="button" className="outlined-button" onClick={() => void copyStatusForChat()}>{dual("Copy local status for chat", "複製本機狀態去聊天", language)}</button>
+              </div>
+            </section>
             <div className="status-grid">
               <StatusCard
                 state="info"
