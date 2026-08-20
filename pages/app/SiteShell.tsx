@@ -9,7 +9,7 @@ import type {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-type TabId = "home" | "features" | "docs" | "settings" | "changelog" | "status";
+type TabId = "home" | "features" | "docs" | "settings" | "changelog" | "status" | "exports";
 type TabGroup = {
   id: string;
   name: string;
@@ -221,6 +221,8 @@ type StatusLane = {
   evidence: string;
   nextGate: string;
 };
+type ExportFormat = "json" | "jsonl" | "yaml" | "toml" | "xml" | "csv" | "tsv" | "md" | "html";
+type ExportRecord = { id: string; collection: string; label: string; value: Record<string, string | number | boolean | null> };
 
 const STATUS_LANES: StatusLane[] = [
   {
@@ -457,7 +459,7 @@ const DEFAULTS: Preferences = {
   schemaVersion: 1,
   ...DEFAULT_SITE_SETTINGS,
   pinnedTabs: [],
-  tabOrder: ["home", "features", "docs", "settings", "changelog", "status"],
+  tabOrder: ["home", "features", "docs", "settings", "changelog", "status", "exports"],
   tabGroups: { schemaVersion: 2, groups: [] },
   personalVocabulary: null,
   logoPreset: "forge",
@@ -504,6 +506,7 @@ const TABS: Array<{ id: TabId; icon: string; en: string; yue: string }> = [
   { id: "settings", icon: "⚙", en: "Settings", yue: "設定" },
   { id: "changelog", icon: "↻", en: "Changelog", yue: "更新記錄" },
   { id: "status", icon: "●", en: "Status", yue: "狀態" },
+  { id: "exports", icon: "⇩", en: "Export", yue: "匯出" },
 ];
 const CATALOG: CatalogItem[] = [
   [
@@ -664,6 +667,26 @@ const CATALOG: CatalogItem[] = [
     "Ollama 工具套件管理",
     "Bounded local API reads, verified installed tags, conservative resource evidence, and safe unavailable states.",
     "有限本機 API 讀取、已驗證 installed tags、保守資源證據同安全未可用狀態。",
+    "docs",
+  ],
+  [
+    "site-export-center",
+    "feature",
+    "Site",
+    "Local export center",
+    "本機匯出中心",
+    "Select owned site records, choose a faithful text format, and export or copy a bounded redacted snapshot locally.",
+    "揀網站自己擁有嘅記錄、選擇忠實文字格式，再喺本機匯出或者複製有限嘅刪走秘密資料快照。",
+    "exports",
+  ],
+  [
+    "site-export-center-doc",
+    "article",
+    "Site",
+    "Export and bulk actions",
+    "匯出同批量操作",
+    "The local export center, redaction boundary, formats, selection scope, and no-network behavior.",
+    "本機匯出中心、刪走秘密資料界線、格式、選取範圍同無網絡行為。",
     "docs",
   ],
 ].map(([id, type, category, title, titleYue, summary, summaryYue, tab]) => ({
@@ -856,6 +879,19 @@ const ARTICLES = [
     ],
     related: ["Search and regex builder", "Preview boundary"],
   },
+  {
+    id: "site-export-center-doc",
+    title: "Export and bulk actions",
+    titleYue: "匯出同批量操作",
+    sections: [
+      ["Behavior", "行為", "Export is a separate browser-local destination for site-owned settings, project metadata, redacted history, notifications, and feature metadata. Select-all is explicitly scoped to this page; inverse and clear selection never touch records outside the visible page.", "匯出係獨立嘅瀏覽器本機目的地，處理網站自己擁有嘅設定、project metadata、刪走秘密資料嘅記錄、通知同功能 metadata。揀晒只限呢頁；反選同清除選取唔會郁到頁外記錄。"],
+      ["Configuration", "設定", "Choose JSON, JSONL, YAML, TOML, XML, CSV, TSV, Markdown, or HTML. Each format is generated from the same bounded redacted records; copy uses the same preview as download.", "可以揀 JSON、JSONL、YAML、TOML、XML、CSV、TSV、Markdown 或 HTML。每種格式都由同一份有限刪走秘密資料嘅記錄產生；複製同下載用同一個預覽。"],
+      ["Failure modes", "失敗處理", "Empty selection disables export and copy. Oversized output is refused before download. Selection counts distinguish visible, selected, and exported records.", "冇選取就會停用匯出同複製；輸出過大會喺下載前拒絕。選取數字會分清可見、已選取同真正匯出嘅記錄。"],
+      ["Security and privacy", "安全同私隱", "Credentials, password or TOTP hashes, QR payloads, personal-vocabulary mappings, source paths, local file bytes, prompts, and remote URLs are omitted. The site makes no export network request.", "密碼、password 或 TOTP hash、QR payload、個人詞彙 mapping、來源路徑、本機檔案 bytes、prompt 同遠端網址都會剔除。網站匯出唔會發網絡請求。"],
+      ["Verification", "驗證", "The implementation has a bounded page-local selection model and format serializers. Browser interaction, packaged runtime, accessibility tooling, and visual capture remain unverified in this implementation lane.", "實作有有限嘅頁面本機選取模型同格式 serializer；瀏覽器互動、封裝 runtime、無障礙工具同視覺截圖喺呢條 lane 仍未驗證。"],
+    ],
+    related: ["Local site preferences", "Search and regex builder", "Preview boundary"],
+  },
 ];
 const CHANGELOG_ENTRIES = [
   {
@@ -897,6 +933,32 @@ const CHANGELOG_ENTRIES = [
 
 function dual(en: string, yue: string, mode: LanguageMode) {
   return mode === "yue" ? yue : mode === "both" ? `${en} · ${yue}` : en;
+}
+function exportScalar(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  return String(value).replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 4000);
+}
+function exportXml(value: string): string { return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function exportYaml(records: ExportRecord[]): string {
+  return records.map((record) => `- id: ${JSON.stringify(record.id)}\n  collection: ${JSON.stringify(record.collection)}\n  label: ${JSON.stringify(record.label)}\n  value:\n${Object.entries(record.value).map(([key, value]) => `    ${key}: ${JSON.stringify(exportScalar(value))}`).join("\n")}`).join("\n");
+}
+function exportToml(records: ExportRecord[]): string {
+  return records.map((record) => `[record]\nid = ${JSON.stringify(record.id)}\ncollection = ${JSON.stringify(record.collection)}\nlabel = ${JSON.stringify(record.label)}\n${Object.entries(record.value).map(([key, value]) => `${key} = ${JSON.stringify(exportScalar(value))}`).join("\n")}`).join("\n\n");
+}
+function serializeExport(records: ExportRecord[], format: ExportFormat): string {
+  const rows = records.map((record) => ({ id: record.id, collection: record.collection, label: record.label, ...record.value }));
+  if (format === "json") return JSON.stringify({ schemaVersion: 1, records: rows, omissions: ["credentials", "hashes", "TOTP secrets", "QR payloads", "personal vocabulary", "source paths", "local file bytes"] }, null, 2);
+  if (format === "jsonl") return rows.map((row) => JSON.stringify(row)).join("\n");
+  if (format === "yaml") return `schemaVersion: 1\nomissions:\n  - credentials\n  - hashes\n  - TOTP secrets\n  - QR payloads\n  - personal vocabulary\n  - source paths\n  - local file bytes\nrecords:\n${exportYaml(records)}`;
+  if (format === "toml") return `schemaVersion = 1\nomissions = ["credentials", "hashes", "TOTP secrets", "QR payloads", "personal vocabulary", "source paths", "local file bytes"]\n\n${exportToml(records)}`;
+  if (format === "xml") return `<winforge-export schemaVersion="1"><omissions><item>credentials</item><item>hashes</item><item>TOTP secrets</item><item>QR payloads</item><item>personal vocabulary</item><item>source paths</item><item>local file bytes</item></omissions><records>${rows.map((row) => `<record id="${exportXml(row.id)}" collection="${exportXml(row.collection)}" label="${exportXml(row.label)}">${Object.entries(row).filter(([key]) => !["id", "collection", "label"].includes(key)).map(([key, value]) => `<field name="${exportXml(key)}">${exportXml(exportScalar(value))}</field>`).join("")}</record>`).join("")}</records></winforge-export>`;
+  const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+  const delimiter = format === "tsv" ? "\t" : ",";
+  const cell = (value: unknown) => { const text = exportScalar(value); return delimiter === "," && /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text.replace(/\r?\n/g, " "); };
+  if (format === "csv" || format === "tsv") return [headers.map(cell).join(delimiter), ...rows.map((row) => headers.map((key) => cell(row[key])).join(delimiter))].join("\r\n");
+  if (format === "html") return `<!doctype html><meta charset="utf-8"><title>WinForge local export</title><p>Redacted local export. Credentials, hashes, TOTP secrets, QR payloads, personal vocabulary, source paths, and local file bytes omitted.</p><table><thead><tr>${headers.map((header) => `<th>${exportXml(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${headers.map((key) => `<td>${exportXml(exportScalar(row[key]))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return `# WinForge local export\n\nRedacted local export. Credentials, hashes, TOTP secrets, QR payloads, personal vocabulary, source paths, and local file bytes omitted.\n\n${rows.map((row) => `## ${row.label}\n\n- Collection: ${row.collection}\n${Object.entries(row).filter(([key]) => !["id", "collection", "label"].includes(key)).map(([key, value]) => `- ${key}: ${exportScalar(value)}`).join("\n")}`).join("\n\n")}`;
 }
 function serializedBytes(value: string): number { return new TextEncoder().encode(value).length; }
 function readLocalRecord(key: string, maxBytes: number): { raw: string | null; available: boolean; oversized: boolean } {
@@ -2058,6 +2120,8 @@ export default function SiteShell({
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>(
     [],
   );
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("json");
+  const [selectedExportRecords, setSelectedExportRecords] = useState<string[]>([]);
   const [settingsHistory, setSettingsHistory] = useState<SettingsHistory>({
     schemaVersion: 2,
     records: [],
@@ -4182,6 +4246,27 @@ export default function SiteShell({
     const text = `${event.action} ${event.verb} ${event.subject} ${event.timestamp}`;
     return !localHistoryQuery || (localHistoryRegex ? !!localHistoryPattern?.test(text) : text.toLocaleLowerCase().includes(localHistoryQuery.toLocaleLowerCase()));
   });
+  const exportRecords: ExportRecord[] = [
+    { id: "settings-global", collection: "settings", label: "Global defaults", value: { language: prefs.settingsOwnership.global.language, theme: prefs.settingsOwnership.global.theme, dock: prefs.settingsOwnership.global.dock, density: prefs.settingsOwnership.global.density, accent: prefs.settingsOwnership.global.accent, funnyEnglish: prefs.settingsOwnership.global.funnyEnglish, funnyCantonese: prefs.settingsOwnership.global.funnyCantonese, showEmojis: prefs.settingsOwnership.global.showEmojis } },
+    ...prefs.settingsOwnership.projects.map((project) => ({ id: `settings-project-${project.id}`, collection: "settings", label: project.name, value: { projectId: project.id, overrideKeys: Object.keys(project.overrides).join(", "), overrideCount: Object.keys(project.overrides).length } })),
+    ...notificationHistory.records.map((record) => ({ id: record.id, collection: "notifications", label: record.title, value: { kind: record.kind, body: record.body, timestamp: record.timestamp } })),
+    ...settingsHistory.records.map((record) => ({ id: record.id, collection: "settings-history", label: record.label, value: { action: record.action, timestamp: record.timestamp, language: record.effective.language, theme: record.effective.theme, dock: record.effective.dock, density: record.effective.density, accent: record.effective.accent, funnyEnglish: record.effective.funnyEnglish, funnyCantonese: record.effective.funnyCantonese, showEmojis: record.effective.showEmojis, logoPreset: record.logo.logoPreset, customLogo: record.logo.customLogo ? "present (bytes omitted)" : "none" } })),
+    ...localHistory.events.map((event) => ({ id: event.id, collection: "local-history", label: event.subject, value: { action: event.action, verb: event.verb, timestamp: event.timestamp, redacted: true } })),
+    ...CATALOG.map((item) => ({ id: `feature-${item.id}`, collection: "feature-metadata", label: item.title, value: { type: item.type, category: item.category, titleYue: item.titleYue, summary: item.summary, summaryYue: item.summaryYue, tab: item.tab } })),
+  ];
+  const visibleExportRecords = exportRecords.slice(0, 100);
+  const selectedVisibleExportRecords = visibleExportRecords.filter((record) => selectedExportRecords.includes(record.id));
+  const selectAllExportRecords = () => setSelectedExportRecords(visibleExportRecords.map((record) => record.id));
+  const invertExportRecords = () => setSelectedExportRecords((current) => visibleExportRecords.filter((record) => !current.includes(record.id)).map((record) => record.id));
+  const clearExportRecords = () => setSelectedExportRecords([]);
+  const exportSelectedRecords = (copy = false) => {
+    if (!selectedVisibleExportRecords.length) { setToast("Select at least one visible record before exporting."); return; }
+    const body = serializeExport(selectedVisibleExportRecords, exportFormat);
+    if (serializedBytes(body) > 512 * 1024) { setToast("The bounded export is too large; narrow the visible selection."); return; }
+    if (copy) { void navigator.clipboard?.writeText(body).then(() => setToast("Selected redacted records copied locally."), () => setToast("Clipboard access was unavailable; download remains available.")); return; }
+    const extension = exportFormat === "md" ? "md" : exportFormat;
+    const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `winforge-site-export.${extension}`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0); setToast(`Exported ${selectedVisibleExportRecords.length} selected redacted records locally.`);
+  };
   const localHistoryActionCounts = Object.fromEntries(localHistoryActions.map((action) => [action, localHistory.events.filter((event) => event.action === action).length])) as Record<LocalHistoryEvent["action"], number>;
   const exportSettingsHistory = () => {
     const markdown = filteredSettingsHistory
@@ -7448,6 +7533,25 @@ export default function SiteShell({
               </button>
             </div>
           </Panel>
+        )}
+        {activeTab === "exports" && (
+          <section className="page-panel export-center" aria-labelledby="export-center-title">
+            <div className="page-heading">
+              <div><span className="eyebrow">Local only · bounded · redacted</span><h1 id="export-center-title">{dual("Export center", "匯出中心", language)}</h1><p>{dual("Export records this site owns without sending them anywhere. Credentials, hashes, TOTP secrets, QR payloads, personal vocabulary, source paths, and local file bytes are always omitted.", "匯出網站自己擁有嘅記錄，唔會傳去任何地方。密碼、hash、TOTP 秘密、QR payload、個人詞彙、來源路徑同本機檔案 bytes 永遠剔除。", language)}</p></div>
+            </div>
+            <div className="export-toolbar" role="group" aria-label={dual("Export actions", "匯出操作", language)}>
+              <strong aria-live="polite">{visibleExportRecords.length} {dual("visible", "可見")} · {selectedVisibleExportRecords.length} {dual("selected", "已選")}</strong>
+              <button type="button" className="outlined-button" onClick={selectAllExportRecords}>{dual("Select all this page", "揀晒呢頁", language)}</button>
+              <button type="button" className="outlined-button" onClick={invertExportRecords}>{dual("Invert selection", "反選", language)}</button>
+              <button type="button" className="outlined-button" onClick={clearExportRecords}>{dual("Clear selection", "清除選取", language)}</button>
+              <label className="export-format"><span>{dual("Format", "格式", language)}</span><select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as ExportFormat)} aria-label={dual("Export format", "匯出格式", language)}>{(["json", "jsonl", "yaml", "toml", "xml", "csv", "tsv", "md", "html"] as ExportFormat[]).map((format) => <option key={format} value={format}>{format.toUpperCase()}</option>)}</select></label>
+              <button type="button" className="filled-button" onClick={() => exportSelectedRecords()} disabled={!selectedVisibleExportRecords.length}>{dual("Export selected", "匯出已選", language)}</button>
+              <button type="button" className="outlined-button" onClick={() => exportSelectedRecords(true)} disabled={!selectedVisibleExportRecords.length}>{dual("Copy selected", "複製已選", language)}</button>
+            </div>
+            <p className="supporting-copy">{dual("Selection is page-scoped to the first 100 records. The preview and download use the same serializer and a 512 KiB output bound.", "選取只限頭 100 筆呢頁記錄。預覽同下載用同一個 serializer，輸出上限係 512 KiB。", language)}</p>
+            <div className="export-record-list" role="list" aria-label={dual("Owned records", "自有記錄", language)}>{visibleExportRecords.map((record) => <label key={record.id} className="export-record" role="listitem"><input type="checkbox" checked={selectedExportRecords.includes(record.id)} onChange={() => setSelectedExportRecords((current) => current.includes(record.id) ? current.filter((id) => id !== record.id) : [...current, record.id])} aria-label={`${dual("Select", "選取", language)} ${record.label}`} /><span><strong>{record.label}</strong><small>{record.collection} · {record.id}</small></span></label>)}</div>
+            {!!selectedVisibleExportRecords.length && <div className="export-preview"><h2>{dual("Redacted preview", "刪走秘密資料預覽", language)}</h2><pre>{serializeExport(selectedVisibleExportRecords.slice(0, 10), exportFormat).slice(0, 12000)}</pre></div>}
+          </section>
         )}
         {activeTab === "status" && (
           <Panel id="status">
