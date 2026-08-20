@@ -164,3 +164,9 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - The bounded group-appearance slice adds schema-version 2 appearance migration, per-group icon/text/background controls, live rendering, strip and Settings entry points, and per-group reset. Full typography, infinite color translation, and per-state appearance editing remain incomplete; runtime interaction, tests, audits, reviews, and visual evidence remain unverified.
 - Group appearance editors are now independently discoverable in the command palette and route to their exact Settings editor. Full typography, infinite color translation, and per-state appearance editing remain incomplete.
 - The master-tab discovery slice adds a separate Settings search across every tab owned by this single site surface, with group/pinned context and focus routing. Cross-window ownership is explicitly bounded to one site instance; runtime interaction and visual evidence remain unverified.
+## Local Ollama suite-manager lane — `codex/luna-ollama-suite`
+
+- Added `pages/app/SiteShell.tsx` and `pages/app/globals.css` support for a local-only Ollama surface: bounded GETs to `127.0.0.1:11434/api/version` and `/api/tags`, a two-second timeout, 512 KiB response cap, up to 200 verified installed tags, and explicit healthy/stopped/offline/error states.
+- Added plain installed-tag search plus an anchored JavaScript regex builder, with no cloud, payment, prompt-history, credential, telemetry, or arbitrary-shell path. Hardware and free-storage fit are explicitly not claimed by the browser surface.
+- Added the matching checked-in design reference and `docs/site/ollama.md` / `docs/application/ollama.md` articles and index entries; updated the universal inventory row.
+- Verification boundary: no tests, lint, reviews, screenshots, packaged runtime interaction, release, or publication were run in this requested lane.

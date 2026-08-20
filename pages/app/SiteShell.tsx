@@ -180,7 +180,17 @@ type ConverterState = {
   message: string;
 };
 
+type OllamaState = {
+  status: "idle" | "checking" | "healthy" | "stopped" | "offline" | "error";
+  version: string | null;
+  models: Array<{ name: string; size: number | null; modifiedAt: string | null }>;
+  message: string;
+  checkedAt: string | null;
+};
+
 const CONVERTER_MAX_BYTES = 2 * 1024 * 1024;
+const OLLAMA_MAX_BYTES = 512 * 1024;
+const OLLAMA_ENDPOINT = "http://127.0.0.1:11434";
 const CONVERTER_CATEGORIES = [
   ["Documents / PDF", "No bundled offline adapter; PDF conversion is unavailable."],
   ["Images", "No bundled offline adapter; image conversion is unavailable."],
@@ -457,6 +467,26 @@ const CATALOG: CatalogItem[] = [
     "本機限定 JSON ↔ CSV adapter、檔案大小限制、預覽、取消同原子瀏覽器下載行為。",
     "docs",
   ],
+  [
+    "ollama-suite",
+    "feature",
+    "AI tools",
+    "Local Ollama suite manager",
+    "本機 Ollama 工具套件管理",
+    "Read bounded loopback health, version, and installed tags with explicit offline states. No cloud, payment, or arbitrary-shell actions.",
+    "有限讀取本機 loopback 健康狀態、版本同已安裝 tags，清楚顯示離線狀態；唔連 cloud、唔收費、唔接受任意 shell 操作。",
+    "features",
+  ],
+  [
+    "ollama-suite-doc",
+    "article",
+    "AI tools",
+    "Ollama suite manager",
+    "Ollama 工具套件管理",
+    "Bounded local API reads, verified installed tags, conservative resource evidence, and safe unavailable states.",
+    "有限本機 API 讀取、已驗證 installed tags、保守資源證據同安全未可用狀態。",
+    "docs",
+  ],
 ].map(([id, type, category, title, titleYue, summary, summaryYue, tab]) => ({
   id,
   type,
@@ -631,6 +661,19 @@ const ARTICLES = [
       ["Failure modes", "失敗處理", "Malformed JSON, missing CSV headers, oversized files, unsupported types, cancellation, and conversion errors leave the source untouched and download no partial result.", "JSON 格式錯、CSV 冇標題、檔案太大、未支援類型、取消或者轉換錯誤都唔會改來源，亦唔會下載半份結果。"],
       ["Security and privacy", "安全同私隱", "No network request or remote converter is used. File contents stay in memory for the local operation and are not logged, exported, or persisted.", "唔會用網絡請求或者遠端 converter。檔案內容只留喺本機記憶體處理，唔會寫入 log、匯出或者保存。"],
       ["Verification", "驗證", "Unavailable categories remain visible with their exact missing-adapter reason; only the JSON ↔ CSV path can produce a download.", "未有 adapter 嘅類別會照樣顯示真正原因；只有 JSON ↔ CSV 路徑可以產生下載。"],
+    ],
+    related: ["Search and regex builder", "Preview boundary"],
+  },
+  {
+    id: "ollama-suite-doc",
+    title: "Ollama suite manager",
+    titleYue: "Ollama 工具套件管理",
+    sections: [
+      ["Behavior", "行為", "The site makes bounded GET requests to the local Ollama API at 127.0.0.1:11434 for version and installed tags. It never launches Ollama, a shell, or a cloud service.", "網站只會對 127.0.0.1:11434 嘅本機 Ollama API 做有限 GET 請求，讀版本同已安裝 tags；唔會啟動 Ollama、shell 或 cloud service。"],
+      ["Configuration", "設定", "Refresh uses a two-second timeout and a 512 KiB response bound. Installed tags are searchable with plain text by default and an anchored JavaScript RegExp builder when deliberately enabled.", "重新整理有兩秒 timeout 同 512 KiB 回應上限；installed tags 預設純文字搜尋，明確開啟先用 anchored JavaScript RegExp 工具。"],
+      ["Failure modes", "失敗處理", "Missing or stopped Ollama, offline loopback, malformed data, oversized responses, and non-OK responses stay explicit and do not look like an empty successful catalogue.", "Ollama 未安裝、停止、loopback 離線、資料格式錯、回應過大或者非 OK 回應都會清楚顯示，唔會扮成空白但成功嘅目錄。"],
+      ["Security and privacy", "安全同私隱", "Only localhost is contacted. No credentials, prompts, model payloads, history, exports, telemetry, or remote URLs are written or sent by this surface.", "只會接觸 localhost；唔會寫入或者傳送密碼、prompt、model payload、歷史、匯出、telemetry 或遠端網址。"],
+      ["Verification", "驗證", "The current slice proves source-level bounded fetches and honest UI states only. Packaged interaction, tests, lint, screenshots, and hardware telemetry remain unverified.", "今次只證明 source-level 有限 fetch 同誠實 UI 狀態；封裝互動、測試、lint、截圖同硬件 telemetry 仍未驗證。"],
     ],
     related: ["Search and regex builder", "Preview boundary"],
   },
@@ -1602,8 +1645,15 @@ export default function SiteShell({
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [query, setQuery] = useState("");
   const [converter, setConverter] = useState<ConverterState>({ file: null, detected: "unknown", target: "csv", preview: "", status: "empty", progress: 0, message: "" });
+  const [ollama, setOllama] = useState<OllamaState>({ status: "idle", version: null, models: [], message: "Not checked yet.", checkedAt: null });
+  const [ollamaQuery, setOllamaQuery] = useState("");
+  const [ollamaRegex, setOllamaRegex] = useState(false);
+  const [ollamaBuilderOpen, setOllamaBuilderOpen] = useState(false);
+  const [ollamaFlags, setOllamaFlags] = useState({ i: true, m: false });
+  const [ollamaSample, setOllamaSample] = useState("llama3.2:latest\nqwen2.5:7b\nNo installed models");
   const converterTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const converterCancel = useRef(false);
+  const ollamaAbort = useRef<AbortController | null>(null);
   const [regexMode, setRegexMode] = useState(false);
   const [flags, setFlags] = useState({ i: true, m: false });
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -1730,6 +1780,38 @@ export default function SiteShell({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const schoolEnabled = schoolMode.enabled;
   const language = schoolEnabled ? "en" : prefs.language;
+  const checkOllama = useCallback(async () => {
+    ollamaAbort.current?.abort();
+    const controller = new AbortController(); ollamaAbort.current = controller;
+    setOllama((current) => ({ ...current, status: "checking", message: "Checking local Ollama…" }));
+    const request = async (path: string) => {
+      const response = await fetch(`${OLLAMA_ENDPOINT}${path}`, { method: "GET", signal: controller.signal, cache: "no-store" });
+      if (!response.ok) throw new Error(`Local Ollama returned HTTP ${response.status}.`);
+      const text = await response.text();
+      if (new TextEncoder().encode(text).byteLength > OLLAMA_MAX_BYTES) throw new Error("Local Ollama response exceeded the 512 KiB safety bound.");
+      return JSON.parse(text) as unknown;
+    };
+    const timeout = window.setTimeout(() => controller.abort(), 2000);
+    try {
+      const versionPayload = await request("/api/version");
+      const tagsPayload = await request("/api/tags");
+      const version = typeof versionPayload === "object" && versionPayload !== null && "version" in versionPayload && typeof versionPayload.version === "string" ? versionPayload.version : null;
+      const rawModels = typeof tagsPayload === "object" && tagsPayload !== null && "models" in tagsPayload && Array.isArray(tagsPayload.models) ? tagsPayload.models : [];
+      const models = rawModels.slice(0, 200).flatMap((item) => {
+        if (!item || typeof item !== "object" || !("name" in item) || typeof item.name !== "string") return [];
+        return [{ name: item.name.slice(0, 160), size: "size" in item && typeof item.size === "number" ? item.size : null, modifiedAt: "modified_at" in item && typeof item.modified_at === "string" ? item.modified_at : null }];
+      });
+      setOllama({ status: "healthy", version, models, checkedAt: new Date().toISOString(), message: `Local Ollama is reachable; ${models.length} installed tag${models.length === 1 ? "" : "s"} verified.` });
+    } catch (error) {
+      const aborted = controller.signal.aborted;
+      setOllama((current) => ({ ...current, status: aborted ? "offline" : error instanceof TypeError ? "stopped" : "error", checkedAt: new Date().toISOString(), message: aborted ? "Local Ollama did not answer within two seconds; it may be stopped or offline." : error instanceof TypeError ? "Ollama is not reachable on the local loopback endpoint." : error instanceof Error ? error.message : "Local Ollama returned unusable data." }));
+    } finally { window.clearTimeout(timeout); }
+  }, []);
+  const ollamaRegexResult = useMemo(() => {
+    const values = ollama.models.map((model) => model.name);
+    if (!ollamaRegex) return { matches: values.filter((value) => value.toLocaleLowerCase().includes(ollamaQuery.toLocaleLowerCase())), error: "" };
+    try { const re = new RegExp(ollamaQuery, `${ollamaFlags.i ? "i" : ""}${ollamaFlags.m ? "m" : ""}`); return { matches: values.filter((value) => re.test(value)), error: "" }; } catch (error) { return { matches: [], error: error instanceof Error ? error.message : "Invalid regular expression." }; }
+  }, [ollama.models, ollamaQuery, ollamaRegex, ollamaFlags]);
   const inspectConverterFile = useCallback(async (file: File | null) => {
     if (!file) return;
     if (file.size > CONVERTER_MAX_BYTES) { setConverter({ file, detected: "unknown", target: "csv", preview: "", status: "error", progress: 0, message: "Files must be 2 MiB or smaller; nothing was read." }); return; }
@@ -5669,6 +5751,15 @@ export default function SiteShell({
               {converter.file && <div className="converter-meta"><span>{converter.file.name} · {formatBytes(converter.file.size)} · detected {converter.detected}</span><progress max="100" value={converter.progress}>{converter.progress}%</progress></div>}
               {converter.preview && <pre className="converter-preview" aria-label={dual("Local file preview", "本機檔案預覽", language)}>{converter.preview}</pre>}
               <div className="converter-adapter-grid">{CONVERTER_CATEGORIES.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" ? dual("Enabled · JSON ↔ CSV", "已啟用 · JSON ↔ CSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
+            </section>
+            <section className="ollama-surface" aria-labelledby="ollama-suite-title">
+              <PageHeading eyebrow={dual("Local-only model tools", "本機限定模型工具", language)} title={dual("Ollama suite manager", "Ollama 工具套件管理", language)} body={dual("Read only the local Ollama version and installed tags. This preview never uses cloud services, payment semantics, or arbitrary shell commands.", "只會讀本機 Ollama 版本同已安裝 tags；呢個預覽唔會用 cloud service、收費語意或者任意 shell 指令。", language)} />
+              <div className="ollama-actions"><button type="button" className="filled-button" onClick={() => void checkOllama()} disabled={ollama.status === "checking"}>{dual("Check local Ollama", "檢查本機 Ollama", language)}</button><span className={`ollama-status ollama-${ollama.status}`} role="status">{ollama.status === "healthy" ? "● Healthy" : ollama.status === "stopped" ? "● Stopped or missing" : ollama.status === "offline" ? "● Offline / timed out" : ollama.status === "checking" ? "● Checking" : ollama.status === "error" ? "● Response error" : "● Not checked"}</span></div>
+              <p className="supporting-copy" role="status" aria-live="polite">{ollama.message}{ollama.version ? ` Version ${ollama.version}.` : ""}</p>
+              <div className="ollama-search"><label className="search-field" htmlFor="ollama-model-search"><span aria-hidden="true">⌕</span><input id="ollama-model-search" value={ollamaQuery} onChange={(event) => setOllamaQuery(event.target.value)} placeholder={dual("Search installed model tags", "搜尋已安裝 model tags", language)} /><button type="button" className={ollamaRegex ? "active" : ""} onClick={() => setOllamaRegex((current) => !current)}>{ollamaRegex ? "Regex" : "Plain"}</button></label><div className="builder-anchor"><button type="button" className={`builder-button ${ollamaBuilderOpen ? "active" : ""}`} onClick={() => setOllamaBuilderOpen((current) => !current)} aria-expanded={ollamaBuilderOpen} aria-controls="ollama-regex-builder">.* {dual("Regex builder", "正規表示式工具", language)}</button>{ollamaBuilderOpen && <RegexBuilder builderId="ollama-regex-builder" query={ollamaQuery} setQuery={setOllamaQuery} regexMode={ollamaRegex} setRegexMode={setOllamaRegex} flags={ollamaFlags} setFlags={setOllamaFlags} error={ollamaRegexResult.error} sample={ollamaSample} setSample={setOllamaSample} matches={ollamaRegexResult.matches} announce={announce} close={() => setOllamaBuilderOpen(false)} />}</div></div>
+              <p className="search-meta" aria-live="polite">{ollamaRegexResult.error || `${ollamaRegexResult.matches.length} installed tag${ollamaRegexResult.matches.length === 1 ? "" : "s"} matched`}</p>
+              {ollama.models.length ? <div className="ollama-model-grid">{ollamaRegexResult.matches.map((name) => { const model = ollama.models.find((item) => item.name === name); return <article key={name} className="ollama-model-card"><strong>{name}</strong><span>{model?.size ? formatBytes(model.size) : "Size not reported"}</span><small>{model?.modifiedAt ? `Modified ${model.modifiedAt}` : "Modified time not reported"}</small></article>; })}</div> : <div className="empty-state"><span aria-hidden="true">◌</span><h2>{dual("No installed tags loaded", "未載入已安裝 tags", language)}</h2><p>{dual("Check local Ollama to read the verified list. A blank state is not treated as success.", "檢查本機 Ollama 先可以讀已驗證清單；空白唔會當成功。", language)}</p></div>}
+              <div className="ollama-evidence"><strong>{dual("Conservative local evidence", "保守本機證據", language)}</strong><span>{dual("Hardware and free-storage telemetry are not claimed by this browser preview. No model is promised to run from a name alone.", "呢個瀏覽器預覽唔會聲稱有硬件或者儲存 telemetry；唔會單靠 model 名稱保證可以運行。", language)}</span></div>
             </section>
           </Panel>
         )}

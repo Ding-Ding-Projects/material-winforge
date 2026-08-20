@@ -15,6 +15,7 @@
 - [School mode](school-mode.md) — a local renamed English-only UX mode with hashed unlock and honest browser-storage recovery.
 - [Built-in authenticator](authenticator.md) — bounded local TOTP registration, in-process QR plus URI text alternative, live codes, countdown, and redacted exports.
 - [Local file converter](file-converter.md) — bounded local JSON ↔ CSV conversion with truthful unavailable-adapter catalog.
+- [Local Ollama suite manager](ollama.md) — bounded loopback version/tag reads with explicit stopped and offline states.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.
 
