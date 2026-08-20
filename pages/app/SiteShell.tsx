@@ -251,6 +251,7 @@ type OllamaState = {
   message: string;
   checkedAt: string | null;
 };
+type OllamaOperation = { status: "idle" | "running" | "complete" | "cancelled" | "error"; message: string; progress: number };
 
 const CONVERTER_MAX_BYTES = 2 * 1024 * 1024;
 const OLLAMA_MAX_BYTES = 512 * 1024;
@@ -1833,6 +1834,12 @@ export default function SiteShell({
   const converterTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const converterCancel = useRef(false);
   const ollamaAbort = useRef<AbortController | null>(null);
+  const [ollamaPullName, setOllamaPullName] = useState("");
+  const [ollamaPull, setOllamaPull] = useState<OllamaOperation>({ status: "idle", message: "No pull requested.", progress: 0 });
+  const [ollamaChatModel, setOllamaChatModel] = useState("");
+  const [ollamaChatPrompt, setOllamaChatPrompt] = useState("");
+  const [ollamaChat, setOllamaChat] = useState<OllamaOperation & { response: string }>({ status: "idle", message: "No local chat requested.", progress: 0, response: "" });
+  const [ollamaHarness, setOllamaHarness] = useState("none");
   const [regexMode, setRegexMode] = useState(false);
   const [flags, setFlags] = useState({ i: true, m: false });
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -1994,6 +2001,38 @@ export default function SiteShell({
       setOllama((current) => ({ ...current, status: aborted ? "offline" : error instanceof TypeError ? "stopped" : "error", checkedAt: new Date().toISOString(), message: aborted ? "Local Ollama did not answer within two seconds; it may be stopped or offline." : error instanceof TypeError ? "Ollama is not reachable on the local loopback endpoint." : error instanceof Error ? error.message : "Local Ollama returned unusable data." }));
     } finally { window.clearTimeout(timeout); }
   }, []);
+  const runOllamaPull = useCallback(async () => {
+    const name = ollamaPullName.trim();
+    if (!name || !/^[A-Za-z0-9._:/-]{1,160}$/.test(name)) { setOllamaPull({ status: "error", message: "Enter a model tag from the local installed/catalog data; arbitrary shell is not accepted.", progress: 0 }); return; }
+    ollamaAbort.current?.abort(); const controller = new AbortController(); ollamaAbort.current = controller;
+    setOllamaPull({ status: "running", message: `Pulling ${name} through the local Ollama API…`, progress: 5 });
+    const timeout = window.setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await fetch(`${OLLAMA_ENDPOINT}/api/pull`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, stream: true }), signal: controller.signal });
+      if (!response.ok) throw new Error(`Local Ollama returned HTTP ${response.status}.`);
+      const text = await response.text(); if (new TextEncoder().encode(text).byteLength > OLLAMA_MAX_BYTES) throw new Error("Pull response exceeded the 512 KiB safety bound.");
+      const lines = text.split(/\r?\n/).filter(Boolean); const last = lines.at(-1); const payload = last ? JSON.parse(last) as Record<string, unknown> : {};
+      if (payload.error && typeof payload.error === "string") throw new Error(payload.error.slice(0, 240));
+      setOllamaPull({ status: "complete", message: `Pull finished for ${name}; refresh installed tags to reconcile local state.`, progress: 100 });
+    } catch (error) { setOllamaPull({ status: controller.signal.aborted ? "cancelled" : "error", message: controller.signal.aborted ? "Pull cancelled or timed out; no success is claimed." : error instanceof Error ? error.message : "Local Ollama pull returned unusable data.", progress: 0 }); }
+    finally { window.clearTimeout(timeout); }
+  }, [ollamaPullName]);
+  const runOllamaChat = useCallback(async () => {
+    const model = ollamaChatModel.trim(), prompt = ollamaChatPrompt.trim();
+    if (!model || !prompt) { setOllamaChat((current) => ({ ...current, status: "error", message: "Choose an installed model and enter a prompt before chatting locally." })); return; }
+    ollamaAbort.current?.abort(); const controller = new AbortController(); ollamaAbort.current = controller;
+    setOllamaChat({ status: "running", message: "Requesting a bounded local response…", progress: 10, response: "" });
+    const timeout = window.setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await fetch(`${OLLAMA_ENDPOINT}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "user", content: prompt.slice(0, 8_000) }], stream: false }), signal: controller.signal });
+      if (!response.ok) throw new Error(`Local Ollama returned HTTP ${response.status}.`);
+      const text = await response.text(); if (new TextEncoder().encode(text).byteLength > OLLAMA_MAX_BYTES) throw new Error("Chat response exceeded the 512 KiB safety bound.");
+      const payload = JSON.parse(text) as { message?: { content?: unknown }; error?: unknown }; if (payload.error) throw new Error(typeof payload.error === "string" ? payload.error.slice(0, 240) : "Local Ollama returned an error.");
+      const content = typeof payload.message?.content === "string" ? payload.message.content.slice(0, 32_000) : "No response content was reported.";
+      setOllamaChat({ status: "complete", message: "Local response received; nothing was sent to a cloud service.", progress: 100, response: content });
+    } catch (error) { setOllamaChat((current) => ({ ...current, status: controller.signal.aborted ? "cancelled" : "error", message: controller.signal.aborted ? "Chat cancelled or timed out; no success is claimed." : error instanceof Error ? error.message : "Local Ollama returned unusable data.", progress: 0 })); }
+    finally { window.clearTimeout(timeout); }
+  }, [ollamaChatModel, ollamaChatPrompt]);
   const ollamaRegexResult = useMemo(() => {
     const values = ollama.models.map((model) => model.name);
     if (!ollamaRegex) return { matches: values.filter((value) => value.toLocaleLowerCase().includes(ollamaQuery.toLocaleLowerCase())), error: "" };
@@ -6120,13 +6159,18 @@ export default function SiteShell({
               <div className="converter-adapter-grid">{CONVERTER_CATEGORIES.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" ? dual("Enabled · JSON ↔ CSV", "已啟用 · JSON ↔ CSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
             </section>
             <section className="ollama-surface" aria-labelledby="ollama-suite-title">
-              <PageHeading eyebrow={dual("Local-only model tools", "本機限定模型工具", language)} title={dual("Ollama suite manager", "Ollama 工具套件管理", language)} body={dual("Read only the local Ollama version and installed tags. This preview never uses cloud services, payment semantics, or arbitrary shell commands.", "只會讀本機 Ollama 版本同已安裝 tags；呢個預覽唔會用 cloud service、收費語意或者任意 shell 指令。", language)} />
+              <PageHeading eyebrow={dual("Local-only model tools", "本機限定模型工具", language)} title={dual("Ollama suite manager", "Ollama 工具套件管理", language)} body={dual("Use only Ollama's documented local HTTP API for health, installed-model reconciliation, bounded pulls, and local chat. No cloud services, payment semantics, credentials, telemetry, or arbitrary shell commands.", "只會用 Ollama 文件列明嘅本機 HTTP API 做健康檢查、已安裝模型同步、有限 pull 同本機聊天；唔連 cloud、唔收費、唔收集 credentials/telemetry、唔接受任意 shell 指令。", language)} />
               <div className="ollama-actions"><button type="button" className="filled-button" onClick={() => void checkOllama()} disabled={ollama.status === "checking"}>{dual("Check local Ollama", "檢查本機 Ollama", language)}</button><span className={`ollama-status ollama-${ollama.status}`} role="status">{ollama.status === "healthy" ? "● Healthy" : ollama.status === "stopped" ? "● Stopped or missing" : ollama.status === "offline" ? "● Offline / timed out" : ollama.status === "checking" ? "● Checking" : ollama.status === "error" ? "● Response error" : "● Not checked"}</span></div>
               <p className="supporting-copy" role="status" aria-live="polite">{ollama.message}{ollama.version ? ` Version ${ollama.version}.` : ""}</p>
               <div className="ollama-search"><label className="search-field" htmlFor="ollama-model-search"><span aria-hidden="true">⌕</span><input id="ollama-model-search" value={ollamaQuery} onChange={(event) => setOllamaQuery(event.target.value)} placeholder={dual("Search installed model tags", "搜尋已安裝 model tags", language)} /><button type="button" className={ollamaRegex ? "active" : ""} onClick={() => setOllamaRegex((current) => !current)}>{ollamaRegex ? "Regex" : "Plain"}</button></label><div className="builder-anchor"><button type="button" className={`builder-button ${ollamaBuilderOpen ? "active" : ""}`} onClick={() => setOllamaBuilderOpen((current) => !current)} aria-expanded={ollamaBuilderOpen} aria-controls="ollama-regex-builder">.* {dual("Regex builder", "正規表示式工具", language)}</button>{ollamaBuilderOpen && <RegexBuilder builderId="ollama-regex-builder" query={ollamaQuery} setQuery={setOllamaQuery} regexMode={ollamaRegex} setRegexMode={setOllamaRegex} flags={ollamaFlags} setFlags={setOllamaFlags} error={ollamaRegexResult.error} sample={ollamaSample} setSample={setOllamaSample} matches={ollamaRegexResult.matches} announce={announce} close={() => setOllamaBuilderOpen(false)} />}</div></div>
               <p className="search-meta" aria-live="polite">{ollamaRegexResult.error || `${ollamaRegexResult.matches.length} installed tag${ollamaRegexResult.matches.length === 1 ? "" : "s"} matched`}</p>
               {ollama.models.length ? <div className="ollama-model-grid">{ollamaRegexResult.matches.map((name) => { const model = ollama.models.find((item) => item.name === name); return <article key={name} className="ollama-model-card"><strong>{name}</strong><span>{model?.size ? formatBytes(model.size) : "Size not reported"}</span><small>{model?.modifiedAt ? `Modified ${model.modifiedAt}` : "Modified time not reported"}</small></article>; })}</div> : <div className="empty-state"><span aria-hidden="true">◌</span><h2>{dual("No installed tags loaded", "未載入已安裝 tags", language)}</h2><p>{dual("Check local Ollama to read the verified list. A blank state is not treated as success.", "檢查本機 Ollama 先可以讀已驗證清單；空白唔會當成功。", language)}</p></div>}
               <div className="ollama-evidence"><strong>{dual("Conservative local evidence", "保守本機證據", language)}</strong><span>{dual("Hardware and free-storage telemetry are not claimed by this browser preview. No model is promised to run from a name alone.", "呢個瀏覽器預覽唔會聲稱有硬件或者儲存 telemetry；唔會單靠 model 名稱保證可以運行。", language)}</span></div>
+              <div className="ollama-operation-grid">
+                <article className="ollama-operation-card"><h3>{dual("Pull a model", "Pull 模型", language)}</h3><p>{dual("Enter a verified model tag. The request is bounded, cancellable by starting another operation, and never runs a shell.", "輸入已驗證 model tag；請求有界、可以由另一個操作取消，亦唔會行 shell。", language)}</p><div className="ollama-inline-form"><input value={ollamaPullName} onChange={(event) => setOllamaPullName(event.target.value)} placeholder="llama3.2:latest" aria-label="Model tag to pull" /><button type="button" className="filled-button" onClick={() => void runOllamaPull()} disabled={ollamaPull.status === "running"}>{dual("Start pull", "開始 pull", language)}</button></div><p className="supporting-copy" role="status" aria-live="polite">{ollamaPull.message}</p><progress max="100" value={ollamaPull.progress}>{ollamaPull.progress}%</progress></article>
+                <article className="ollama-operation-card"><h3>{dual("Local chat", "本機聊天", language)}</h3><p>{dual("Chat stays on the loopback API. Prompt and response are bounded in memory and are not exported or logged.", "聊天只留喺 loopback API；prompt 同回應都有記憶體上限，唔會 export 或寫入 log。", language)}</p><div className="ollama-inline-form"><select value={ollamaChatModel} onChange={(event) => setOllamaChatModel(event.target.value)} aria-label="Installed model for local chat"><option value="">Choose an installed model…</option>{ollama.models.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</select><textarea value={ollamaChatPrompt} onChange={(event) => setOllamaChatPrompt(event.target.value)} maxLength={8000} placeholder="Ask the local model" aria-label="Local chat prompt" /><button type="button" className="filled-button" onClick={() => void runOllamaChat()} disabled={ollamaChat.status === "running"}>{dual("Send locally", "本機傳送", language)}</button></div><p className="supporting-copy" role="status" aria-live="polite">{ollamaChat.message}</p>{ollamaChat.response && <pre className="ollama-chat-response">{ollamaChat.response}</pre>}</article>
+                <article className="ollama-operation-card"><h3>{dual("Allowlisted harness preview", "已列入許可 harness 預覽", language)}</h3><p>{dual("Ollama does not launch arbitrary programs. Choose a shipped local profile to preview an allowlisted executable and arguments; registration and launch remain unavailable in this browser preview.", "Ollama 唔會啟動任意程式。揀已提供嘅本機 profile 預覽已列入許可嘅 executable 同 arguments；呢個瀏覽器預覽唔會註冊或啟動。", language)}</p><select value={ollamaHarness} onChange={(event) => setOllamaHarness(event.target.value)} aria-label="Allowlisted harness profile"><option value="none">No harness selected</option><option value="ollama-chat">Local chat profile · Ollama API only</option><option value="ollama-health">Health probe profile · version and tags only</option></select><p className="supporting-copy">{ollamaHarness === "none" ? "Choose a shipped profile to see its fixed preview." : ollamaHarness === "ollama-chat" ? "Preview: Ollama loopback API, model selected above, no shell, no cloud, no credentials." : "Preview: GET /api/version and GET /api/tags, 2 second timeout, 512 KiB response cap."}</p></article>
+              </div>
             </section>
           </Panel>
         )}

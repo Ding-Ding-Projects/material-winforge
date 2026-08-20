@@ -205,3 +205,9 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Added the matching Status Hub reference treatment in `main-app-design/WinForge M3.dc.html`, `docs/site/status-hub.md`, `docs/application/status-hub.md`, both documentation indexes, and `docs/completeness/universal-feature-inventory.md`.
 - The dashboard explicitly says authenticated Status Hub delivery is unavailable and offers a copy-for-chat fallback. It does not invent credentials, remote verdicts, or deployment state.
 - Verification boundary: tests, lint, reviews, screenshots, packaged/runtime interaction, external Status Hub delivery, release, and publication were intentionally not run for this bounded lane.
+## Local Ollama operations lane — `codex/luna-ollama-operations`
+
+- Added bounded documented-loopback `POST /api/pull` and `POST /api/chat` flows in `pages/app/SiteShell.tsx`, with model-tag validation, installed-model selection, 30-second cancellation/timeout, 512 KiB response caps, and honest cancelled/error copy.
+- Added explicit post-pull reconciliation guidance, local-only chat response handling, and a fixed allowlisted harness preview that never accepts arbitrary shell text or launches a process in the site surface.
+- Updated `pages/app/globals.css`, the design reference, both Ollama articles and indexes, the universal inventory, and this changelog/handoff.
+- Verification boundary: no tests, lint, runtime interaction, screenshots, release, or publication run for this lane; hardware/storage fit evidence remains intentionally unclaimed.

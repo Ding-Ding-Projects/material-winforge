@@ -1,5 +1,7 @@
 # Changelog
 
+- Added guided local Ollama pull and chat operation cards with 30-second/512 KiB bounds, cancellation and explicit no-success-on-timeout behavior; installed-model refresh reconciliation and fixed allowlisted harness previews remain local-only, with no cloud, payment, credential, telemetry, or arbitrary-shell semantics. Tests, lint, packaged interaction, screenshots, release, and publication remain unrun for this lane.
+
 ## Unreleased — redacted local Git history
 
 - Added a bounded append-only redacted journal for Settings, authenticator, and toy-lock mutations. The packaged local Git capability may commit neutral metadata privately; restore is a new event, never a history rewrite, and secrets, hashes, QR payloads, credentials, and vocabulary are excluded.
