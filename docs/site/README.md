@@ -1,6 +1,7 @@
 # Site documentation
 
 - [Notification history](notifications.md) — persistent local history, search, bulk dismissal, and filtered Markdown export.
+- [Export and bulk actions](export-center.md) — page-scoped selection, redacted local export, copy, and faithful text formats.
 - [Settings history](settings-history.md) — bounded Global/project revisions plus browsable redacted settings/authenticator/toy-lock events, search/date/action filtering, export, restore evidence, and confirmed presentation restore.
 - [Rich command palette](command-palette.md) — `Ctrl+Shift+F`, literal-first discovery, an anchored full regex builder, real inline Settings controls, and exact owning-card teleport.
 - [Destructive Settings reset](destructive-confirmation.md) — shared two-key and full-slider confirmation for local reset.
