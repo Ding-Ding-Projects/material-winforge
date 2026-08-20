@@ -223,3 +223,9 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Extended `pages/app/SiteShell.tsx` with a bounded 100-file queue, two-worker JSON↔CSV processing, pause/resume/cancel, per-file outcomes, browser-download destination disclosure, and adapter-catalog plain search plus anchored regex-builder state.
 - Updated `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, both converter articles and indexes, the universal inventory, and the changelog. Only the real offline JSON↔CSV adapter remains enabled; no PATH, network, PDF, image, audio, video, archive, or binary converter was added.
 - Evidence boundary: source/diff only. No tests, lint, runtime interaction, accessibility review, screenshots, release, publication, or issue scan was run in this no-verification lane.
+## Appearance-editor depth lane — `codex/luna-appearance-depth`
+
+- Extended `pages/app/SiteShell.tsx` and `pages/app/globals.css` with bounded local controls for weight, style, underline/strikethrough, letter/word spacing, line height, direction, alignment, continuous color fields, HEX translation, alpha, contrast ratio, local presets, reset disclosure, and explicit unsupported-property behavior.
+- Extended `main-app-design/WinForge M3.dc.html` with the matching deterministic local reference preview and v2 local appearance record.
+- Updated the site/application articles and indexes, universal inventory row, and Unreleased changelog.
+- No network, credential, remote-font, or source-file path is used. Tests, lint, reviews, runtime interaction, accessibility review, captures, release, and publication remain unrun/unverified for this lane.

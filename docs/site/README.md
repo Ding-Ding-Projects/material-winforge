@@ -18,7 +18,7 @@
 - [Built-in authenticator](authenticator.md) — bounded local TOTP registration, in-process QR plus URI text alternative, live codes, countdown, and redacted exports.
 - [Local file converter](file-converter.md) — bounded multi-file JSON ↔ CSV queue with pause/resume/cancel outcomes and a searchable truthful unavailable-adapter catalog.
 - [Local Ollama suite manager](ollama.md) — bounded loopback version/tag reads with explicit stopped and offline states.
-- [Element appearance editor](appearance-editor.md) — anchored per-card and per-tab typography, color, alpha, radius, persistence, and reset.
+- [Element appearance editor](appearance-editor.md) — anchored per-card and per-tab typography depth, continuous color translation, contrast disclosure, presets, unsupported-property disclosure, persistence, and reset.
 - [Local Status Hub](status-hub.md) — interactive local release projection, evidence lanes, filters, and the explicit authenticated-delivery fallback.
 
 The one-route vinext site is the project’s landing, documentation, download, settings, status, and link surface.

@@ -173,6 +173,13 @@ type ElementAppearance = {
   fontFamily: string;
   fontSize: number;
   fontWeight: number;
+  fontStyle: "normal" | "italic" | "oblique";
+  textDecoration: "none" | "underline" | "line-through" | "underline line-through";
+  letterSpacing: number;
+  wordSpacing: number;
+  lineHeight: number;
+  textDirection: "ltr" | "rtl" | "auto";
+  textAlign: "start" | "center" | "end" | "justify";
   textColor: string;
   backgroundColor: string;
   alpha: number;
@@ -379,6 +386,13 @@ const DEFAULT_ELEMENT_APPEARANCE: ElementAppearance = {
   fontFamily: "inherit",
   fontSize: 16,
   fontWeight: 400,
+  fontStyle: "normal",
+  textDecoration: "none",
+  letterSpacing: 0,
+  wordSpacing: 0,
+  lineHeight: 1.4,
+  textDirection: "auto",
+  textAlign: "start",
   textColor: "#1b1b1f",
   backgroundColor: "#ffffff",
   alpha: 1,
@@ -1523,7 +1537,12 @@ function colorTranslations(hex: string) {
   const hsv = { h: hsl.h, s: max ? Math.round(((max - min) / max) * 100) : 0, v: Math.round(max * 100) };
   const k = 1 - max; const cmyk = k === 1 ? { c: 0, m: 0, y: 0, k: 100 } : { c: Math.round(((1 - red - k) / (1 - k)) * 100), m: Math.round(((1 - green - k) / (1 - k)) * 100), y: Math.round(((1 - blue - k) / (1 - k)) * 100), k: Math.round(k * 100) };
   const hwb = { h: hsl.h, w: Math.round(min * 100), b: Math.round((1 - max) * 100) };
-  return { hex: hex.toUpperCase(), rgb: `rgb(${rgb.r} ${rgb.g} ${rgb.b})`, hsl: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)`, hsv: `hsv(${hsv.h} ${hsv.s}% ${hsv.v}%)`, hwb: `hwb(${hwb.h} ${hwb.w}% ${hwb.b}%)`, oklab: "oklab(see unsupported-property note)", cmyk: `cmyk(${cmyk.c}% ${cmyk.m}% ${cmyk.y}% ${cmyk.k}%)` };
+  return { hex: hex.toUpperCase(), rgb: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`, hsl: `hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, 1)`, hsv: `hsva(${hsv.h}, ${hsv.s}%, ${hsv.v}%, 1)`, hwb: `hwb(${hwb.h} ${hwb.w}% ${hwb.b}% / 1)`, oklab: "unsupported (conversion is not implemented)", cmyk: `cmyk(${cmyk.c}% ${cmyk.m}% ${cmyk.y}% ${cmyk.k}%)` };
+}
+function contrastRatio(foreground: string, background: string) {
+  const channel = (value: number) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const luminance = (hex: string) => { const rgb = hexToRgb(hex); return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b); };
+  const a = luminance(foreground); const b = luminance(background); return ((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2);
 }
 function normalizeAppearanceState(value: unknown): AppearanceState | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -1534,8 +1553,8 @@ function normalizeAppearanceState(value: unknown): AppearanceState | null {
     if (!/^[a-z0-9-]{1,80}$/.test(id) || !raw || typeof raw !== "object" || Array.isArray(raw)) continue;
     const item = raw as Partial<ElementAppearance>;
     const candidate = { ...DEFAULT_ELEMENT_APPEARANCE, ...item };
-    if (typeof candidate.fontFamily !== "string" || candidate.fontFamily.length > 120 || !Number.isFinite(candidate.fontSize) || candidate.fontSize < 10 || candidate.fontSize > 48 || !Number.isFinite(candidate.fontWeight) || candidate.fontWeight < 300 || candidate.fontWeight > 800 || !/^#[0-9a-f]{6}$/i.test(candidate.textColor) || !/^#[0-9a-f]{6}$/i.test(candidate.backgroundColor) || !Number.isFinite(candidate.alpha) || candidate.alpha < 0 || candidate.alpha > 1 || !Number.isFinite(candidate.radius) || candidate.radius < 0 || candidate.radius > 48) continue;
-    elements[id] = { fontFamily: candidate.fontFamily, fontSize: Number(candidate.fontSize), fontWeight: Number(candidate.fontWeight), textColor: candidate.textColor, backgroundColor: candidate.backgroundColor, alpha: Number(candidate.alpha), radius: Number(candidate.radius) };
+    if (typeof candidate.fontFamily !== "string" || candidate.fontFamily.length > 120 || !Number.isFinite(candidate.fontSize) || candidate.fontSize < 10 || candidate.fontSize > 48 || !Number.isFinite(candidate.fontWeight) || candidate.fontWeight < 300 || candidate.fontWeight > 800 || !["normal", "italic", "oblique"].includes(String(candidate.fontStyle)) || !["none", "underline", "line-through", "underline line-through"].includes(String(candidate.textDecoration)) || !Number.isFinite(candidate.letterSpacing) || candidate.letterSpacing < -8 || candidate.letterSpacing > 16 || !Number.isFinite(candidate.wordSpacing) || candidate.wordSpacing < -8 || candidate.wordSpacing > 32 || !Number.isFinite(candidate.lineHeight) || candidate.lineHeight < 0.8 || candidate.lineHeight > 3 || !["ltr", "rtl", "auto"].includes(String(candidate.textDirection)) || !["start", "center", "end", "justify"].includes(String(candidate.textAlign)) || !/^#[0-9a-f]{6}$/i.test(candidate.textColor) || !/^#[0-9a-f]{6}$/i.test(candidate.backgroundColor) || !Number.isFinite(candidate.alpha) || candidate.alpha < 0 || candidate.alpha > 1 || !Number.isFinite(candidate.radius) || candidate.radius < 0 || candidate.radius > 48) continue;
+    elements[id] = { fontFamily: candidate.fontFamily, fontSize: Number(candidate.fontSize), fontWeight: Number(candidate.fontWeight), fontStyle: candidate.fontStyle as ElementAppearance["fontStyle"], textDecoration: candidate.textDecoration as ElementAppearance["textDecoration"], letterSpacing: Number(candidate.letterSpacing), wordSpacing: Number(candidate.wordSpacing), lineHeight: Number(candidate.lineHeight), textDirection: candidate.textDirection as ElementAppearance["textDirection"], textAlign: candidate.textAlign as ElementAppearance["textAlign"], textColor: candidate.textColor, backgroundColor: candidate.backgroundColor, alpha: Number(candidate.alpha), radius: Number(candidate.radius) };
   }
   return { schemaVersion: 1, elements };
 }
@@ -2468,12 +2487,19 @@ export default function SiteShell({
         if (!id) return;
         const style = appearanceState.elements[id];
         if (!style) {
-          ["font-family", "font-size", "font-weight", "color", "background-color", "border-radius"].forEach((property) => element.style.removeProperty(property));
+          ["font-family", "font-size", "font-weight", "font-style", "text-decoration", "letter-spacing", "word-spacing", "line-height", "direction", "text-align", "color", "background-color", "border-radius"].forEach((property) => element.style.removeProperty(property));
           return;
         }
         element.style.setProperty("font-family", style.fontFamily);
         element.style.setProperty("font-size", `${style.fontSize}px`);
         element.style.setProperty("font-weight", String(style.fontWeight));
+        element.style.setProperty("font-style", style.fontStyle);
+        element.style.setProperty("text-decoration", style.textDecoration);
+        element.style.setProperty("letter-spacing", `${style.letterSpacing}px`);
+        element.style.setProperty("word-spacing", `${style.wordSpacing}px`);
+        element.style.setProperty("line-height", String(style.lineHeight));
+        element.style.setProperty("direction", style.textDirection);
+        element.style.setProperty("text-align", style.textAlign);
         element.style.setProperty("color", style.textColor);
         element.style.setProperty("background-color", `color-mix(in srgb, ${style.backgroundColor} ${Math.round(style.alpha * 100)}%, transparent)`);
         element.style.setProperty("border-radius", `${style.radius}px`);
@@ -8749,6 +8775,12 @@ function AppearanceEditor({
   close: () => void;
 }) {
   const translated = colorTranslations(value.textColor);
+  const contrast = contrastRatio(value.textColor, value.backgroundColor);
+  const applyPreset = (preset: "default" | "reading" | "compact") => {
+    if (preset === "reading") update({ fontSize: 18, fontWeight: 450, lineHeight: 1.65, letterSpacing: 0.2, wordSpacing: 1, textAlign: "start" });
+    else if (preset === "compact") update({ fontSize: 14, fontWeight: 400, lineHeight: 1.2, letterSpacing: 0, wordSpacing: 0, textAlign: "start" });
+    else update({ ...DEFAULT_ELEMENT_APPEARANCE });
+  };
   return (
     <aside ref={(node) => { /* anchor is measured by the owner; this ref keeps the panel addressable */ }} className="appearance-editor-popover" role="dialog" aria-modal="false" aria-labelledby="appearance-editor-title" style={style}>
       <header><div><span className="eyebrow">{dual("Anchored appearance editor", "貼邊外觀編輯器", language)}</span><h2 id="appearance-editor-title">{dual("Edit element appearance", "編輯元素外觀", language)}</h2><small>{id}</small></div><button type="button" onClick={close} aria-label={dual("Close appearance editor", "關閉外觀編輯器", language)}>×</button></header>
@@ -8756,12 +8788,20 @@ function AppearanceEditor({
         <label><span>{dual("Font family", "字體", language)}</span><input value={value.fontFamily} maxLength={120} onChange={(event) => update({ fontFamily: event.target.value })} /><small>{dual("Uses an installed family or CSS fallback; arbitrary remote fonts are not loaded.", "只用已安裝字體或者 CSS 後備字體；唔會載入遠端字體。", language)}</small></label>
         <label><span>{dual("Font size", "字體大小", language)} · {value.fontSize}px</span><input type="range" min="10" max="48" value={value.fontSize} onChange={(event) => update({ fontSize: Number(event.target.value) })} /></label>
         <label><span>{dual("Weight", "字重", language)} · {value.fontWeight}</span><input type="range" min="300" max="800" step="100" value={value.fontWeight} onChange={(event) => update({ fontWeight: Number(event.target.value) })} /></label>
+        <label><span>{dual("Style", "字體樣式", language)}</span><select value={value.fontStyle} onChange={(event) => update({ fontStyle: event.target.value as ElementAppearance["fontStyle"] })}><option value="normal">Normal</option><option value="italic">Italic</option><option value="oblique">Oblique</option></select></label>
+        <label><span>{dual("Decoration", "文字裝飾", language)}</span><select value={value.textDecoration} onChange={(event) => update({ textDecoration: event.target.value as ElementAppearance["textDecoration"] })}><option value="none">None</option><option value="underline">Underline</option><option value="line-through">Strikethrough</option><option value="underline line-through">Underline + strike</option></select></label>
+        <label><span>{dual("Letter spacing", "字距", language)} · {value.letterSpacing}px</span><input type="range" min="-8" max="16" step="0.1" value={value.letterSpacing} onChange={(event) => update({ letterSpacing: Number(event.target.value) })} /></label>
+        <label><span>{dual("Word spacing", "詞距", language)} · {value.wordSpacing}px</span><input type="range" min="-8" max="32" step="0.1" value={value.wordSpacing} onChange={(event) => update({ wordSpacing: Number(event.target.value) })} /></label>
+        <label><span>{dual("Line height", "行距", language)} · {value.lineHeight}</span><input type="range" min="0.8" max="3" step="0.05" value={value.lineHeight} onChange={(event) => update({ lineHeight: Number(event.target.value) })} /></label>
+        <label><span>{dual("Text direction", "文字方向", language)}</span><select value={value.textDirection} onChange={(event) => update({ textDirection: event.target.value as ElementAppearance["textDirection"] })}><option value="auto">Auto</option><option value="ltr">Left to right</option><option value="rtl">Right to left</option></select></label>
+        <label><span>{dual("Alignment", "對齊", language)}</span><select value={value.textAlign} onChange={(event) => update({ textAlign: event.target.value as ElementAppearance["textAlign"] })}><option value="start">Start</option><option value="center">Center</option><option value="end">End</option><option value="justify">Justify</option></select></label>
         <label><span>{dual("Corner radius", "圓角", language)} · {value.radius}px</span><input type="range" min="0" max="48" value={value.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
-        <label><span>{dual("Text color", "文字顏色", language)}</span><input type="color" value={value.textColor} onChange={(event) => update({ textColor: event.target.value })} /></label>
-        <label><span>{dual("Background color", "背景顏色", language)}</span><input type="color" value={value.backgroundColor} onChange={(event) => update({ backgroundColor: event.target.value })} /></label>
+        <label><span>{dual("Text color · continuous field", "文字顏色・連續色場", language)}</span><input type="color" value={value.textColor} onChange={(event) => update({ textColor: event.target.value })} /><input value={value.textColor} pattern="#[0-9a-fA-F]{6}" aria-label="Text color HEX" onChange={(event) => update({ textColor: event.target.value })} /></label>
+        <label><span>{dual("Background color · continuous field", "背景顏色・連續色場", language)}</span><input type="color" value={value.backgroundColor} onChange={(event) => update({ backgroundColor: event.target.value })} /><input value={value.backgroundColor} pattern="#[0-9a-fA-F]{6}" aria-label="Background color HEX" onChange={(event) => update({ backgroundColor: event.target.value })} /></label>
         <label><span>{dual("Alpha", "透明度", language)} · {Math.round(value.alpha * 100)}%</span><input type="range" min="0" max="1" step="0.01" value={value.alpha} onChange={(event) => update({ alpha: Number(event.target.value) })} /></label>
       </div>
-      <div className="appearance-color-translations" aria-label={dual("Color translations", "顏色轉換", language)}><strong>{dual("Continuous color representations", "連續顏色表示", language)}</strong><code>HEX {translated.hex}</code><code>RGB {translated.rgb}</code><code>HSL {translated.hsl}</code><code>HSV {translated.hsv}</code><code>HWB {translated.hwb}</code><code>OKLab {translated.oklab}</code><code>CMYK {translated.cmyk}</code><small>{dual("Contrast disclosure: text and background are shown as chosen; review contrast before saving. OKLab conversion is currently unsupported and is disclosed rather than guessed.", "對比度披露：文字同背景會按你揀嘅值顯示；儲存前請檢查對比度。OKLab 轉換暫時未支援，會清楚講明而唔會亂估。", language)}</small></div>
+      <div className="appearance-color-translations" aria-label={dual("Color translations and contrast", "顏色轉換同對比度", language)}><strong>{dual("Continuous color representations", "連續顏色表示", language)}</strong><code>HEX {translated.hex}</code><code>RGB {translated.rgb}</code><code>HSL {translated.hsl}</code><code>HSV {translated.hsv}</code><code>HWB {translated.hwb}</code><code>OKLab {translated.oklab}</code><code>CMYK {translated.cmyk}</code><strong>{dual(`Contrast ratio ${contrast}:1`, `對比度 ${contrast}:1`, language)}</strong><small>{dual("Contrast is disclosed for review; this editor does not claim a pass/fail accessibility verdict. Unsupported properties such as gradients, shadows, and variable-font axes stay visible in this note and are not silently dropped.", "對比度只供檢查；呢個編輯器唔會假裝畀你無障礙合格判定。漸變、陰影同可變字體軸等未支援屬性會清楚列出，唔會靜靜消失。", language)}</small></div>
+      <details className="appearance-editor-disclosure"><summary>{dual("Presets and unsupported properties", "預設同未支援屬性", language)}</summary><label><span>{dual("Start from a local preset", "由本機預設開始", language)}</span><select defaultValue="" onChange={(event) => { if (event.target.value) applyPreset(event.target.value as "default" | "reading" | "compact"); }}><option value="">Choose a preset…</option><option value="default">Shipped default</option><option value="reading">Reading</option><option value="compact">Compact</option></select></label><p>{dual("Presets only change this element and remain undoable through reset. Network fonts, gradients, shadows, variable axes, and custom underlines are not implemented in this local slice; the current value is preserved rather than guessed.", "預設只改呢個元素，可以用重設還原。網絡字體、漸變、陰影、可變軸同自訂底線未喺呢段本機功能實作；現有值會保留，唔會亂估。", language)}</p></details>
       <div className="appearance-editor-actions"><button type="button" className="outlined-button" onClick={reset}>{dual("Reset this element", "重設呢個元素", language)}</button><button type="button" className="filled-button" onClick={close}>{dual("Done", "完成", language)}</button></div>
     </aside>
   );

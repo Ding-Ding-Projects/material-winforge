@@ -160,11 +160,16 @@ button {
 .appearance-editor-popover header button { min-width:36px; min-height:36px; border:0; border-radius:999px; background:transparent; font-size:22px; }
 .appearance-editor-grid { display:grid; gap:12px; }
 .appearance-editor-grid label { display:grid; gap:6px; font-weight:600; }
-.appearance-editor-grid input[type="text"], .appearance-editor-grid input:not([type]) { min-height:42px; padding:8px 10px; border:1px solid var(--outline); border-radius:var(--radius-sm); background:var(--surface-bright); color:var(--on-surface); }
+.appearance-editor-grid input[type="text"], .appearance-editor-grid input:not([type]), .appearance-editor-grid select { min-height:42px; padding:8px 10px; border:1px solid var(--outline); border-radius:var(--radius-sm); background:var(--surface-bright); color:var(--on-surface); }
 .appearance-editor-grid input[type="color"] { width:100%; min-height:42px; border:1px solid var(--outline); border-radius:var(--radius-sm); background:var(--surface-bright); }
 .appearance-editor-grid small, .appearance-color-translations small { color:var(--on-surface-variant); font-weight:400; line-height:1.45; }
 .appearance-color-translations { display:grid; gap:7px; margin-top:16px; padding:12px; border:1px solid var(--outline-variant); border-radius:var(--radius-md); background:var(--surface-container); }
 .appearance-color-translations code { overflow-wrap:anywhere; font-size:12px; }
+.appearance-editor-disclosure { margin-top:14px; padding:12px; border:1px solid var(--outline-variant); border-radius:var(--radius-md); background:var(--surface-container); }
+.appearance-editor-disclosure summary { cursor:pointer; font-weight:700; min-height:44px; display:flex; align-items:center; }
+.appearance-editor-disclosure label { display:grid; gap:6px; margin-top:10px; }
+.appearance-editor-disclosure select { min-height:42px; padding:8px 10px; border:1px solid var(--outline); border-radius:var(--radius-sm); background:var(--surface-bright); color:var(--on-surface); }
+.appearance-editor-disclosure p { margin:10px 0 0; color:var(--on-surface-variant); line-height:1.45; }
 .appearance-editor-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
 .toy-lock-context-menu,.toy-lock-wizard { position:fixed; z-index:1300; width:min(340px,calc(100vw - 24px)); max-height:calc(100vh - 24px); overflow:auto; display:grid; gap:12px; padding:16px; border:1px solid var(--outline-variant); border-radius:var(--radius-lg); background:var(--surface-container-highest); color:var(--on-surface); box-shadow:0 12px 32px var(--shadow); }
 .toy-lock-context-menu { width:min(280px,calc(100vw - 24px)); }
