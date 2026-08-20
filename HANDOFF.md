@@ -235,3 +235,9 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Extended `pages/app/SiteShell.tsx` with byte detection for JSONL and TSV, bundled offline JSON ↔ JSONL and JSON ↔ TSV adapters alongside JSON ↔ CSV, output validation before browser download, and explicit JSONL/TSV conversion boundaries.
 - Updated the checked-in design/runtime reference, both converter articles, the universal feature inventory, and changelog. PDF, image, audio, video, archive, and binary categories remain visibly unavailable; no PATH tool, network converter, source persistence, or queue/history boundary changed.
 - Tests, lint, runtime interaction, screenshots, reviews, release, and publication were not run in this task lane by request.
+## Appearance-editor depth lane — `codex/luna-appearance-depth`
+
+- Extended `pages/app/SiteShell.tsx` and `pages/app/globals.css` with bounded local controls for weight, style, underline/strikethrough, letter/word spacing, line height, direction, alignment, continuous color fields, HEX translation, alpha, contrast ratio, local presets, reset disclosure, and explicit unsupported-property behavior.
+- Extended `main-app-design/WinForge M3.dc.html` with the matching deterministic local reference preview and v2 local appearance record.
+- Updated the site/application articles and indexes, universal inventory row, and Unreleased changelog.
+- No network, credential, remote-font, or source-file path is used. Tests, lint, reviews, runtime interaction, accessibility review, captures, release, and publication remain unrun/unverified for this lane.
