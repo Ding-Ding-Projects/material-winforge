@@ -16,7 +16,7 @@
 - [Toy locks and Support Tickets](toy-locks.md) — per-target local UX locks, unlock durations, and a fictional self-service recovery desk.
 - [Unlock ladder](unlock-ladder.md) — bounded local waiting aid with dim-sum, sums, timed mole, and clock-only fallbacks.
 - [Built-in authenticator](authenticator.md) — bounded local TOTP registration, in-process QR plus URI text alternative, live codes, countdown, and redacted exports.
-- [Local file converter](file-converter.md) — bounded multi-file JSON ↔ CSV queue with pause/resume/cancel outcomes and a searchable truthful unavailable-adapter catalog.
+- [Local file converter](file-converter.md) — bounded multi-file JSON ↔ CSV/TSV/JSONL queue with output validation, pause/resume/cancel outcomes, lossy-boundary disclosure, and a searchable truthful unavailable-adapter catalog.
 - [Local Ollama suite manager](ollama.md) — bounded loopback version/tag reads with explicit stopped and offline states.
 - [Element appearance editor](appearance-editor.md) — anchored per-card and per-tab typography, color, alpha, radius, persistence, and reset.
 - [Local Status Hub](status-hub.md) — interactive local release projection, evidence lanes, filters, and the explicit authenticated-delivery fallback.

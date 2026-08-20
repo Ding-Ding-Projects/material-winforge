@@ -223,3 +223,8 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Extended `pages/app/SiteShell.tsx` with a bounded 100-file queue, two-worker JSON↔CSV processing, pause/resume/cancel, per-file outcomes, browser-download destination disclosure, and adapter-catalog plain search plus anchored regex-builder state.
 - Updated `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, both converter articles and indexes, the universal inventory, and the changelog. Only the real offline JSON↔CSV adapter remains enabled; no PATH, network, PDF, image, audio, video, archive, or binary converter was added.
 - Evidence boundary: source/diff only. No tests, lint, runtime interaction, accessibility review, screenshots, release, publication, or issue scan was run in this no-verification lane.
+## Local file-converter completeness lane — `codex/luna-converter-completeness`
+
+- Extended `pages/app/SiteShell.tsx` with byte detection for JSONL and TSV, bundled offline JSON ↔ JSONL and JSON ↔ TSV adapters alongside JSON ↔ CSV, output validation before browser download, and explicit JSONL/TSV conversion boundaries.
+- Updated the checked-in design/runtime reference, both converter articles, the universal feature inventory, and changelog. PDF, image, audio, video, archive, and binary categories remain visibly unavailable; no PATH tool, network converter, source persistence, or queue/history boundary changed.
+- Tests, lint, runtime interaction, screenshots, reviews, release, and publication were not run in this task lane by request.

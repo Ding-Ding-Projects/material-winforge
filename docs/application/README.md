@@ -18,7 +18,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Toy locks and Support Tickets](toy-locks.md)
 - [Unlock ladder](unlock-ladder.md) — desktop design contract for a bounded waiting aid; never authentication.
 - [Built-in authenticator](authenticator.md) — desktop reference for local TOTP registration, including the in-process QR intent and URI text alternative.
-- [Local file converter](file-converter.md) — desktop design/runtime counterpart for the bounded offline JSON ↔ CSV batch queue, pause/resume/cancel outcomes, and truthful adapter catalog.
+- [Local file converter](file-converter.md) — desktop design/runtime counterpart for the bounded offline JSON ↔ CSV/TSV/JSONL batch queue, output validation, pause/resume/cancel outcomes, and truthful adapter catalog.
 - [Ollama suite manager](ollama.md) — desktop reference for bounded local health, pulls, chat, reconciliation, and honest unavailable states.
 - [Element appearance editor](appearance-editor.md) — matching desktop design-reference editor with local persistence and explicit unsupported-property disclosure.
 - [Changelog viewer](changelog-viewer.md)

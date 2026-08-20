@@ -248,11 +248,11 @@ type CatalogItem = {
   tab: TabId;
 };
 
-type ConverterDetectedType = "json" | "csv" | "txt" | "unknown";
+type ConverterDetectedType = "json" | "jsonl" | "csv" | "tsv" | "txt" | "unknown";
 type ConverterState = {
   file: File | null;
   detected: ConverterDetectedType;
-  target: "json" | "csv";
+  target: "json" | "jsonl" | "csv" | "tsv";
   preview: string;
   status: "empty" | "ready" | "converting" | "complete" | "error" | "cancelled";
   progress: number;
@@ -263,7 +263,7 @@ type ConverterQueueItem = {
   id: string;
   file: File;
   detected: ConverterDetectedType;
-  target: "json" | "csv";
+  target: "json" | "jsonl" | "csv" | "tsv";
   preview: string;
   status: ConverterQueueStatus;
   progress: number;
@@ -288,8 +288,8 @@ const CONVERTER_CATEGORIES = [
   ["Audio", "No bundled offline adapter; audio conversion is unavailable."],
   ["Video", "No bundled offline adapter; video conversion is unavailable."],
   ["Archives", "No bundled offline adapter; archive conversion is unavailable."],
-  ["Structured Data / Spreadsheets", "JSON ↔ CSV is available offline."],
-  ["Code / Text", "TXT is detected for inspection; no write adapter is bundled."],
+  ["Structured Data / Spreadsheets", "JSON ↔ CSV and TSV ↔ JSON are available offline."],
+  ["Code / Text", "JSONL ↔ JSON is available offline; plain TXT remains inspection-only."],
   ["Binary Encodings", "No bundled offline adapter; binary conversion is unavailable."],
 ] as const;
 
@@ -297,9 +297,12 @@ function detectConverterType(bytes: Uint8Array): ConverterDetectedType {
   const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
   const trimmed = text.replace(/^\uFEFF/, "").trim();
   if (!trimmed) return "unknown";
-  try { JSON.parse(trimmed); return "json"; } catch { /* continue with CSV/TXT detection */ }
+  try { JSON.parse(trimmed); return "json"; } catch { /* continue with line-delimited and tabular detection */ }
+  const lines = trimmed.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length > 1 && lines.every((line) => { try { JSON.parse(line); return true; } catch { return false; } })) return "jsonl";
   const firstLine = trimmed.split(/\r?\n/, 1)[0] ?? "";
-  if (firstLine.includes(",") || firstLine.includes("\t")) return "csv";
+  if (firstLine.includes("\t")) return "tsv";
+  if (firstLine.includes(",")) return "csv";
   if (/^[\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFF]*$/.test(trimmed)) return "txt";
   return "unknown";
 }
@@ -335,6 +338,36 @@ function convertCsvToJson(text: string): string {
   const [headers, ...data] = rows; if (!headers.length || headers.some((header) => !header.trim())) throw new Error("CSV needs a non-empty header row.");
   return JSON.stringify(data.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""]))), null, 2);
 }
+
+function convertJsonlToJson(text: string): string {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) throw new Error("JSONL has no records.");
+  try { return JSON.stringify(lines.map((line) => JSON.parse(line)), null, 2); }
+  catch { throw new Error("JSONL contains an invalid JSON record; no output was downloaded."); }
+}
+
+function convertJsonToJsonl(value: unknown): string {
+  if (!Array.isArray(value) || !value.length) throw new Error("JSONL conversion needs a non-empty JSON array.");
+  return value.map((item) => JSON.stringify(item)).join("\r\n");
+}
+
+function convertTsvToJson(text: string): string {
+  const rows = text.split(/\r?\n/).filter((line) => line.trim()).map((line) => line.split("\t"));
+  if (!rows.length || !rows[0].length || rows[0].some((header) => !header.trim())) throw new Error("TSV needs a non-empty header row.");
+  const [headers, ...data] = rows;
+  return JSON.stringify(data.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""]))), null, 2);
+}
+
+function convertJsonToTsv(value: unknown): string {
+  const rows = Array.isArray(value) ? value : [value];
+  const objects = rows.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item));
+  if (!objects.length) throw new Error("JSON must contain an object or an array of objects for TSV conversion.");
+  const keys = Array.from(new Set(objects.flatMap((item) => Object.keys(item))));
+  const cell = (value: unknown) => String(typeof value === "string" ? value : JSON.stringify(value) ?? "").replace(/\t|\r?\n/g, " ");
+  return [keys.map(cell).join("\t"), ...objects.map((item) => keys.map((key) => cell(item[key] ?? "")).join("\t"))].join("\r\n");
+}
+
+function converterOutputExtension(target: ConverterQueueItem["target"]): string { return target; }
 
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
 const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
@@ -2081,8 +2114,9 @@ export default function SiteShell({
       if (file.size > CONVERTER_MAX_BYTES) { items.push({ id: `${file.name}-${file.lastModified}`, file, detected: "unknown", target: "csv", preview: "", status: "failed", progress: 0, message: "Skipped: files must be 2 MiB or smaller; nothing was read." }); continue; }
       const bytes = new Uint8Array(await file.slice(0, CONVERTER_MAX_BYTES).arrayBuffer());
       const detected = detectConverterType(bytes); const text = new TextDecoder().decode(bytes);
-      const usable = detected === "json" || detected === "csv";
-      items.push({ id: `${file.name}-${file.lastModified}-${items.length}`, file, detected, target: detected === "csv" ? "json" : "csv", preview: text.slice(0, 4000), status: usable ? "queued" : "skipped", progress: 0, message: usable ? "Queued for the bundled offline adapter." : "Skipped: detected for inspection only; no adapter is enabled for this type." });
+      const usable = detected === "json" || detected === "jsonl" || detected === "csv" || detected === "tsv";
+      const target = detected === "csv" || detected === "tsv" || detected === "jsonl" ? "json" : "csv";
+      items.push({ id: `${file.name}-${file.lastModified}-${items.length}`, file, detected, target, preview: text.slice(0, 4000), status: usable ? "queued" : "skipped", progress: 0, message: usable ? "Queued for a bundled offline adapter; source bytes stay local." : "Skipped: detected for inspection only; no write adapter is enabled for this type." });
     }
     setConverterQueue(items);
     const first = items[0];
@@ -2103,11 +2137,17 @@ export default function SiteShell({
         setConverterQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: "converting", progress: 10, message: "Converting locally…" } : entry));
         try {
           const text = await item.file.text();
-          const output = item.detected === "json" && item.target === "csv" ? convertJsonToCsv(JSON.parse(text)) : item.detected === "csv" && item.target === "json" ? convertCsvToJson(text) : "";
+          const parsedJson = item.detected === "json" || item.detected === "jsonl" || item.detected === "csv" || item.detected === "tsv" ? (item.detected === "json" ? JSON.parse(text) : item.detected === "jsonl" ? JSON.parse(convertJsonlToJson(text)) : item.detected === "csv" ? JSON.parse(convertCsvToJson(text)) : item.detected === "tsv" ? JSON.parse(convertTsvToJson(text)) : null) : null;
+          const output = item.target === "csv" && item.detected === "json" ? convertJsonToCsv(parsedJson) : item.target === "tsv" && item.detected === "json" ? convertJsonToTsv(parsedJson) : item.target === "jsonl" && item.detected === "json" ? convertJsonToJsonl(parsedJson) : item.target === "json" && item.detected === "csv" ? convertCsvToJson(text) : item.target === "json" && item.detected === "tsv" ? convertTsvToJson(text) : item.target === "json" && item.detected === "jsonl" ? convertJsonlToJson(text) : "";
+          if (!output) throw new Error("No compatible bundled offline adapter exists for this source and target.");
+          if (item.target === "json" || item.target === "jsonl") JSON.parse(item.target === "jsonl" ? convertJsonlToJson(output) : output);
+          if (item.target === "csv" && !parseConverterCsv(output).length) throw new Error("CSV output validation failed; no output was downloaded.");
+          if (item.target === "tsv" && !output.split(/\r?\n/)[0]?.includes("\t")) throw new Error("TSV output validation failed; no output was downloaded.");
           if (converterCancel.current) break;
-          const blob = new Blob([output], { type: item.target === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8" });
-          const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${item.file.name.replace(/\.[^.]+$/, "")}.${item.target}`; anchor.click(); URL.revokeObjectURL(url);
-          setConverterQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: "converted", progress: 100, message: `Converted locally and downloaded ${item.target.toUpperCase()}.` } : entry));
+          const mime = item.target === "json" || item.target === "jsonl" ? "application/json;charset=utf-8" : "text/plain;charset=utf-8";
+          const blob = new Blob([output], { type: mime });
+          const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${item.file.name.replace(/\.[^.]+$/, "")}.${converterOutputExtension(item.target)}`; anchor.click(); URL.revokeObjectURL(url);
+          setConverterQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: "converted", progress: 100, message: `Converted locally and downloaded ${item.target.toUpperCase()} after output validation.` } : entry));
         } catch (error) { setConverterQueue((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: "failed", progress: 0, message: error instanceof Error ? error.message : "Conversion failed; no output was downloaded." } : entry)); }
       }
     };
@@ -6250,11 +6290,11 @@ export default function SiteShell({
               <PageHeading
                 eyebrow={dual("Local and bounded", "本機同有限", language)}
                 title={dual("File converter", "檔案轉換器", language)}
-                body={dual("Choose a local file up to 2 MiB. Only the offline JSON ↔ CSV adapter can write a result; every other category stays visible with its real unavailable reason.", "揀一個最多 2 MiB 嘅本機檔案。只有離線 JSON ↔ CSV adapter 可以寫結果；其他類別照樣顯示真正未有原因。", language)}
+                body={dual("Choose local files up to 2 MiB. Bundled offline adapters support JSON ↔ CSV, JSON ↔ JSONL, and JSON ↔ TSV; other categories stay visible with their real unavailable reason.", "揀最多 2 MiB 嘅本機檔案。內置離線 adapter 支援 JSON ↔ CSV、JSON ↔ JSONL 同 JSON ↔ TSV；其他類別照樣顯示真正未有原因。", language)}
               />
               <div className="converter-controls">
-                <label className="file-picker-field"><span>{dual("Source files (up to 100)", "來源檔案（最多 100 個）", language)}</span><input type="file" multiple accept=".json,.csv,.txt,application/json,text/csv,text/plain" onChange={(event) => void inspectConverterFiles(Array.from(event.target.files ?? []))} aria-describedby="converter-status" /></label>
-                <label><span>{dual("Target format", "目標格式", language)}</span><select value={converter.target} onChange={(event) => { const target = event.target.value as "json" | "csv"; setConverter((current) => ({ ...current, target })); setConverterQueue((items) => items.map((item) => item.status === "queued" ? { ...item, target } : item)); }} disabled={converter.detected !== "json" && converter.detected !== "csv"}><option value="json">JSON</option><option value="csv">CSV</option></select></label>
+                <label className="file-picker-field"><span>{dual("Source files (up to 100)", "來源檔案（最多 100 個）", language)}</span><input type="file" multiple accept=".json,.jsonl,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" onChange={(event) => void inspectConverterFiles(Array.from(event.target.files ?? []))} aria-describedby="converter-status" /></label>
+                <label><span>{dual("Target format", "目標格式", language)}</span><select value={converter.target} onChange={(event) => { const target = event.target.value as ConverterState["target"]; setConverter((current) => ({ ...current, target })); setConverterQueue((items) => items.map((item) => item.status === "queued" ? { ...item, target } : item)); }} disabled={converter.detected !== "json" && converter.detected !== "csv" && converter.detected !== "tsv" && converter.detected !== "jsonl"}><option value="json">JSON</option><option value="csv">CSV</option><option value="jsonl">JSONL</option><option value="tsv">TSV</option></select></label>
                 <button type="button" className="filled-button" onClick={() => void runConverter()} disabled={converter.status === "converting" || !converterQueue.some((item) => item.status === "queued")}>{dual("Convert queued files", "轉換排隊檔案", language)}</button>
                 <button type="button" className="outlined-button" onClick={toggleConverterPause} disabled={converter.status !== "converting"}>{converterPaused ? dual("Resume", "繼續", language) : dual("Pause", "暫停", language)}</button>
                 <button type="button" className="outlined-button" onClick={cancelConverter} disabled={converter.status !== "converting" && !converterQueue.some((item) => item.status === "queued")}>{dual("Cancel", "取消", language)}</button>
@@ -6265,7 +6305,7 @@ export default function SiteShell({
               {converterQueue.length > 0 && <div className="converter-queue" aria-label={dual("Batch conversion queue", "批次轉換排隊", language)}><strong>{dual("Batch outcomes · concurrency 2", "批次結果 · 同時處理 2 個", language)}</strong>{converterQueue.map((item) => <div className="converter-queue-row" key={item.id}><span className="converter-queue-name">{item.file.name} · {formatBytes(item.file.size)}</span><span className={`converter-queue-status converter-queue-${item.status}`}>{item.status}</span><span>{item.message}</span></div>)}</div>}
               <div className="converter-catalog-search"><label className="search-field" htmlFor="converter-catalog-search"><span aria-hidden="true">⌕</span><input id="converter-catalog-search" value={converterCatalogQuery} onChange={(event) => setConverterCatalogQuery(event.target.value)} placeholder={dual("Search adapter catalog", "搜尋 adapter 目錄", language)} /><button type="button" className={converterCatalogRegex ? "active" : ""} onClick={() => setConverterCatalogRegex((current) => !current)}>{converterCatalogRegex ? "Regex" : "Plain"}</button></label><div className="builder-anchor"><button type="button" className={`builder-button ${converterCatalogBuilderOpen ? "active" : ""}`} onClick={() => setConverterCatalogBuilderOpen((current) => !current)} aria-expanded={converterCatalogBuilderOpen} aria-controls="converter-catalog-regex-builder">.* {dual("Regex builder", "正規表示式工具", language)}</button>{converterCatalogBuilderOpen && <RegexBuilder builderId="converter-catalog-regex-builder" query={converterCatalogQuery} setQuery={setConverterCatalogQuery} regexMode={converterCatalogRegex} setRegexMode={setConverterCatalogRegex} flags={converterCatalogFlags} setFlags={setConverterCatalogFlags} error={converterCatalogResult.error} sample={converterCatalogSample} setSample={setConverterCatalogSample} matches={converterCatalogResult.values.map(([category]) => category)} announce={announce} close={() => setConverterCatalogBuilderOpen(false)} />}</div></div>
               <p className="search-meta" aria-live="polite">{converterCatalogResult.error || `${converterCatalogResult.values.length} adapter categor${converterCatalogResult.values.length === 1 ? "y" : "ies"} shown`}</p>
-              <div className="converter-adapter-grid">{converterCatalogResult.values.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" ? dual("Enabled · JSON ↔ CSV", "已啟用 · JSON ↔ CSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
+              <div className="converter-adapter-grid">{converterCatalogResult.values.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" || category === "Code / Text" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" || category === "Code / Text" ? dual("Enabled · JSON ↔ CSV · JSONL · TSV", "已啟用 · JSON ↔ CSV · JSONL · TSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
             </section>
             <section className="ollama-surface" aria-labelledby="ollama-suite-title">
               <PageHeading eyebrow={dual("Local-only model tools", "本機限定模型工具", language)} title={dual("Ollama suite manager", "Ollama 工具套件管理", language)} body={dual("Use only Ollama's documented local HTTP API for health, installed-model reconciliation, bounded pulls, and local chat. No cloud services, payment semantics, credentials, telemetry, or arbitrary shell commands.", "只會用 Ollama 文件列明嘅本機 HTTP API 做健康檢查、已安裝模型同步、有限 pull 同本機聊天；唔連 cloud、唔收費、唔收集 credentials/telemetry、唔接受任意 shell 指令。", language)} />
