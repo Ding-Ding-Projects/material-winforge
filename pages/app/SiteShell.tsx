@@ -289,16 +289,34 @@ type OllamaOperation = { status: "idle" | "running" | "complete" | "cancelled" |
 const CONVERTER_MAX_BYTES = 2 * 1024 * 1024;
 const OLLAMA_MAX_BYTES = 512 * 1024;
 const OLLAMA_ENDPOINT = "http://127.0.0.1:11434";
-const CONVERTER_CATEGORIES = [
-  ["Documents / PDF", "No bundled offline adapter; PDF conversion is unavailable."],
-  ["Images", "No bundled offline adapter; image conversion is unavailable."],
-  ["Audio", "No bundled offline adapter; audio conversion is unavailable."],
-  ["Video", "No bundled offline adapter; video conversion is unavailable."],
-  ["Archives", "No bundled offline adapter; archive conversion is unavailable."],
-  ["Structured Data / Spreadsheets", "JSON ↔ CSV and TSV ↔ JSON are available offline."],
-  ["Code / Text", "JSONL ↔ JSON is available offline; plain TXT remains inspection-only."],
-  ["Binary Encodings", "No bundled offline adapter; binary conversion is unavailable."],
-] as const;
+type ConverterCatalogFormat = { name: string; status: "enabled" | "unavailable"; reason: string };
+type ConverterCatalogCategory = { category: string; formats: readonly ConverterCatalogFormat[] };
+const unavailable = (name: string, adapter: string): ConverterCatalogFormat => ({
+  name,
+  status: "unavailable",
+  reason: `Unavailable: the bundled offline ${adapter} adapter is not installed; no PATH, network, or remote converter is used.`,
+});
+const enabled = (name: string, reason: string): ConverterCatalogFormat => ({ name, status: "enabled", reason });
+const CONVERTER_CATEGORIES: readonly ConverterCatalogCategory[] = [
+  { category: "Documents / PDF", formats: [unavailable("PDF", "PDF"), unavailable("DOCX", "document")] },
+  { category: "Images", formats: [unavailable("PNG", "image"), unavailable("JPEG", "image"), unavailable("WebP", "image")] },
+  { category: "Audio", formats: [unavailable("MP3", "audio"), unavailable("WAV", "audio"), unavailable("FLAC", "audio")] },
+  { category: "Video", formats: [unavailable("MP4", "video"), unavailable("WebM", "video"), unavailable("MKV", "video")] },
+  { category: "Archives", formats: [unavailable("ZIP", "archive"), unavailable("7z", "archive"), unavailable("TAR", "archive")] },
+  { category: "Structured Data / Spreadsheets", formats: [
+    enabled("JSON ↔ CSV", "Enabled: bundled in-memory JSON and CSV adapter."),
+    enabled("JSON ↔ JSONL", "Enabled: bundled in-memory JSON and JSONL adapter."),
+    enabled("JSON ↔ TSV", "Enabled: bundled in-memory JSON and TSV adapter."),
+    unavailable("XLSX", "spreadsheet"),
+  ] },
+  { category: "Code / Text", formats: [
+    enabled("JSONL ↔ JSON", "Enabled: bundled in-memory JSONL adapter."),
+    enabled("TXT inspection", "Enabled: inspection only; no text rewrite adapter is claimed."),
+    unavailable("XML", "code/text"),
+    unavailable("YAML", "code/text"),
+  ] },
+  { category: "Binary Encodings", formats: [unavailable("Base64", "binary encoding"), unavailable("Hex", "binary encoding"), unavailable("MessagePack", "binary encoding")] },
+];
 
 function detectConverterType(bytes: Uint8Array): ConverterDetectedType {
   const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
@@ -2183,10 +2201,11 @@ export default function SiteShell({
     setConverter((current) => ({ ...current, status: converterCancel.current ? "cancelled" : "complete", progress: 100, message: converterCancel.current ? "Batch conversion cancelled; source files were not changed." : "Batch conversion finished; each file has an honest outcome below." }));
   }, [converterQueue]);
   const converterCatalogResult = useMemo(() => {
-    const values = CONVERTER_CATEGORIES.filter(([category]) => {
+    const values = CONVERTER_CATEGORIES.filter(({ category, formats }) => {
       if (!converterCatalogQuery) return true;
-      if (!converterCatalogRegex) return category.toLocaleLowerCase().includes(converterCatalogQuery.toLocaleLowerCase());
-      try { return new RegExp(converterCatalogQuery, `${converterCatalogFlags.i ? "i" : ""}${converterCatalogFlags.m ? "m" : ""}`).test(category); } catch { return false; }
+      const searchable = `${category} ${formats.map(({ name, reason }) => `${name} ${reason}`).join(" ")}`;
+      if (!converterCatalogRegex) return searchable.toLocaleLowerCase().includes(converterCatalogQuery.toLocaleLowerCase());
+      try { return new RegExp(converterCatalogQuery, `${converterCatalogFlags.i ? "i" : ""}${converterCatalogFlags.m ? "m" : ""}`).test(searchable); } catch { return false; }
     });
     let error = ""; if (converterCatalogRegex && converterCatalogQuery) { try { new RegExp(converterCatalogQuery, `${converterCatalogFlags.i ? "i" : ""}${converterCatalogFlags.m ? "m" : ""}`); } catch (e) { error = e instanceof Error ? e.message : "Invalid regular expression."; } }
     return { values, error };
@@ -6367,9 +6386,9 @@ export default function SiteShell({
               {converter.file && <div className="converter-meta"><span>{converter.file.name} · {formatBytes(converter.file.size)} · detected {converter.detected}</span><progress max="100" value={converter.progress}>{converter.progress}%</progress></div>}
               {converter.preview && <pre className="converter-preview" aria-label={dual("Local file preview", "本機檔案預覽", language)}>{converter.preview}</pre>}
               {converterQueue.length > 0 && <div className="converter-queue" aria-label={dual("Batch conversion queue", "批次轉換排隊", language)}><strong>{dual("Batch outcomes · concurrency 2", "批次結果 · 同時處理 2 個", language)}</strong>{converterQueue.map((item) => <div className="converter-queue-row" key={item.id}><span className="converter-queue-name">{item.file.name} · {formatBytes(item.file.size)}</span><span className={`converter-queue-status converter-queue-${item.status}`}>{item.status}</span><span>{item.message}</span></div>)}</div>}
-              <div className="converter-catalog-search"><label className="search-field" htmlFor="converter-catalog-search"><span aria-hidden="true">⌕</span><input id="converter-catalog-search" value={converterCatalogQuery} onChange={(event) => setConverterCatalogQuery(event.target.value)} placeholder={dual("Search adapter catalog", "搜尋 adapter 目錄", language)} /><button type="button" className={converterCatalogRegex ? "active" : ""} onClick={() => setConverterCatalogRegex((current) => !current)}>{converterCatalogRegex ? "Regex" : "Plain"}</button></label><div className="builder-anchor"><button type="button" className={`builder-button ${converterCatalogBuilderOpen ? "active" : ""}`} onClick={() => setConverterCatalogBuilderOpen((current) => !current)} aria-expanded={converterCatalogBuilderOpen} aria-controls="converter-catalog-regex-builder">.* {dual("Regex builder", "正規表示式工具", language)}</button>{converterCatalogBuilderOpen && <RegexBuilder builderId="converter-catalog-regex-builder" query={converterCatalogQuery} setQuery={setConverterCatalogQuery} regexMode={converterCatalogRegex} setRegexMode={setConverterCatalogRegex} flags={converterCatalogFlags} setFlags={setConverterCatalogFlags} error={converterCatalogResult.error} sample={converterCatalogSample} setSample={setConverterCatalogSample} matches={converterCatalogResult.values.map(([category]) => category)} announce={announce} close={() => setConverterCatalogBuilderOpen(false)} />}</div></div>
+              <div className="converter-catalog-search"><label className="search-field" htmlFor="converter-catalog-search"><span aria-hidden="true">⌕</span><input id="converter-catalog-search" value={converterCatalogQuery} onChange={(event) => setConverterCatalogQuery(event.target.value)} placeholder={dual("Search adapter catalog", "搜尋 adapter 目錄", language)} /><button type="button" className={converterCatalogRegex ? "active" : ""} onClick={() => setConverterCatalogRegex((current) => !current)}>{converterCatalogRegex ? "Regex" : "Plain"}</button></label><div className="builder-anchor"><button type="button" className={`builder-button ${converterCatalogBuilderOpen ? "active" : ""}`} onClick={() => setConverterCatalogBuilderOpen((current) => !current)} aria-expanded={converterCatalogBuilderOpen} aria-controls="converter-catalog-regex-builder">.* {dual("Regex builder", "正規表示式工具", language)}</button>{converterCatalogBuilderOpen && <RegexBuilder builderId="converter-catalog-regex-builder" query={converterCatalogQuery} setQuery={setConverterCatalogQuery} regexMode={converterCatalogRegex} setRegexMode={setConverterCatalogRegex} flags={converterCatalogFlags} setFlags={setConverterCatalogFlags} error={converterCatalogResult.error} sample={converterCatalogSample} setSample={setConverterCatalogSample} matches={converterCatalogResult.values.map(({ category }) => category)} announce={announce} close={() => setConverterCatalogBuilderOpen(false)} />}</div></div>
               <p className="search-meta" aria-live="polite">{converterCatalogResult.error || `${converterCatalogResult.values.length} adapter categor${converterCatalogResult.values.length === 1 ? "y" : "ies"} shown`}</p>
-              <div className="converter-adapter-grid">{converterCatalogResult.values.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" || category === "Code / Text" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" || category === "Code / Text" ? dual("Enabled · JSON ↔ CSV · JSONL · TSV", "已啟用 · JSON ↔ CSV · JSONL · TSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
+              <div className="converter-adapter-grid">{converterCatalogResult.values.map(({ category, formats }) => <article key={category} className="converter-adapter-category"><strong>{category}</strong><div className="converter-format-list">{formats.map((format) => <div key={format.name} className={`converter-format ${format.status}`} aria-disabled={format.status === "unavailable"}><span>{format.name}</span><small>{format.status === "enabled" ? dual("Enabled offline", "離線已啟用", language) : dual("Unavailable", "未有", language)} · {format.reason}</small></div>)}</div></article>)}</div>
             </section>
             <section className="ollama-surface" aria-labelledby="ollama-suite-title">
               <PageHeading eyebrow={dual("Local-only model tools", "本機限定模型工具", language)} title={dual("Ollama suite manager", "Ollama 工具套件管理", language)} body={dual("Use only Ollama's documented local HTTP API for health, installed-model reconciliation, bounded pulls, and local chat. No cloud services, payment semantics, credentials, telemetry, or arbitrary shell commands.", "只會用 Ollama 文件列明嘅本機 HTTP API 做健康檢查、已安裝模型同步、有限 pull 同本機聊天；唔連 cloud、唔收費、唔收集 credentials/telemetry、唔接受任意 shell 指令。", language)} />

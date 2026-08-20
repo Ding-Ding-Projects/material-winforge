@@ -241,3 +241,9 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 - Extended `main-app-design/WinForge M3.dc.html` with the matching deterministic local reference preview and v2 local appearance record.
 - Updated the site/application articles and indexes, universal inventory row, and Unreleased changelog.
 - No network, credential, remote-font, or source-file path is used. Tests, lint, reviews, runtime interaction, accessibility review, captures, release, and publication remain unrun/unverified for this lane.
+
+## Converter catalog completeness lane — `codex/luna-converter-catalog`
+
+- Expanded `pages/app/SiteShell.tsx` and the checked-in design reference so the eight required converter categories enumerate individual formats. Enabled JSON/CSV/JSONL/TSV adapters and TXT inspection remain intact; PDF, document, image, audio, video, archive, spreadsheet, XML/YAML, and binary formats remain visibly disabled with exact missing bundled-adapter reasons.
+- Catalog plain search and its anchored JavaScript regex builder now search category names, format names, and unavailable reasons. No PATH, network, remote converter, source persistence, or bounded queue behavior changed.
+- Updated the converter article, universal inventory, changelog, and this handoff. Tests, lint, reviews, runtime interaction, accessibility review, captures, release, and publication remain unrun/unverified for this lane.
