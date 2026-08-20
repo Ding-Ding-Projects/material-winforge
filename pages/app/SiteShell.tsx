@@ -2041,6 +2041,15 @@ export default function SiteShell({
   const [settingsRestoreId, setSettingsRestoreId] = useState<string | null>(
     null,
   );
+  const [localHistoryQuery, setLocalHistoryQuery] = useState("");
+  const [localHistoryRegex, setLocalHistoryRegex] = useState(false);
+  const [localHistoryBuilderOpen, setLocalHistoryBuilderOpen] = useState(false);
+  const [localHistoryFlags, setLocalHistoryFlags] = useState({ i: true, m: false });
+  const [localHistorySample, setLocalHistorySample] = useState("settings updated\nauthenticator created\ntoy-lock restored");
+  const [localHistoryFrom, setLocalHistoryFrom] = useState("");
+  const [localHistoryTo, setLocalHistoryTo] = useState("");
+  const [localHistoryAction, setLocalHistoryAction] = useState<LocalHistoryEvent["action"] | "all">("all");
+  const [localHistoryRestoreId, setLocalHistoryRestoreId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const schoolEnabled = schoolMode.enabled;
   const language = schoolEnabled ? "en" : prefs.language;
@@ -3099,7 +3108,7 @@ export default function SiteShell({
     appendLocalHistory("settings", action === "restored" ? "restored" : action === "global-reset" || action === "project-reset" ? "updated" : "updated", "Settings presentation metadata changed; private values omitted");
   };
   const appendLocalHistory = (action: LocalHistoryEvent["action"], verb: LocalHistoryEvent["verb"], subject: string) => {
-    const bridge = typeof window !== "undefined" ? (window as unknown as { winforgeGitHistory?: { available?: boolean; append?: (event: Omit<LocalHistoryEvent, "id" | "timestamp">) => void } }).winforgeGitHistory : undefined;
+    const bridge = typeof window !== "undefined" ? (window as unknown as { winforgeGitHistory?: { available?: boolean; append?: (event: Omit<LocalHistoryEvent, "id" | "timestamp">) => unknown } }).winforgeGitHistory : undefined;
     const gitAvailable = bridge?.available === true;
     const event: LocalHistoryEvent = {
       id: `history-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
@@ -3110,7 +3119,17 @@ export default function SiteShell({
       redacted: true,
     };
     setLocalHistory((current) => ({ schemaVersion: 1, backend: gitAvailable ? "git" : "browser-local-fallback", gitAvailable, events: [event, ...current.events].slice(0, 200) }));
-    if (gitAvailable && bridge?.append) bridge.append({ action, verb, subject: event.subject, redacted: true });
+    if (gitAvailable && bridge?.append) {
+      try {
+        const result = bridge.append({ action, verb, subject: event.subject, redacted: true });
+        Promise.resolve(result).then((reply) => {
+          const failed = reply && typeof reply === "object" && (reply as { status?: string }).status && (reply as { status?: string }).status !== "committed" && (reply as { status?: string }).status !== "created" && (reply as { status?: string }).status !== "ok";
+          if (failed) setLocalHistory((current) => ({ ...current, backend: "browser-local-fallback", gitAvailable: false }));
+        }).catch(() => setLocalHistory((current) => ({ ...current, backend: "browser-local-fallback", gitAvailable: false })));
+      } catch {
+        setLocalHistory((current) => ({ ...current, backend: "browser-local-fallback", gitAvailable: false }));
+      }
+    }
   };
   const resetAllSettings = () => {
     const next: Preferences = {
@@ -4045,6 +4064,25 @@ export default function SiteShell({
             .includes(settingsHistoryQuery.toLocaleLowerCase()))
     );
   });
+  let localHistoryPattern: RegExp | null = null;
+  let localHistoryPatternError = "";
+  if (localHistoryRegex && localHistoryQuery) {
+    try {
+      localHistoryPattern = new RegExp(localHistoryQuery, `${localHistoryFlags.i ? "i" : ""}${localHistoryFlags.m ? "m" : ""}`);
+    } catch (error) {
+      localHistoryPatternError = error instanceof Error ? error.message : "Invalid regular expression";
+    }
+  }
+  const localHistoryActions = Array.from(new Set(localHistory.events.map((event) => event.action)));
+  const filteredLocalHistory = localHistory.events.filter((event) => {
+    const day = event.timestamp.slice(0, 10);
+    if (localHistoryFrom && day < localHistoryFrom) return false;
+    if (localHistoryTo && day > localHistoryTo) return false;
+    if (localHistoryAction !== "all" && event.action !== localHistoryAction) return false;
+    const text = `${event.action} ${event.verb} ${event.subject} ${event.timestamp}`;
+    return !localHistoryQuery || (localHistoryRegex ? !!localHistoryPattern?.test(text) : text.toLocaleLowerCase().includes(localHistoryQuery.toLocaleLowerCase()));
+  });
+  const localHistoryActionCounts = Object.fromEntries(localHistoryActions.map((action) => [action, localHistory.events.filter((event) => event.action === action).length])) as Record<LocalHistoryEvent["action"], number>;
   const exportSettingsHistory = () => {
     const markdown = filteredSettingsHistory
       .map(
@@ -8029,6 +8067,31 @@ export default function SiteShell({
           setRestoreId={setSettingsRestoreId}
           restore={restoreSettingsRecord}
           exportMarkdown={exportSettingsHistory}
+          localEvents={filteredLocalHistory}
+          localTotal={localHistory.events.length}
+          localBackend={localHistory.backend}
+          localGitAvailable={localHistory.gitAvailable}
+          localActions={localHistoryActions}
+          localActionCounts={localHistoryActionCounts}
+          localAction={localHistoryAction}
+          setLocalAction={setLocalHistoryAction}
+          localQuery={localHistoryQuery}
+          setLocalQuery={setLocalHistoryQuery}
+          localRegex={localHistoryRegex}
+          setLocalRegex={setLocalHistoryRegex}
+          localBuilderOpen={localHistoryBuilderOpen}
+          setLocalBuilderOpen={setLocalHistoryBuilderOpen}
+          localFlags={localHistoryFlags}
+          setLocalFlags={setLocalHistoryFlags}
+          localPatternError={localHistoryPatternError}
+          localSample={localHistorySample}
+          setLocalSample={setLocalHistorySample}
+          localFrom={localHistoryFrom}
+          setLocalFrom={setLocalHistoryFrom}
+          localTo={localHistoryTo}
+          setLocalTo={setLocalHistoryTo}
+          localRestoreId={localHistoryRestoreId}
+          setLocalRestoreId={setLocalHistoryRestoreId}
           close={() => setSettingsHistoryOpen(false)}
           announce={announce}
         />
@@ -8964,6 +9027,31 @@ function SettingsHistoryCenter({
   setRestoreId,
   restore,
   exportMarkdown,
+  localEvents,
+  localTotal,
+  localBackend,
+  localGitAvailable,
+  localActions,
+  localActionCounts,
+  localAction,
+  setLocalAction,
+  localQuery,
+  setLocalQuery,
+  localRegex,
+  setLocalRegex,
+  localBuilderOpen,
+  setLocalBuilderOpen,
+  localFlags,
+  setLocalFlags,
+  localPatternError,
+  localSample,
+  setLocalSample,
+  localFrom,
+  setLocalFrom,
+  localTo,
+  setLocalTo,
+  localRestoreId,
+  setLocalRestoreId,
   close,
   announce,
 }: {
@@ -8994,6 +9082,31 @@ function SettingsHistoryCenter({
   setRestoreId: (value: string | null) => void;
   restore: () => void;
   exportMarkdown: () => void;
+  localEvents: LocalHistoryEvent[];
+  localTotal: number;
+  localBackend: LocalHistoryJournal["backend"];
+  localGitAvailable: boolean;
+  localActions: LocalHistoryEvent["action"][];
+  localActionCounts: Record<LocalHistoryEvent["action"], number>;
+  localAction: LocalHistoryEvent["action"] | "all";
+  setLocalAction: (value: LocalHistoryEvent["action"] | "all") => void;
+  localQuery: string;
+  setLocalQuery: (value: string) => void;
+  localRegex: boolean;
+  setLocalRegex: (value: boolean) => void;
+  localBuilderOpen: boolean;
+  setLocalBuilderOpen: (value: boolean) => void;
+  localFlags: { i: boolean; m: boolean };
+  setLocalFlags: (value: { i: boolean; m: boolean }) => void;
+  localPatternError: string;
+  localSample: string;
+  setLocalSample: (value: string) => void;
+  localFrom: string;
+  setLocalFrom: (value: string) => void;
+  localTo: string;
+  setLocalTo: (value: string) => void;
+  localRestoreId: string | null;
+  setLocalRestoreId: (value: string | null) => void;
   close: () => void;
   announce: (value: string) => void;
 }) {
@@ -9153,6 +9266,29 @@ function SettingsHistoryCenter({
             ))
           )}
         </div>
+        <section className="local-history-panel" aria-labelledby="local-history-title">
+          <header>
+            <div>
+              <span className="eyebrow">{dual("Redacted local event journal", "刪走秘密資料嘅本機事件記錄", language)}</span>
+              <h3 id="local-history-title">{dual("Settings · authenticator · toy-lock history", "設定 · 驗證器 · 玩具鎖記錄", language)}</h3>
+            </div>
+            <small>{localBackend === "git" && localGitAvailable ? dual("Packaged local Git bridge available", "已提供封裝本機 Git bridge", language) : dual("Browser-local fallback; packaged Git bridge unavailable or did not commit", "瀏覽器本機後備；封裝 Git bridge 未提供或未能提交", language)}</small>
+          </header>
+          <div className="settings-history-search">
+            <label><span>{dual("Search redacted events", "搜尋刪走秘密資料嘅事件", language)}</span><input maxLength={128} value={localQuery} onChange={(event) => setLocalQuery(event.target.value)} /></label>
+            <div className="builder-anchor"><button type="button" className={localRegex ? "active" : ""} onClick={() => setLocalBuilderOpen(!localBuilderOpen)} aria-expanded={localBuilderOpen}>{dual("Regex builder", "正規表示式工具", language)}</button>{localBuilderOpen && <RegexBuilder query={localQuery} setQuery={setLocalQuery} regexMode={localRegex} setRegexMode={setLocalRegex} flags={localFlags} setFlags={setLocalFlags} error={localPatternError} sample={localSample} setSample={setLocalSample} matches={[]} announce={announce} close={() => setLocalBuilderOpen(false)} />}</div>
+          </div>
+          <div className="settings-history-filters">
+            <label>{dual("From ISO date", "由 ISO 日期", language)}<input type="date" value={localFrom} onChange={(event) => setLocalFrom(event.target.value)} /></label>
+            <label>{dual("To ISO date", "至 ISO 日期", language)}<input type="date" value={localTo} onChange={(event) => setLocalTo(event.target.value)} /></label>
+            <label>{dual("Record type", "記錄類型", language)}<select value={localAction} onChange={(event) => setLocalAction(event.target.value as LocalHistoryEvent["action"] | "all")}><option value="all">{dual("All redacted records", "所有刪走秘密資料嘅記錄", language)}</option>{localActions.map((value) => <option key={value} value={value}>{value} ({localActionCounts[value]})</option>)}</select></label>
+          </div>
+          <p aria-live="polite">{dual(`${localEvents.length} shown · ${localTotal} stored locally · restore events are append-only evidence`, `顯示 ${localEvents.length} 個 · 本機儲存 ${localTotal} 個 · 還原事件係追加式證據`, language)}</p>
+          <div className="settings-history-list local-history-list">
+            {!localTotal ? <div className="empty-state" role="status">{dual("No redacted local events have been recorded yet.", "暫時未有刪走秘密資料嘅本機事件。", language)}</div> : !localEvents.length ? <div className="empty-state" role="status">{dual("No local event matches these filters.", "冇本機事件符合呢啲篩選。", language)}</div> : localEvents.map((event) => <article key={event.id}><div><strong>{event.subject}</strong><small>{event.timestamp} · {event.action} · {event.verb}</small><span>{event.redacted ? dual("Redacted metadata only · secrets, hashes, QR payloads, credentials, and personal vocabulary omitted", "只有刪走秘密資料嘅中繼資料 · 秘密、雜湊、QR 資料、認證資料同個人詞彙已省略", language) : ""}</span></div><button type="button" className="outlined-button" onClick={() => setLocalRestoreId(event.id)}>{dual("Restore evidence", "還原證據", language)}</button></article>)}
+          </div>
+          {localRestoreId && (() => { const event = localHistory.events.find((item) => item.id === localRestoreId); return event ? <div className="restore-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="local-restore-evidence-title"><h3 id="local-restore-evidence-title">{dual("Restore evidence", "還原證據", language)}</h3><p>{dual(`This redacted ${event.action} event is evidence only. It contains no raw state and cannot restore data. Settings restore uses the validated settings revision above and records a new restored event; authenticator and toy-lock secrets are never restorable from this journal.`, `呢個刪走秘密資料嘅${event.action}事件只係證據，冇原始狀態，唔可以用嚟還原資料。設定還原要用上面已驗證嘅設定版本，並新增 restored 事件；驗證器同玩具鎖秘密永遠唔會由呢個記錄還原。`, language)}</p><button type="button" className="outlined-button" onClick={() => setLocalRestoreId(null)}>{dual("Close", "關閉", language)}</button></div> : null; })()}
+        </section>
         <footer>
           <span>
             {dual(
