@@ -104,6 +104,17 @@ type NotificationHistory = {
   records: NotificationRecord[];
   readThrough: string | null;
 };
+type AuthenticatorEntry = {
+  id: string;
+  issuer: string;
+  account: string;
+  secret: string;
+  algorithm: "SHA-1" | "SHA-256" | "SHA-512";
+  digits: 6 | 8;
+  period: number;
+  createdAt: string;
+};
+type AuthenticatorState = { schemaVersion: 1; entries: AuthenticatorEntry[] };
 type SettingsHistoryAction =
   | "global-setting-changed"
   | "project-setting-changed"
@@ -164,11 +175,14 @@ const SETTINGS_HISTORY_KEY = "winforge-material-preview-settings-history-v1";
 const NARRATION_KEY = "winforge-material-preview-narration-v1";
 const SCHEDULE_KEY = "winforge-material-preview-schedules-v1";
 const SCHOOL_MODE_KEY = "winforge-material-preview-school-mode-v1";
+const AUTHENTICATOR_KEY = "winforge-material-preview-authenticator-v1";
 const PREFERENCES_MAX_BYTES = 512 * 1024;
 const NOTIFICATION_MAX_BYTES = 128 * 1024;
 const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
 const NARRATION_MAX_BYTES = 16 * 1024;
 const SCHEDULE_MAX_BYTES = 64 * 1024;
+const AUTHENTICATOR_MAX_BYTES = 64 * 1024;
+const DEFAULT_AUTHENTICATOR: AuthenticatorState = { schemaVersion: 1, entries: [] };
 const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
@@ -1189,6 +1203,58 @@ function normalizeNotificationHistory(
   }
   return { schemaVersion: 1, records, readThrough: root.readThrough ?? null };
 }
+function normalizeAuthenticator(value: unknown): AuthenticatorState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Partial<AuthenticatorState>;
+  if (root.schemaVersion !== 1 || !Array.isArray(root.entries) || root.entries.length > 50) return null;
+  const seen = new Set<string>();
+  const entries: AuthenticatorEntry[] = [];
+  for (const item of root.entries) {
+    if (!item || typeof item !== "object" || Object.keys(item).length !== 8) return null;
+    const entry = item as Partial<AuthenticatorEntry>;
+    if (!/^auth-[a-z0-9-]{8,64}$/.test(String(entry.id)) || seen.has(String(entry.id)) ||
+      typeof entry.issuer !== "string" || !entry.issuer.trim() || entry.issuer.length > 96 ||
+      typeof entry.account !== "string" || !entry.account.trim() || entry.account.length > 160 ||
+      typeof entry.secret !== "string" || !/^[A-Z2-7]+=*$/.test(entry.secret) || entry.secret.length > 256 ||
+      !["SHA-1", "SHA-256", "SHA-512"].includes(String(entry.algorithm)) ||
+      ![6, 8].includes(Number(entry.digits)) || !Number.isInteger(entry.period) || entry.period < 15 || entry.period > 120 ||
+      typeof entry.createdAt !== "string" || !Number.isFinite(Date.parse(entry.createdAt)) ||
+      /[\u0000-\u001f\u007f]/.test(`${entry.issuer}${entry.account}`)) return null;
+    seen.add(String(entry.id));
+    entries.push({ id: String(entry.id), issuer: entry.issuer.trim(), account: entry.account.trim(), secret: entry.secret, algorithm: entry.algorithm as AuthenticatorEntry["algorithm"], digits: Number(entry.digits) as 6 | 8, period: Number(entry.period), createdAt: entry.createdAt });
+  }
+  return { schemaVersion: 1, entries };
+}
+function base32Bytes(value: string): Uint8Array {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const clean = value.replace(/=+$/, "");
+  let bits = "";
+  for (const char of clean) { const index = alphabet.indexOf(char); if (index < 0) throw new Error("Secret must use Base32 characters A–Z and 2–7."); bits += index.toString(2).padStart(5, "0"); }
+  const bytes = new Uint8Array(Math.floor(bits.length / 8));
+  for (let i = 0; i < bytes.length; i += 1) bytes[i] = Number.parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+  return bytes;
+}
+function parseOtpInput(value: string, issuer: string, account: string): Omit<AuthenticatorEntry, "id" | "createdAt"> {
+  const raw = value.trim();
+  let parsedIssuer = issuer.trim(); let parsedAccount = account.trim(); let secret = raw;
+  let algorithm: AuthenticatorEntry["algorithm"] = "SHA-1"; let digits: 6 | 8 = 6; let period = 30;
+  if (raw.toLowerCase().startsWith("otpauth://")) {
+    const uri = new URL(raw); if (uri.protocol !== "otpauth:" || uri.hostname !== "totp") throw new Error("Use a TOTP otpauth:// URI.");
+    const label = decodeURIComponent(uri.pathname.replace(/^\//, "")); const [labelIssuer, labelAccount] = label.split(":", 2);
+    parsedIssuer ||= labelIssuer?.trim() ?? ""; parsedAccount ||= labelAccount?.trim() ?? label;
+    secret = uri.searchParams.get("secret") ?? ""; algorithm = (uri.searchParams.get("algorithm") || "SHA1").replace("SHA1", "SHA-1") as AuthenticatorEntry["algorithm"]; digits = Number(uri.searchParams.get("digits") || "6") as 6 | 8; period = Number(uri.searchParams.get("period") || "30");
+  }
+  secret = secret.replace(/[\s-]/g, "").toUpperCase(); base32Bytes(secret);
+  if (!parsedIssuer || parsedIssuer.length > 96 || !parsedAccount || parsedAccount.length > 160) throw new Error("Issuer and account are required and bounded.");
+  if (!["SHA-1", "SHA-256", "SHA-512"].includes(algorithm) || ![6, 8].includes(digits) || !Number.isInteger(period) || period < 15 || period > 120) throw new Error("Algorithm, digits, or period is unsupported.");
+  return { issuer: parsedIssuer, account: parsedAccount, secret, algorithm, digits, period };
+}
+async function generateTotp(entry: AuthenticatorEntry, now = Date.now()): Promise<string> {
+  const counter = Math.floor(now / 1000 / entry.period); const data = new ArrayBuffer(8); const view = new DataView(data); view.setUint32(4, counter, false);
+  const key = await crypto.subtle.importKey("raw", base32Bytes(entry.secret), { name: "HMAC", hash: entry.algorithm }, false, ["sign"]);
+  const digest = new Uint8Array(await crypto.subtle.sign("HMAC", key, data)); const offset = digest[digest.length - 1] & 15; const code = ((digest[offset] & 127) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3];
+  return String(code % 10 ** entry.digits).padStart(entry.digits, "0");
+}
 function normalizeSettingsHistory(value: unknown): SettingsHistory | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const root = value as Partial<SettingsHistory>;
@@ -1322,6 +1388,14 @@ export default function SiteShell({
   const [schoolUnlockInput, setSchoolUnlockInput] = useState("");
   const [narration, setNarration] = useState<NarrationSettings>(DEFAULT_NARRATION);
   const [schedule, setSchedule] = useState<ScheduleState>(DEFAULT_SCHEDULE);
+  const [authenticator, setAuthenticator] = useState<AuthenticatorState>(DEFAULT_AUTHENTICATOR);
+  const [authIssuer, setAuthIssuer] = useState("");
+  const [authAccount, setAuthAccount] = useState("");
+  const [authSecretOrUri, setAuthSecretOrUri] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authQuery, setAuthQuery] = useState("");
+  const [authCodes, setAuthCodes] = useState<Record<string, string>>({});
+  const [authSeconds, setAuthSeconds] = useState(0);
   const [scheduleTick, setScheduleTick] = useState(0);
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleRule>(DEFAULT_SCHEDULE_RULE);
   const [scheduleDraftKey, setScheduleDraftKey] = useState<SiteSettingKey>("theme");
@@ -1708,6 +1782,13 @@ export default function SiteShell({
       } catch {
         removeLocalRecord(SCHEDULE_KEY);
       }
+    const authenticatorRecord = readLocalRecord(AUTHENTICATOR_KEY, AUTHENTICATOR_MAX_BYTES);
+    if (!authenticatorRecord.available) setPersistenceAvailable(false);
+    if (authenticatorRecord.oversized) removeLocalRecord(AUTHENTICATOR_KEY);
+    if (authenticatorRecord.raw) {
+      try { const parsed = normalizeAuthenticator(JSON.parse(authenticatorRecord.raw)); if (parsed) setAuthenticator(parsed); else removeLocalRecord(AUTHENTICATOR_KEY); }
+      catch { removeLocalRecord(AUTHENTICATOR_KEY); }
+    }
     setHydrated(true);
   }, []);
   useEffect(() => {
@@ -1722,6 +1803,17 @@ export default function SiteShell({
   useEffect(() => {
     if (hydrated && !writeLocalRecord(SCHEDULE_KEY, schedule, SCHEDULE_MAX_BYTES)) setPersistenceAvailable(false);
   }, [hydrated, schedule]);
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!writeLocalRecord(AUTHENTICATOR_KEY, authenticator, AUTHENTICATOR_MAX_BYTES)) setPersistenceAvailable(false);
+  }, [authenticator, hydrated]);
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now(); setAuthSeconds(Math.max(0, 30 - Math.floor((now / 1000) % 30)));
+      authenticator.entries.forEach((entry) => { generateTotp(entry, now).then((code) => setAuthCodes((current) => ({ ...current, [entry.id]: code }))).catch(() => undefined); });
+    };
+    tick(); const timerId = window.setInterval(tick, 1000); return () => window.clearInterval(timerId);
+  }, [authenticator.entries]);
   useEffect(() => {
     if (!hydrated) return;
     const timer = window.setInterval(() => setScheduleTick((value) => value + 1), 30_000);
@@ -2833,6 +2925,7 @@ export default function SiteShell({
       "narration",
       `Narrator speech voice English Cantonese both rate pitch ${narration.enabled ? "enabled" : "off"}`,
     ],
+    ["authenticator", `Built-in authenticator local TOTP OTP URI Base32 current code countdown next code search redacted export clear entries ${authenticator.entries.length}`],
     [
       "schedule",
       `Scheduled settings local timezone date time weekdays temporary override ${schedule.rules.length} rules ${activeScheduleId ?? "inactive"}`,
@@ -2961,6 +3054,28 @@ export default function SiteShell({
         language,
       ),
     );
+  };
+  const registerAuthenticator = () => {
+    try {
+      const parsed = parseOtpInput(authSecretOrUri, authIssuer, authAccount);
+      if (authenticator.entries.length >= 50) throw new Error("The local authenticator limit is 50 entries.");
+      const entry: AuthenticatorEntry = { ...parsed, id: `auth-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`, createdAt: new Date().toISOString() };
+      setAuthenticator((current) => ({ schemaVersion: 1, entries: [entry, ...current.entries] }));
+      setAuthIssuer(""); setAuthAccount(""); setAuthSecretOrUri(""); setAuthMessage(dual("Entry added locally. Secret material is omitted from ordinary exports and settings history.", "記錄已加入本機；秘密資料唔會出現喺普通匯出或者設定記錄。", language));
+    } catch (error) { setAuthMessage(error instanceof Error ? error.message : "The authenticator input is invalid."); }
+  };
+  const removeAuthenticator = (id: string) => {
+    setAuthenticator((current) => ({ schemaVersion: 1, entries: current.entries.filter((entry) => entry.id !== id) }));
+    setAuthMessage(dual("Entry removed locally. No secret was exported.", "記錄已喺本機移除；冇秘密資料被匯出。", language));
+  };
+  const clearAuthenticator = () => {
+    setAuthenticator(DEFAULT_AUTHENTICATOR); setAuthCodes({});
+    setAuthMessage(dual("All local authenticator entries cleared. This does not affect any external account.", "所有本機驗證器記錄已清除；唔會影響任何外部帳戶。", language));
+  };
+  const exportAuthenticatorRedacted = () => {
+    const body = JSON.stringify({ schemaVersion: 1, entries: authenticator.entries.map(({ id, issuer, account, algorithm, digits, period, createdAt }) => ({ id, issuer, account, algorithm, digits, period, createdAt })), note: "Secret material omitted from this ordinary export." }, null, 2);
+    const url = URL.createObjectURL(new Blob([body], { type: "application/json" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "winforge-authenticator-redacted.json"; anchor.click(); URL.revokeObjectURL(url);
+    setAuthMessage(dual("Redacted export downloaded; secret material was omitted.", "已下載刪走秘密資料嘅匯出檔；秘密資料冇包括喺內。", language));
   };
   const resetProjectOverrides = () => {
     if (!activeSettingsProject) return;
@@ -3626,6 +3741,12 @@ export default function SiteShell({
       language,
     ),
     action: () => setSettingsHistoryOpen(true),
+  });
+  commands.push({
+    id: "authenticator",
+    label: dual("Open built-in authenticator", "開啟內置驗證器", language),
+    detail: dual("Manage local TOTP entries, live codes, and redacted exports", "管理本機 TOTP 記錄、即時驗證碼同刪走秘密資料嘅匯出", language),
+    action: () => { setSettingsQuery(""); selectTab("settings", "authenticator-settings"); },
   });
   commands.push({
     id: "app-logo-upload",
@@ -5549,6 +5670,29 @@ export default function SiteShell({
                     <p className="supporting-copy">This is a self-imposed UX lock, not security. Recovery: clear this site's browser storage, then reload.</p>
                   </div>
                 )}
+              </SettingCard>
+              <SettingCard
+                id="authenticator-settings"
+                hidden={!settingsVisible("authenticator")}
+                title={dual("Built-in authenticator", "內置驗證器", language)}
+                description={dual("Keep bounded TOTP entries on this device. Register an otpauth:// URI or a Base32 secret; codes are generated locally with RFC 6238-compatible HMAC.", "喺呢部裝置保存有限度 TOTP 記錄。可以登記 otpauth:// URI 或 Base32 秘密；驗證碼用本機 RFC 6238 相容 HMAC 生成。", language)}
+                provenance={dual(`${authenticator.entries.length} local entries · secrets omitted from ordinary exports and settings history`, `${authenticator.entries.length} 個本機記錄 · 秘密資料唔會出現喺普通匯出同設定記錄`, language)}
+              >
+                <div className="authenticator-card">
+                  <p className="supporting-copy">{dual("This site uses browser storage, not an operating-system vault. It is local convenience, not security. No QR service or network dependency is used; this build has no declared local QR renderer.", "呢個網站用瀏覽器儲存，唔係作業系統保管庫。只係本機方便，唔係安全功能。冇 QR 服務或者網絡依賴；呢個版本未有已宣告嘅本機 QR 繪圖器。", language)}</p>
+                  <div className="authenticator-register-grid">
+                    <label><span>{dual("Issuer", "發行者", language)}</span><input value={authIssuer} maxLength={96} onChange={(event) => setAuthIssuer(event.target.value)} /></label>
+                    <label><span>{dual("Account", "帳戶", language)}</span><input value={authAccount} maxLength={160} onChange={(event) => setAuthAccount(event.target.value)} /></label>
+                    <label className="authenticator-secret"><span>{dual("Base32 secret or otpauth:// URI", "Base32 秘密或者 otpauth:// URI", language)}</span><input value={authSecretOrUri} maxLength={512} onChange={(event) => setAuthSecretOrUri(event.target.value)} autoComplete="off" /></label>
+                  </div>
+                  <div className="authenticator-actions"><button type="button" className="filled-button" onClick={registerAuthenticator}>{dual("Add local entry", "加入本機記錄", language)}</button><button type="button" className="outlined-button" onClick={exportAuthenticatorRedacted} disabled={!authenticator.entries.length}>{dual("Export redacted JSON", "匯出刪走秘密資料嘅 JSON", language)}</button><button type="button" className="outlined-button" onClick={clearAuthenticator} disabled={!authenticator.entries.length}>{dual("Clear all entries", "清除全部記錄", language)}</button></div>
+                  {authMessage && <p className="supporting-copy" role="status">{authMessage}</p>}
+                  <div className="authenticator-search"><label className="search-field"><span aria-hidden="true">⌕</span><input value={authQuery} maxLength={128} onChange={(event) => setAuthQuery(event.target.value)} placeholder={dual("Search issuer or account", "搜尋發行者或者帳戶", language)} aria-label={dual("Search authenticator entries", "搜尋驗證器記錄", language)} /></label><button type="button" className="outlined-button" onClick={() => setAuthQuery("")}>{dual("Plain text", "純文字", language)}</button></div>
+                  <div className="authenticator-list" aria-live="polite">
+                    {!authenticator.entries.length && <p className="empty-state">{dual("No local authenticator entries yet.", "仲未有本機驗證器記錄。", language)}</p>}
+                    {authenticator.entries.filter((entry) => `${entry.issuer} ${entry.account}`.toLocaleLowerCase().includes(authQuery.toLocaleLowerCase())).map((entry) => <article className="authenticator-entry" key={entry.id}><div><strong>{entry.issuer}</strong><span>{entry.account}</span><small>{entry.algorithm} · {entry.digits} digits · {entry.period}s · {dual("local only", "只限本機", language)}</small></div><div className="authenticator-code"><strong>{authCodes[entry.id] ?? "------"}</strong><span>{authSeconds}s · {dual("next code soon", "下一個碼就嚟", language)}</span></div><button type="button" className="text-button" onClick={() => removeAuthenticator(entry.id)}>{dual("Remove", "移除", language)}</button></article>)}
+                  </div>
+                </div>
               </SettingCard>
               <SettingCard
                 id="scheduled-settings"

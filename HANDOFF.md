@@ -28,6 +28,14 @@ The release workflow now responds to pushes on `main` and manual dispatch only. 
 
 ## Current scope
 
+## Built-in authenticator lane — `codex/luna-authenticator`
+
+- Added a bounded local TOTP authenticator to `pages/app/SiteShell.tsx` and responsive styling in `pages/app/globals.css`.
+- Added URI/manual Base32 registration validation, SHA-1/SHA-256/SHA-512 HMAC generation, 6/8 digit output, bounded periods, live countdown, local search, per-entry remove, clear-all, command-palette routing, and redacted JSON export that omits secrets.
+- Added design-reference coverage in `main-app-design/WinForge M3.dc.html`, categorized articles in `docs/site/authenticator.md` and `docs/application/authenticator.md`, index rows, completeness inventory evidence, and Unreleased changelog text.
+- The site uses bounded browser storage rather than a credential vault and explicitly claims convenience, not security. No QR renderer is declared, so no QR image or remote QR service was added.
+- No tests, lint, reviews, screenshots, runtime interaction, packaging, release, or publication were run. Build and design-template validation remain unverified.
+
 This repository bootstraps **WinForge · Material 3 Preview**: an Electron desktop design preview plus a one-route vinext landing and documentation site. The site is deliberately honest that it is not the installed application and does not change Windows settings.
 
 ## Scheduled settings slice

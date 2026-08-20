@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a bounded local built-in authenticator to the Pages shell and desktop design reference. It accepts validated TOTP `otpauth://` URIs or Base32 secrets, computes RFC 6238-compatible HMAC codes locally, shows a live countdown, supports search and command-palette routing, and offers redacted ordinary export plus explicit clear/remove actions. No QR service or new network dependency is added because no declared local QR renderer exists.
+
+## Unreleased
+
 - Added the desktop narrator counterpart: opt-in local notification speech, English/Cantonese/bilingual serialization, runtime voice enumeration with stable IDs, automatic and missing-voice fallback, bounded rate/pitch controls, local persistence, Settings search, and command-palette routing. Tests, lint, packaged runtime interaction, accessibility review, and captures remain unrun for this slice.
 
 - Added local, user-renamable School mode to the Pages shell and desktop design/runtime surface: salted Web Crypto unlock hashes, immediate English-only presentation, hidden funny-level/personal-vocabulary/dim-sum affordances while enabled, prior-choice restoration, command-palette discovery, and honest local-storage recovery. Tests, lint, runtime interaction, accessibility review, captures, release, and publication remain unrun for this slice.
