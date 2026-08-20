@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a local file converter surface with 2 MiB byte-bounded JSON/CSV/TXT detection, categorized adapter catalog, offline JSON ↔ CSV conversion, preview, progress, cancellation, atomic browser download, and truthful unavailable-adapter reasons. Runtime interaction, tests, lint, captures, release, and publication remain unrun for this lane.
+
 - Add a bounded local built-in authenticator to the Pages shell and desktop design reference. It accepts validated TOTP `otpauth://` URIs or Base32 secrets, computes RFC 6238-compatible HMAC codes locally, shows a live countdown, supports search and command-palette routing, offers redacted ordinary export plus explicit clear/remove actions, and renders a bounded in-process QR with a copyable URI text alternative. No QR service or new network dependency is added.
 
 ## Unreleased

@@ -169,6 +169,72 @@ type CatalogItem = {
   tab: TabId;
 };
 
+type ConverterDetectedType = "json" | "csv" | "txt" | "unknown";
+type ConverterState = {
+  file: File | null;
+  detected: ConverterDetectedType;
+  target: "json" | "csv";
+  preview: string;
+  status: "empty" | "ready" | "converting" | "complete" | "error" | "cancelled";
+  progress: number;
+  message: string;
+};
+
+const CONVERTER_MAX_BYTES = 2 * 1024 * 1024;
+const CONVERTER_CATEGORIES = [
+  ["Documents / PDF", "No bundled offline adapter; PDF conversion is unavailable."],
+  ["Images", "No bundled offline adapter; image conversion is unavailable."],
+  ["Audio", "No bundled offline adapter; audio conversion is unavailable."],
+  ["Video", "No bundled offline adapter; video conversion is unavailable."],
+  ["Archives", "No bundled offline adapter; archive conversion is unavailable."],
+  ["Structured Data / Spreadsheets", "JSON ↔ CSV is available offline."],
+  ["Code / Text", "TXT is detected for inspection; no write adapter is bundled."],
+  ["Binary Encodings", "No bundled offline adapter; binary conversion is unavailable."],
+] as const;
+
+function detectConverterType(bytes: Uint8Array): ConverterDetectedType {
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  const trimmed = text.replace(/^\uFEFF/, "").trim();
+  if (!trimmed) return "unknown";
+  try { JSON.parse(trimmed); return "json"; } catch { /* continue with CSV/TXT detection */ }
+  const firstLine = trimmed.split(/\r?\n/, 1)[0] ?? "";
+  if (firstLine.includes(",") || firstLine.includes("\t")) return "csv";
+  if (/^[\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFF]*$/.test(trimmed)) return "txt";
+  return "unknown";
+}
+
+function parseConverterCsv(text: string): string[][] {
+  const rows: string[][] = []; let row: string[] = []; let cell = ""; let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') { if (quoted && text[i + 1] === '"') { cell += '"'; i += 1; } else quoted = !quoted; }
+    else if (char === "," && !quoted) { row.push(cell); cell = ""; }
+    else if ((char === "\n" || char === "\r") && !quoted) { if (char === "\r" && text[i + 1] === "\n") i += 1; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += char;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter((item) => item.some((value) => value.trim() !== ""));
+}
+
+function converterCsvCell(value: unknown) {
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function convertJsonToCsv(value: unknown): string {
+  const rows = Array.isArray(value) ? value : [value];
+  const objects = rows.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item));
+  if (!objects.length) throw new Error("JSON must contain an object or an array of objects for CSV conversion.");
+  const keys = Array.from(new Set(objects.flatMap((item) => Object.keys(item))));
+  return [keys.map(converterCsvCell).join(","), ...objects.map((item) => keys.map((key) => converterCsvCell(item[key] ?? "")).join(","))].join("\r\n");
+}
+
+function convertCsvToJson(text: string): string {
+  const rows = parseConverterCsv(text); if (!rows.length) throw new Error("CSV has no rows.");
+  const [headers, ...data] = rows; if (!headers.length || headers.some((header) => !header.trim())) throw new Error("CSV needs a non-empty header row.");
+  return JSON.stringify(data.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""]))), null, 2);
+}
+
 const STORAGE_KEY = "winforge-material-preview-preferences-v1";
 const NOTIFICATION_KEY = "winforge-material-preview-notifications-v1";
 const SETTINGS_HISTORY_KEY = "winforge-material-preview-settings-history-v1";
@@ -371,6 +437,26 @@ const CATALOG: CatalogItem[] = [
     "已發佈版本、日期、commit 連結、有限搜尋、日期篩選、複製同 Markdown 匯出。",
     "changelog",
   ],
+  [
+    "file-converter",
+    "feature",
+    "Files",
+    "Local file converter",
+    "本機檔案轉換器",
+    "Pick a bounded local JSON or CSV file, preview it, and convert it offline. Other categories stay visible with truthful unavailable-adapter reasons.",
+    "揀有限大小嘅本機 JSON 或 CSV 檔案、預覽，再離線轉換；其他類別照樣顯示真正未有 adapter 嘅原因。",
+    "features",
+  ],
+  [
+    "file-converter-doc",
+    "article",
+    "Files",
+    "File converter",
+    "檔案轉換器",
+    "The local-only JSON ↔ CSV adapter, byte bound, preview, cancellation, and atomic browser download behavior.",
+    "本機限定 JSON ↔ CSV adapter、檔案大小限制、預覽、取消同原子瀏覽器下載行為。",
+    "docs",
+  ],
 ].map(([id, type, category, title, titleYue, summary, summaryYue, tab]) => ({
   id,
   type,
@@ -534,6 +620,19 @@ const ARTICLES = [
       ],
     ],
     related: ["Preview boundary", "Search and regex builder"],
+  },
+  {
+    id: "file-converter-doc",
+    title: "File converter",
+    titleYue: "檔案轉換器",
+    sections: [
+      ["Behavior", "行為", "The picker reads only a bounded local file. Byte inspection detects JSON, CSV, or text; the only enabled write adapter is offline JSON ↔ CSV.", "揀檔案只會讀有限大小嘅本機檔案。按 bytes 偵測 JSON、CSV 或文字；唯一啟用嘅寫入 adapter 係離線 JSON ↔ CSV。"],
+      ["Configuration", "設定", "The 2 MiB limit, target format, preview, progress, cancel action, and downloaded filename are shown in the converter surface.", "畫面會顯示 2 MiB 限制、目標格式、預覽、進度、取消操作同下載檔名。"],
+      ["Failure modes", "失敗處理", "Malformed JSON, missing CSV headers, oversized files, unsupported types, cancellation, and conversion errors leave the source untouched and download no partial result.", "JSON 格式錯、CSV 冇標題、檔案太大、未支援類型、取消或者轉換錯誤都唔會改來源，亦唔會下載半份結果。"],
+      ["Security and privacy", "安全同私隱", "No network request or remote converter is used. File contents stay in memory for the local operation and are not logged, exported, or persisted.", "唔會用網絡請求或者遠端 converter。檔案內容只留喺本機記憶體處理，唔會寫入 log、匯出或者保存。"],
+      ["Verification", "驗證", "Unavailable categories remain visible with their exact missing-adapter reason; only the JSON ↔ CSV path can produce a download.", "未有 adapter 嘅類別會照樣顯示真正原因；只有 JSON ↔ CSV 路徑可以產生下載。"],
+    ],
+    related: ["Search and regex builder", "Preview boundary"],
   },
 ];
 const CHANGELOG_ENTRIES = [
@@ -1502,6 +1601,9 @@ export default function SiteShell({
   const movePickerDialog = useRef<HTMLElement | null>(null);
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
   const [query, setQuery] = useState("");
+  const [converter, setConverter] = useState<ConverterState>({ file: null, detected: "unknown", target: "csv", preview: "", status: "empty", progress: 0, message: "" });
+  const converterTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const converterCancel = useRef(false);
   const [regexMode, setRegexMode] = useState(false);
   const [flags, setFlags] = useState({ i: true, m: false });
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -1628,6 +1730,29 @@ export default function SiteShell({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const schoolEnabled = schoolMode.enabled;
   const language = schoolEnabled ? "en" : prefs.language;
+  const inspectConverterFile = useCallback(async (file: File | null) => {
+    if (!file) return;
+    if (file.size > CONVERTER_MAX_BYTES) { setConverter({ file, detected: "unknown", target: "csv", preview: "", status: "error", progress: 0, message: "Files must be 2 MiB or smaller; nothing was read." }); return; }
+    const bytes = new Uint8Array(await file.slice(0, CONVERTER_MAX_BYTES).arrayBuffer());
+    const detected = detectConverterType(bytes);
+    const text = new TextDecoder().decode(bytes);
+    setConverter({ file, detected, target: detected === "csv" ? "json" : "csv", preview: text.slice(0, 4000), status: detected === "json" || detected === "csv" ? "ready" : "error", progress: 0, message: detected === "json" || detected === "csv" ? "Ready for the bundled offline adapter." : "This file is detected for inspection only; no adapter is enabled for it." });
+  }, []);
+  const cancelConverter = useCallback(() => { converterCancel.current = true; if (converterTimer.current) clearInterval(converterTimer.current); converterTimer.current = null; setConverter((current) => ({ ...current, status: "cancelled", message: "Conversion cancelled; the source file was not changed." })); }, []);
+  const runConverter = useCallback(async () => {
+    if (!converter.file || (converter.detected !== "json" && converter.detected !== "csv")) return;
+    converterCancel.current = false; setConverter((current) => ({ ...current, status: "converting", progress: 0, message: "Converting locally…" }));
+    let progress = 0; converterTimer.current = setInterval(() => { progress = Math.min(90, progress + 15); setConverter((current) => ({ ...current, progress })); }, 70);
+    try {
+      const text = await converter.file.text();
+      const output = converter.detected === "json" && converter.target === "csv" ? convertJsonToCsv(JSON.parse(text)) : converter.detected === "csv" && converter.target === "json" ? convertCsvToJson(text) : text;
+      if (converterCancel.current) return;
+      const blob = new Blob([output], { type: converter.target === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${converter.file.name.replace(/\.[^.]+$/, "")}.${converter.target}`; anchor.click(); URL.revokeObjectURL(url);
+      setConverter((current) => ({ ...current, status: "complete", progress: 100, message: `Converted ${converter.file?.name} locally and downloaded the ${converter.target.toUpperCase()} result.` })); setToast("File conversion complete.");
+    } catch (error) { setConverter((current) => ({ ...current, status: "error", progress: 0, message: error instanceof Error ? error.message : "Conversion failed; no output was downloaded." })); }
+    finally { if (converterTimer.current) clearInterval(converterTimer.current); converterTimer.current = null; }
+  }, [converter]);
   const drainSpeech = useCallback(() => {
     if (speechRunning.current || !narration.enabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const next = speechQueue.current.shift();
@@ -5528,6 +5653,23 @@ export default function SiteShell({
                 </p>
               </div>
             )}
+            <section className="converter-surface" aria-labelledby="file-converter-title">
+              <PageHeading
+                eyebrow={dual("Local and bounded", "本機同有限", language)}
+                title={dual("File converter", "檔案轉換器", language)}
+                body={dual("Choose a local file up to 2 MiB. Only the offline JSON ↔ CSV adapter can write a result; every other category stays visible with its real unavailable reason.", "揀一個最多 2 MiB 嘅本機檔案。只有離線 JSON ↔ CSV adapter 可以寫結果；其他類別照樣顯示真正未有原因。", language)}
+              />
+              <div className="converter-controls">
+                <label className="file-picker-field"><span>{dual("Source file", "來源檔案", language)}</span><input type="file" accept=".json,.csv,.txt,application/json,text/csv,text/plain" onChange={(event) => void inspectConverterFile(event.target.files?.[0] ?? null)} aria-describedby="converter-status" /></label>
+                <label><span>{dual("Target format", "目標格式", language)}</span><select value={converter.target} onChange={(event) => setConverter((current) => ({ ...current, target: event.target.value as "json" | "csv" }))} disabled={converter.detected !== "json" && converter.detected !== "csv"}><option value="json">JSON</option><option value="csv">CSV</option></select></label>
+                <button type="button" className="filled-button" onClick={() => void runConverter()} disabled={converter.status === "converting" || !converter.file || (converter.detected !== "json" && converter.detected !== "csv")}>{dual("Convert and download", "轉換同下載", language)}</button>
+                <button type="button" className="outlined-button" onClick={cancelConverter} disabled={converter.status !== "converting"}>{dual("Cancel", "取消", language)}</button>
+              </div>
+              <p id="converter-status" className="supporting-copy" role="status" aria-live="polite">{converter.message || dual("No file selected. Source files remain unchanged.", "未揀檔案；來源檔案唔會改。", language)}</p>
+              {converter.file && <div className="converter-meta"><span>{converter.file.name} · {formatBytes(converter.file.size)} · detected {converter.detected}</span><progress max="100" value={converter.progress}>{converter.progress}%</progress></div>}
+              {converter.preview && <pre className="converter-preview" aria-label={dual("Local file preview", "本機檔案預覽", language)}>{converter.preview}</pre>}
+              <div className="converter-adapter-grid">{CONVERTER_CATEGORIES.map(([category, reason]) => <article key={category} className={`converter-adapter ${category === "Structured Data / Spreadsheets" ? "enabled" : "disabled"}`}><strong>{category}</strong><span>{category === "Structured Data / Spreadsheets" ? dual("Enabled · JSON ↔ CSV", "已啟用 · JSON ↔ CSV", language) : dual("Unavailable", "未有", language)}</span><small>{reason}</small></article>)}</div>
+            </section>
           </Panel>
         )}
         {activeTab === "docs" && (

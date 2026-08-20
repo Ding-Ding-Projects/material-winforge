@@ -3924,6 +3924,40 @@ class Component extends DCLogic {
     return V;
   }
 }
+  // ── local file converter reference surface ───────────────────────────────
+  V.fileConverter = {
+    maxBytes: 2 * 1024 * 1024,
+    categories: [
+      ['Documents / PDF', 'Unavailable · no bundled offline adapter'],
+      ['Images', 'Unavailable · no bundled offline adapter'],
+      ['Audio', 'Unavailable · no bundled offline adapter'],
+      ['Video', 'Unavailable · no bundled offline adapter'],
+      ['Archives', 'Unavailable · no bundled offline adapter'],
+      ['Structured Data / Spreadsheets', 'Enabled · JSON ↔ CSV'],
+      ['Code / Text', 'Detection only · no write adapter'],
+      ['Binary Encodings', 'Unavailable · no bundled offline adapter'],
+    ],
+  };
+</script>
+<section id="file-converter-reference" aria-labelledby="file-converter-reference-title" style="max-width:1120px;margin:32px auto;padding:28px;border:1px solid var(--md-sys-color-outline-variant);border-radius:24px;background:var(--md-sys-color-surface-container)">
+  <div style="display:flex;justify-content:space-between;gap:20px;align-items:end;flex-wrap:wrap"><div><div class="eyebrow">LOCAL AND BOUNDED</div><h2 id="file-converter-reference-title" style="margin:4px 0 8px">File converter</h2><p style="max-width:680px;color:var(--md-sys-color-on-surface-variant)">Pick a local file up to 2 MiB. Only the offline JSON ↔ CSV adapter writes a result; every other category states its unavailable reason.</p></div><label style="display:grid;gap:6px;min-width:240px"><span>Source file</span><input id="design-converter-file" type="file" accept=".json,.csv,.txt,application/json,text/csv,text/plain" style="min-height:44px"></label></div>
+  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:18px"><label style="display:grid;gap:6px"><span>Target format</span><select id="design-converter-target" style="min-height:44px;padding:8px 12px"><option value="csv">CSV</option><option value="json">JSON</option></select></label><button id="design-converter-run" type="button" style="min-height:44px;padding:0 18px;border:0;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)">Convert and download</button><button id="design-converter-cancel" type="button" style="min-height:44px;padding:0 18px;border:1px solid var(--md-sys-color-outline);border-radius:999px;background:transparent;color:inherit" disabled>Cancel</button></div>
+  <p id="design-converter-status" role="status" aria-live="polite" style="margin:16px 0;color:var(--md-sys-color-on-surface-variant)">No file selected. Source files remain unchanged.</p><progress id="design-converter-progress" max="100" value="0" style="width:100%">0%</progress><pre id="design-converter-preview" style="max-height:180px;overflow:auto;white-space:pre-wrap;background:var(--md-sys-color-surface);padding:14px;border-radius:12px"></pre>
+  <div id="design-converter-adapters" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:18px"></div>
+</section>
+<script>
+(() => {
+  const root = document.getElementById('file-converter-reference'); if (!root) return;
+  const categories = [['Documents / PDF','Unavailable · no bundled offline adapter'],['Images','Unavailable · no bundled offline adapter'],['Audio','Unavailable · no bundled offline adapter'],['Video','Unavailable · no bundled offline adapter'],['Archives','Unavailable · no bundled offline adapter'],['Structured Data / Spreadsheets','Enabled · JSON ↔ CSV'],['Code / Text','Detection only · no write adapter'],['Binary Encodings','Unavailable · no bundled offline adapter']];
+  const grid = document.getElementById('design-converter-adapters'); if (grid) grid.innerHTML = categories.map(([name, state]) => `<article style="display:grid;gap:5px;padding:14px;border:1px solid var(--md-sys-color-outline-variant);border-radius:12px"><strong>${name}</strong><small>${state}</small></article>`).join('');
+  const input = document.getElementById('design-converter-file'), target = document.getElementById('design-converter-target'), run = document.getElementById('design-converter-run'), cancel = document.getElementById('design-converter-cancel'), status = document.getElementById('design-converter-status'), preview = document.getElementById('design-converter-preview'), progress = document.getElementById('design-converter-progress');
+  let file = null, kind = 'unknown', stopped = false, timer = null;
+  const csv = (text) => { const rows=[]; let row=[], cell='', quoted=false; for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}else cell+=c;}if(cell||row.length){row.push(cell);rows.push(row);}return rows.filter(r=>r.some(v=>v.trim())); };
+  const quote = v => { const t = typeof v === 'string' ? v : JSON.stringify(v); return /[,\r\n"]/.test(t) ? `"${t.replace(/"/g,'""')}"` : t; };
+  input.addEventListener('change', async () => { file=input.files && input.files[0]; if(!file)return; if(file.size>2*1024*1024){kind='unknown';status.textContent='Files must be 2 MiB or smaller; nothing was read.';return;} const text=await file.slice(0,2*1024*1024).text(); preview.textContent=text.slice(0,4000); try{JSON.parse(text);kind='json';target.value='csv';}catch{kind=text.split(/\r?\n/,1)[0].includes(',')?'csv':'txt';target.value='json';} status.textContent=kind==='json'||kind==='csv'?'Ready for the bundled offline adapter.':'This file is detected for inspection only; no adapter is enabled for it.'; });
+  cancel.addEventListener('click',()=>{stopped=true;if(timer)clearInterval(timer);cancel.disabled=true;status.textContent='Conversion cancelled; the source file was not changed.';});
+  run.addEventListener('click',async()=>{if(!file||!['json','csv'].includes(kind))return;stopped=false;run.disabled=true;cancel.disabled=false;progress.value=0;status.textContent='Converting locally…';let p=0;timer=setInterval(()=>{p=Math.min(90,p+15);progress.value=p;},70);try{const text=await file.text();let out='';if(kind==='json'&&target.value==='csv'){const value=JSON.parse(text), rows=Array.isArray(value)?value:[value], objs=rows.filter(v=>v&&typeof v==='object'&&!Array.isArray(v)), keys=[...new Set(objs.flatMap(v=>Object.keys(v)))];if(!objs.length)throw Error('JSON must contain an object or an array of objects.');out=[keys.map(quote).join(','),...objs.map(v=>keys.map(k=>quote(v[k]??'')).join(','))].join('\r\n');}else if(kind==='csv'&&target.value==='json'){const rows=csv(text), headers=rows.shift();if(!headers||headers.some(h=>!h.trim()))throw Error('CSV needs a non-empty header row.');out=JSON.stringify(rows.map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]||'']))),null,2);}else out=text;if(stopped)return;const a=document.createElement('a'),u=URL.createObjectURL(new Blob([out],{type:target.value==='json'?'application/json':'text/csv'}));a.href=u;a.download=file.name.replace(/\.[^.]+$/,'')+'.'+target.value;a.click();URL.revokeObjectURL(u);progress.value=100;status.textContent='Converted locally and downloaded a complete result.';}catch(e){status.textContent=e.message||'Conversion failed; no output was downloaded.';}finally{clearInterval(timer);timer=null;run.disabled=false;cancel.disabled=true;}});
+})();
 </script>
 </body>
 </html>

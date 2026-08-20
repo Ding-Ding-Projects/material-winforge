@@ -16,6 +16,7 @@ The Preview Data attestation now identifies both sides of that boundary and repo
 - [Desktop narrator](narration.md)
 - [School mode](school-mode.md)
 - [Built-in authenticator](authenticator.md) — desktop reference for local TOTP registration, including the in-process QR intent and URI text alternative.
+- [Local file converter](file-converter.md) — desktop design/runtime counterpart for the bounded offline JSON ↔ CSV adapter.
 - [Changelog viewer](changelog-viewer.md)
 - [Flush DNS](flush-dns.md)
 - [Restart Explorer](restart-explorer.md)

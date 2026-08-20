@@ -1,5 +1,12 @@
 # Handoff
 
+## Local file-converter lane — `codex/luna-file-converter`
+
+- Added the bounded Pages converter in `pages/app/SiteShell.tsx` and `pages/app/globals.css`: local picker, byte-based JSON/CSV/TXT detection, 2 MiB bound, preview, offline JSON ↔ CSV adapter, progress/cancel, atomic browser download, and visible unavailable reasons for all other converter categories.
+- Added categorized site and desktop documentation, indexes, the universal-feature inventory row, and an Unreleased changelog entry. The desktop design/runtime reference update is in progress in `main-app-design/WinForge M3.dc.html`.
+- No file content, path, secret, or converter output is persisted or logged; no network or remote converter is used.
+- Tests, lint, reviews, screenshots, packaged runtime interaction, accessibility review, release, and publication are intentionally unrun for this bounded lane.
+
 ## Desktop narrator lane — `codex/luna-desktop-narrator`
 
 - Added the desktop narrator card to `main-app-design/WinForge M3.dc.html`: opt-in local notification speech, English/Cantonese/bilingual serialized queue, runtime voice enumeration using stable platform `voiceURI` IDs, automatic and missing-voice fallback, bounded rate/pitch controls, local persistence, Settings search, and `Ctrl+Shift+F` command-palette routing.
