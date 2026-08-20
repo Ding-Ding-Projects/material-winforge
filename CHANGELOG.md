@@ -1,6 +1,7 @@
 # Changelog
 
 - Added guided local Ollama pull and chat operation cards with 30-second/512 KiB bounds, cancellation and explicit no-success-on-timeout behavior; installed-model refresh reconciliation and fixed allowlisted harness previews remain local-only, with no cloud, payment, credential, telemetry, or arbitrary-shell semantics. Tests, lint, packaged interaction, screenshots, release, and publication remain unrun for this lane.
+- Added a bounded local waiting aid for toy-lock lockouts: four-choice dim sum, ten easy sums, a timed whack-a-mole rung, and clock-only fallback after a lost round. School mode starts at sums. Expiry, replay, early-submit, attempt-budget, and no-credential/session boundaries are explicit. Tests, lint, reviews, captures, runtime interaction, release, and publication remain unrun/unverified for this slice.
 
 ## Unreleased — redacted local Git history
 
