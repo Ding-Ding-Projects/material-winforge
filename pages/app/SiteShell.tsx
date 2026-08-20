@@ -22,6 +22,9 @@ type TabGroupAppearance = {
   icon: string;
   textColor: string;
   backgroundColor: string;
+  radius: number;
+  fontSize: number;
+  fontWeight: 400 | 500 | 600 | 700;
 };
 type GroupSearchState = {
   query: string;
@@ -438,6 +441,9 @@ const DEFAULT_GROUP_APPEARANCE: TabGroupAppearance = {
   icon: "▦",
   textColor: "#1b1b1f",
   backgroundColor: "#f3f3f7",
+  radius: 16,
+  fontSize: 14,
+  fontWeight: 600,
 };
 const DEFAULT_ELEMENT_APPEARANCE: ElementAppearance = {
   fontFamily: "inherit",
@@ -1310,7 +1316,8 @@ function normalizeTabGroupAppearance(value: unknown): TabGroupAppearance | null 
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const root = value as Record<string, unknown>;
   if (
-    Object.keys(root).length !== 3 ||
+    Object.keys(root).some((key) => !["icon", "textColor", "backgroundColor", "radius", "fontSize", "fontWeight"].includes(key)) ||
+    Object.keys(root).length < 3 ||
     typeof root.icon !== "string" ||
     root.icon.length < 1 ||
     root.icon.length > 2 ||
@@ -1318,13 +1325,19 @@ function normalizeTabGroupAppearance(value: unknown): TabGroupAppearance | null 
     typeof root.textColor !== "string" ||
     !/^#[0-9a-f]{6}$/i.test(root.textColor) ||
     typeof root.backgroundColor !== "string" ||
-    !/^#[0-9a-f]{6}$/i.test(root.backgroundColor)
+    !/^#[0-9a-f]{6}$/i.test(root.backgroundColor) ||
+    (root.radius !== undefined && (typeof root.radius !== "number" || !Number.isFinite(root.radius) || root.radius < 0 || root.radius > 32)) ||
+    (root.fontSize !== undefined && (typeof root.fontSize !== "number" || !Number.isFinite(root.fontSize) || root.fontSize < 12 || root.fontSize > 24)) ||
+    (root.fontWeight !== undefined && ![400, 500, 600, 700].includes(Number(root.fontWeight)))
   )
     return null;
   return {
     icon: root.icon,
     textColor: root.textColor.toLowerCase(),
     backgroundColor: root.backgroundColor.toLowerCase(),
+    radius: root.radius === undefined ? DEFAULT_GROUP_APPEARANCE.radius : root.radius,
+    fontSize: root.fontSize === undefined ? DEFAULT_GROUP_APPEARANCE.fontSize : root.fontSize,
+    fontWeight: (root.fontWeight === undefined ? DEFAULT_GROUP_APPEARANCE.fontWeight : Number(root.fontWeight)) as TabGroupAppearance["fontWeight"],
   };
 }
 function normalizeTabGroups(value: unknown): TabGroupsState | null {
@@ -1985,6 +1998,8 @@ export default function SiteShell({
   >({});
   const [groupAppearanceHeaderId, setGroupAppearanceHeaderId] = useState<string | null>(null);
   const [groupAppearanceSettingsId, setGroupAppearanceSettingsId] = useState<string | null>(null);
+  const [groupContextMenu, setGroupContextMenu] = useState<{ groupId: string; top: number; left: number } | null>(null);
+  const groupContextOrigin = useRef<HTMLElement | null>(null);
   const movePickerOrigin = useRef<HTMLElement | null>(null);
   const movePickerDialog = useRef<HTMLElement | null>(null);
   const [persistenceAvailable, setPersistenceAvailable] = useState(true);
@@ -2867,6 +2882,7 @@ export default function SiteShell({
         setSettingsHistoryOpen(false);
         setSettingsHistoryBuilderOpen(false);
         setSettingsRestoreId(null);
+        setGroupContextMenu(null);
         if (resetConfirmOpen) {
           setResetConfirmOpen(false);
           resetCommitted.current = false;
@@ -3023,7 +3039,10 @@ export default function SiteShell({
       next.icon.length > 2 ||
       /[\u0000-\u001f\u007f]/.test(next.icon) ||
       !/^#[0-9a-f]{6}$/i.test(next.textColor) ||
-      !/^#[0-9a-f]{6}$/i.test(next.backgroundColor)
+      !/^#[0-9a-f]{6}$/i.test(next.backgroundColor) ||
+      typeof next.radius !== "number" || !Number.isFinite(next.radius) || next.radius < 0 || next.radius > 32 ||
+      typeof next.fontSize !== "number" || !Number.isFinite(next.fontSize) || next.fontSize < 12 || next.fontSize > 24 ||
+      ![400, 500, 600, 700].includes(next.fontWeight)
     )
       return false;
     setPrefs({
@@ -3038,6 +3057,9 @@ export default function SiteShell({
                   icon: next.icon,
                   textColor: next.textColor.toLowerCase(),
                   backgroundColor: next.backgroundColor.toLowerCase(),
+                  radius: next.radius,
+                  fontSize: next.fontSize,
+                  fontWeight: next.fontWeight,
                 },
               }
             : item,
@@ -5453,7 +5475,24 @@ export default function SiteShell({
                   language,
                 )}
               >
-                <div className="tab-group-header">
+                <div
+                  className="tab-group-header"
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    groupContextOrigin.current = event.currentTarget;
+                    setGroupContextMenu({
+                      groupId: group.id,
+                      top: Math.min(window.innerHeight - 220, Math.max(12, event.clientY)),
+                      left: Math.min(window.innerWidth - 300, Math.max(12, event.clientX)),
+                    });
+                  }}
+                  style={{
+                    borderRadius: `${group.appearance.radius}px`,
+                    fontSize: `${group.appearance.fontSize}px`,
+                    fontWeight: group.appearance.fontWeight,
+                  }}
+                >
                   <span className="tab-group-icon" aria-hidden="true">
                     {group.appearance.icon}
                   </span>
@@ -8547,6 +8586,53 @@ export default function SiteShell({
           close={() => { setAppearanceEditorId(null); setAppearanceAnchor(null); }}
         />
       )}
+      {groupContextMenu && (() => {
+        const group = prefs.tabGroups.groups.find((item) => item.id === groupContextMenu.groupId);
+        if (!group) return null;
+        return (
+          <aside
+            className="group-context-menu"
+            role="menu"
+            aria-label={dual(`${group.name} group menu`, `${group.name} 群組選單`, language)}
+            style={{ top: groupContextMenu.top, left: groupContextMenu.left }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setGroupContextMenu(null);
+                setTimeout(() => groupContextOrigin.current?.focus(), 0);
+              }
+            }}
+          >
+            <strong>{group.appearance.icon} {group.name}</strong>
+            <button
+              type="button"
+              role="menuitem"
+              autoFocus
+              onClick={() => {
+                setGroupAppearanceHeaderId(group.id);
+                setGroupContextMenu(null);
+                setTimeout(() => document.getElementById(`group-appearance-${group.id}`)?.querySelector<HTMLElement>("input")?.focus(), 0);
+              }}
+            >
+              {dual("Edit group appearance…", "編輯群組外觀…", language)}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                updateTabGroupAppearance(group.id, { ...DEFAULT_GROUP_APPEARANCE });
+                setGroupContextMenu(null);
+                setTimeout(() => groupContextOrigin.current?.focus(), 0);
+              }}
+            >
+              {dual("Reset group appearance", "重設群組外觀", language)}
+            </button>
+            <p className="group-context-unsupported">
+              {dual("Unsupported here: gradients, shadows, and custom fonts remain unavailable; no value is silently dropped.", "呢度未支援：漸變、陰影同自訂字體仍然未有；唔會靜默丟棄任何值。", language)}
+            </p>
+          </aside>
+        );
+      })()}
       {lockContextMenu && (
         <aside className="toy-lock-context-menu" role="menu" style={{ top: lockContextMenu.top, left: lockContextMenu.left }} onKeyDown={(event) => { if (event.key === "Escape") setLockContextMenu(null); }}>
           <strong>{lockContextMenu.label}</strong>
@@ -9232,11 +9318,49 @@ function GroupAppearanceEditor({
           aria-label={dual("Group background color", "群組背景顏色", language)}
         />
       </label>
+      <label>
+        <span>{dual("Corner radius", "圓角半徑", language)}</span>
+        <input
+          type="range"
+          min={0}
+          max={32}
+          step={1}
+          value={group.appearance.radius}
+          onChange={(event) => update(group.id, { radius: Number(event.target.value) })}
+          aria-label={dual("Group corner radius", "群組圓角半徑", language)}
+        />
+        <output>{group.appearance.radius}px</output>
+      </label>
+      <label>
+        <span>{dual("Header font size", "標題字體大小", language)}</span>
+        <input
+          type="number"
+          min={12}
+          max={24}
+          step={1}
+          value={group.appearance.fontSize}
+          onChange={(event) => update(group.id, { fontSize: Math.max(12, Math.min(24, Number(event.target.value) || 12)) })}
+          aria-label={dual("Group header font size", "群組標題字體大小", language)}
+        />
+      </label>
+      <label>
+        <span>{dual("Header weight", "標題字重", language)}</span>
+        <select
+          value={group.appearance.fontWeight}
+          onChange={(event) => update(group.id, { fontWeight: Number(event.target.value) as TabGroupAppearance["fontWeight"] })}
+          aria-label={dual("Group header font weight", "群組標題字重", language)}
+        >
+          {[400, 500, 600, 700].map((weight) => <option key={weight} value={weight}>{weight}</option>)}
+        </select>
+      </label>
       <div
         className="group-appearance-preview"
         style={{
           color: group.appearance.textColor,
           background: group.appearance.backgroundColor,
+          borderRadius: `${group.appearance.radius}px`,
+          fontSize: `${group.appearance.fontSize}px`,
+          fontWeight: group.appearance.fontWeight,
         }}
         aria-label={dual("Group appearance preview", "群組外觀預覽", language)}
       >
@@ -9245,8 +9369,8 @@ function GroupAppearanceEditor({
       </div>
       <p className="supporting-copy">
         {dual(
-          "This bounded editor changes the icon and two colors locally; full typography and color translation remain separate work.",
-          "呢個有限編輯器只改本機圖示同兩種顏色；完整字體同顏色轉換另有工作。",
+          "This bounded editor changes the icon, colors, radius, and header typography locally. Gradients, shadows, custom fonts, and color-space translation are explicitly unsupported here.",
+          "呢個有限編輯器只改本機圖示、顏色、圓角同標題字體；漸變、陰影、自訂字體同色彩空間轉換明確未支援。",
           language,
         )}
       </p>
