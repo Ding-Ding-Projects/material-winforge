@@ -645,7 +645,15 @@ input{transition:background .18s var(--emph),box-shadow .2s var(--emph)}
             <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Unlock ladder · waiting aid</h2>
             <p style="margin:0;color:var(--md-sys-color-on-surface-variant);font-size:12.5px">A local bounded waiting aid, never authentication: winning clears waiting only and never clears a credential, cookie, or session.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px"><button onClick="{{ startUnlockLadder }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Start local ladder</button><span style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">Dim sum → 10 sums → timed mole → clock-only; School mode starts at sums.</span></div>
-            <p style="margin:12px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px">Replay, expiry, early timed submission, wrong answers, and a lost round keep the original attempt budget and leave the clock as the safe fallback.</p>
+            <sc-if value="{{ unlockLadder }}" hint-placeholder-val="{{ false }}"><div style="display:grid;gap:10px;margin-top:14px;padding:14px;border-radius:14px;background:var(--md-sys-color-surface-container-high)" aria-live="polite">
+              <strong>Current rung: {{ unlockLadder.rung }}</strong>
+              <sc-if value="{{ unlockLadder.rung === 'dish' }}" hint-placeholder-val="{{ false }}"><p style="margin:0">Choose one of four local dim-sum answers. Five wrong dishes advance to sums.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button onClick="{{ () => setUnlockLadderAnswer('1') }}" style="height:40px;min-width:48px">1</button><button onClick="{{ () => setUnlockLadderAnswer('2') }}" style="height:40px;min-width:48px">2</button><button onClick="{{ () => setUnlockLadderAnswer('3') }}" style="height:40px;min-width:48px">3</button><button onClick="{{ () => setUnlockLadderAnswer('4') }}" style="height:40px;min-width:48px">4</button></div></sc-if>
+              <sc-if value="{{ unlockLadder.rung === 'sums' }}" hint-placeholder-val="{{ false }}"><p style="margin:0">Sum {{ unlockLadder.sumIndex + 1 }} of 10: {{ unlockLadder.sums[unlockLadder.sumIndex].a }} + {{ unlockLadder.sums[unlockLadder.sumIndex].b }}</p></sc-if>
+              <sc-if value="{{ unlockLadder.rung === 'mole' }}" hint-placeholder-val="{{ false }}"><p style="margin:0">Whack-a-mole is timed for 8 seconds. Type <code>mole</code> only after the round completes.</p></sc-if>
+              <sc-if value="{{ unlockLadder.rung !== 'dish' && unlockLadder.rung !== 'clock' }}" hint-placeholder-val="{{ false }}"><input value="{{ unlockLadderAnswer }}" onInput="{{ setUnlockLadderAnswer }}" aria-label="Unlock ladder answer" maxlength="32" style="height:40px;padding:0 10px;border:1px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface);color:inherit"><button onClick="{{ submitUnlockLadder }}" style="height:40px;padding:0 18px;border:none;border-radius:999px;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-weight:500">Submit rung</button></sc-if>
+            </div></sc-if>
+            <p role="status" style="margin:12px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px">{{ unlockLadderMessage }}</p>
+            <p style="margin:12px 0 0;color:var(--md-sys-color-on-surface-variant);font-size:12px">Replay, expiry, early timed submission, wrong answers, and a lost round keep the original attempt budget and leave the clock as the safe fallback. This local aid never changes a credential, cookie, token, or session.</p>
           </div>
           <div id="toy-locks" style="margin-top:16px;padding:18px;border-radius:20px;background:var(--md-sys-color-surface-container);border:1px solid var(--md-sys-color-outline-variant)">
             <h2 style="margin:0 0 6px;font-size:16px;font-weight:500">Toy locks</h2>
@@ -2154,6 +2162,9 @@ class Component extends DCLogic {
     this.authQr = null;
     this.authTimer = null;
     this.schoolMode = this.validateSchoolMode(L && L.schoolMode);
+    this.unlockLadderBudget = this.validateUnlockLadderBudget(L && L.unlockLadderBudget);
+    this.unlockLadder = null;
+    this.unlockLadderMessage = '';
     this.narrator = this.validateNarrator(L && L.narrator);
     this.narratorVoices = [];
     this.narratorQueue = [];
@@ -2170,6 +2181,7 @@ class Component extends DCLogic {
       funnyZh: effectiveSettings.funnyZh,
       showEmojis: effectiveSettings.showEmojis,
       projectNameInput: '', schoolNameInput: this.schoolMode.name, schoolCredentialInput: '', schoolUnlockInput: '',
+      unlockLadderAnswer: '',
       scheduleDraftLabel: '', scheduleDraftStartDate: '', scheduleDraftEndDate: '', scheduleDraftStartTime: '09:00', scheduleDraftEndTime: '17:00', scheduleDraftWeekdays: [...SCHEDULE_WEEKDAYS], scheduleDraftPriority: 0, scheduleDraftSource: 'local', scheduleDraftTheme: '', scheduleDraftLang: '', scheduleDraftFunnyEn: '', scheduleDraftFunnyZh: '', scheduleDraftShowEmojis: '',
       route: (L && L.route) || { view: 'dashboard' },
       paletteOpen: false, paletteQuery: '', explorerConfirm: false, explorerRestarting: false,
@@ -2351,6 +2363,66 @@ class Component extends DCLogic {
     const credential = String(this.state.schoolUnlockInput || '');
     if (!this.schoolMode.credentialSalt || !this.schoolMode.credentialHash) { this.notify('School mode', 'Clear this app\'s local data to reset the UX mode.', 'warning', true); return; }
     this.hashSchoolCredential(credential, this.schoolMode.credentialSalt).then(hash => { if (hash !== this.schoolMode.credentialHash) { this.setState({ schoolUnlockInput: '' }); this.notify('School mode', 'That local credential did not match. Clear this app\'s local data to recover.', 'error', true); return; } const previous = this.schoolMode.previousLanguage; this.schoolMode = { ...this.schoolMode, enabled: false }; this.setState({ lang: previous, schoolUnlockInput: '' }, () => { this.persist(); this.bump(); }); this.notify(this.schoolMode.name, 'Mode is off. Previous language, tone, vocabulary, and dim-sum choices are restored.', 'success', true); });
+  }
+  validateUnlockLadderBudget(payload) {
+    const now = Date.now();
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { windowStartedAt: now, used: 0 };
+    const started = Number(payload.windowStartedAt);
+    const used = Number(payload.used);
+    return { windowStartedAt: Number.isFinite(started) && started > 0 && now - started < 3600000 ? started : now, used: Number.isInteger(used) && used >= 0 && used <= 3 && Number.isFinite(started) && now - started < 3600000 ? used : 0 };
+  }
+  unlockLadderSums() {
+    const values = [];
+    for (let index = 0; index < 10; index += 1) {
+      const a = 1 + Math.floor(Math.random() * 90);
+      const b = 1 + Math.floor(Math.random() * 90);
+      values.push({ a, b });
+    }
+    return values;
+  }
+  startUnlockLadder() {
+    const now = Date.now();
+    if (now - this.unlockLadderBudget.windowStartedAt >= 3600000) this.unlockLadderBudget = { windowStartedAt: now, used: 0 };
+    if (this.unlockLadderBudget.used >= 3) { this.unlockLadder = { rung: 'clock', expiresAt: now + 30000, waitingUntil: now + 30000, attemptBudget: 3, nonce: null, nonceUsed: true, sums: [], sumIndex: 0, wrongDishes: 5, moleStartedAt: null, moleDurationMs: 8000, clockOnly: true }; this.unlockLadderMessage = 'The local ladder budget is exhausted for this rolling hour; serve the clock.'; this.bump(); return; }
+    this.unlockLadderBudget.used += 1;
+    const rung = this.schoolMode.enabled ? 'sums' : 'dish';
+    this.unlockLadder = { rung, expiresAt: now + 60000, waitingUntil: now + 30000, attemptBudget: 3, nonce: crypto?.randomUUID?.() || `unlock-${now}-${Math.random().toString(36).slice(2)}`, nonceUsed: false, correctDish: String(1 + Math.floor(Math.random() * 4)), sums: this.unlockLadderSums(), sumIndex: 0, wrongDishes: 0, moleStartedAt: null, moleDurationMs: 8000, clockOnly: false };
+    this.unlockLadderMessage = rung === 'sums' ? 'School mode starts at the sums; the dim-sum rung is absent. This only clears waiting.' : 'This local ladder clears waiting only. It never unlocks credentials or creates a session.';
+    this.persist(); this.bump();
+  }
+  rotateUnlockLadderNonce() {
+    if (!this.unlockLadder) return;
+    this.unlockLadder.nonce = crypto?.randomUUID?.() || `unlock-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    this.unlockLadder.nonceUsed = false;
+  }
+  finishUnlockLadder(message) {
+    this.unlockLadder = null; this.unlockLadderMessage = message; this.persist(); this.bump();
+  }
+  submitUnlockLadder() {
+    const current = this.unlockLadder;
+    if (!current || current.rung === 'clock' || current.clockOnly) return;
+    const now = Date.now();
+    if (now >= current.expiresAt) { this.unlockLadder = { ...current, rung: 'clock', clockOnly: true, nonce: null, nonceUsed: true }; this.unlockLadderMessage = 'This challenge expired. The clock-only route remains; the credential and session are unchanged.'; this.bump(); return; }
+    if (current.nonceUsed || !current.nonce) { this.unlockLadderMessage = 'This one-time challenge was already used. Start a new bounded rung or serve the clock.'; this.bump(); return; }
+    current.nonceUsed = true;
+    if (current.rung === 'dish') {
+      if (this.state.unlockLadderAnswer === current.correctDish) return this.finishUnlockLadder('Dish rung cleared. Waiting only is cleared; credentials and sessions remain unchanged.');
+      current.wrongDishes += 1;
+      if (current.wrongDishes >= 5) { current.rung = 'sums'; current.sumIndex = 0; this.unlockLadderMessage = 'Five wrong dishes reached. Ten easy sums are now available.'; } else this.unlockLadderMessage = `That dish was not the answer. ${5 - current.wrongDishes} wrong dish${5 - current.wrongDishes === 1 ? '' : 'es'} remain before sums.`;
+      this.rotateUnlockLadderNonce(); this.setState({ unlockLadderAnswer: '' }); this.bump(); return;
+    }
+    if (current.rung === 'sums') {
+      const sum = current.sums[current.sumIndex];
+      if (Number(this.state.unlockLadderAnswer) !== sum.a + sum.b) { current.rung = 'mole'; current.moleStartedAt = now; this.unlockLadderMessage = 'A sum was wrong. The timed whack-a-mole round has started.'; this.rotateUnlockLadderNonce(); this.setState({ unlockLadderAnswer: '' }); this.bump(); return; }
+      current.sumIndex += 1;
+      if (current.sumIndex >= 10) return this.finishUnlockLadder('All ten sums cleared. Waiting only is cleared; credentials and sessions remain unchanged.');
+      this.unlockLadderMessage = `Correct. Sum ${current.sumIndex} of 10 is next.`; this.rotateUnlockLadderNonce(); this.setState({ unlockLadderAnswer: '' }); this.bump(); return;
+    }
+    if (current.rung === 'mole') {
+      if (now - current.moleStartedAt < current.moleDurationMs) { current.nonceUsed = false; this.unlockLadderMessage = 'The round is still running. Early submission is rejected; wait the full 8 seconds.'; this.bump(); return; }
+      if (String(this.state.unlockLadderAnswer || '').trim().toLowerCase() === 'mole') return this.finishUnlockLadder('Round cleared. Waiting only is cleared; credentials and sessions remain unchanged.');
+      current.rung = 'clock'; current.clockOnly = true; current.nonce = null; this.unlockLadderMessage = 'The timed round was lost. This lockout is clock-only and the ladder cannot be replayed.'; this.bump();
+    }
   }
   validateSchedules(payload) {
     if (!Array.isArray(payload)) return [];
@@ -2553,6 +2625,7 @@ class Component extends DCLogic {
         schedules: this.schedules.slice(0, 50),
         personalVocabulary: this.personalVocabulary,
         schoolMode: this.schoolMode,
+        unlockLadderBudget: this.unlockLadderBudget,
         narrator: this.narrator,
         reactor: this.rx.snapshot(), rlog: this.rlogLines.slice(0, 60), ship: this.ship || this.savedShip,
       }));
@@ -3629,6 +3702,12 @@ class Component extends DCLogic {
     V.schoolCredentialInput = s.schoolCredentialInput; V.setSchoolCredentialInput = e => this.setState({ schoolCredentialInput: String(e.target.value || '').slice(0, 128) });
     V.schoolUnlockInput = s.schoolUnlockInput; V.setSchoolUnlockInput = e => this.setState({ schoolUnlockInput: String(e.target.value || '').slice(0, 128) });
     V.enableSchoolMode = () => this.enableSchoolMode(); V.disableSchoolMode = () => this.disableSchoolMode();
+    V.unlockLadder = this.unlockLadder;
+    V.unlockLadderMessage = this.unlockLadderMessage;
+    V.unlockLadderAnswer = s.unlockLadderAnswer || '';
+    V.setUnlockLadderAnswer = value => this.setState({ unlockLadderAnswer: (typeof value === 'string' ? value : String(value && value.target && value.target.value || '')).slice(0, 32) });
+    V.startUnlockLadder = () => this.startUnlockLadder();
+    V.submitUnlockLadder = () => this.submitUnlockLadder();
     const activeProject = this.settingsProjects.find(project => project.id === this.activeProjectId) || null;
     const applyScope = () => {
       const values = { ...this.settingsGlobal, ...(activeProject ? activeProject.overrides : {}) };

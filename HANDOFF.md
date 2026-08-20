@@ -1,5 +1,12 @@
 # Handoff
 
+## Luna desktop unlock-ladder parity lane — `codex/luna-desktop-unlock-ladder-parity`
+
+- Wired the desktop design/runtime reference's Unlock ladder card with bounded local state and real transitions: four-choice dim-sum when School mode is off, five-wrong-dish escalation to ten sums, an eight-second timed mole rung after one wrong sum, and clock-only fallback after expiry or a lost round. School mode starts directly at sums and does not expose the dim-sum rung.
+- Added single-use nonce consumption/rotation, 60-second expiry, early timed-submit rejection, a three-start rolling-hour ladder budget, and explicit preservation of the original attempt budget. Winning clears waiting only and never changes a credential, token, cookie, or session.
+- Updated `main-app-design/WinForge M3.dc.html`, `docs/application/unlock-ladder.md`, `docs/application/README.md` (existing index entry), `docs/completeness/universal-feature-inventory.md`, and `CHANGELOG.md`.
+- No tests, lint, reviews, runtime interaction, captures, packaging, or release evidence were run in this bounded implementation lane. Vocabulary/publication/diff preflights and the desktop build are the remaining local checks before integration.
+
 ## Luna display-name customization lane — `codex/luna-display-name-customization`
 
 - Added the bounded user-renamable display-name setting to `pages/app/SiteShell.tsx` and `main-app-design/WinForge M3.dc.html`. Pages persists the label through its allowlisted preferences record and routes it through Settings search and the command palette; the desktop reference persists the corresponding local preview value and exposes the same reset path.
