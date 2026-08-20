@@ -175,6 +175,10 @@ button {
 .toy-lock-context-menu { width:min(280px,calc(100vw - 24px)); }
 .toy-lock-context-menu button { min-height:44px; border:0; border-radius:var(--radius-sm); background:transparent; color:inherit; text-align:left; padding:8px 10px; cursor:pointer; }
 .toy-lock-context-menu button:hover,.toy-lock-context-menu button:focus-visible { background:var(--surface-container-high); outline:2px solid var(--primary); outline-offset:2px; }
+.group-context-menu { position:fixed; z-index:1300; width:min(300px,calc(100vw - 24px)); max-height:calc(100vh - 24px); overflow:auto; display:grid; gap:10px; padding:14px; border:1px solid var(--outline-variant); border-radius:var(--radius-lg); background:var(--surface-container-highest); color:var(--on-surface); box-shadow:0 12px 32px var(--shadow); }
+.group-context-menu button { min-height:44px; border:0; border-radius:var(--radius-sm); background:transparent; color:inherit; text-align:left; padding:8px 10px; cursor:pointer; }
+.group-context-menu button:hover,.group-context-menu button:focus-visible { background:var(--surface-container-high); outline:2px solid var(--primary); outline-offset:2px; }
+.group-context-unsupported { margin:0; color:var(--on-surface-variant); font-size:.82rem; line-height:1.4; }
 .toy-lock-wizard header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
 .toy-lock-wizard header button { min-width:36px; min-height:36px; border:0; border-radius:999px; background:transparent; color:inherit; font-size:22px; }
 .toy-lock-wizard label { display:grid; gap:6px; font-weight:600; }
@@ -969,6 +973,9 @@ kbd {
   width: 48px;
   height: 48px;
 }
+.group-appearance-editor > label input[type="range"] { min-width:120px; accent-color:var(--primary); }
+.group-appearance-editor > label input[type="number"], .group-appearance-editor > label select { min-height:44px; min-width:92px; padding:8px 10px; border:1px solid var(--outline); border-radius:12px; background:var(--surface); color:inherit; }
+.group-appearance-editor output { min-width:44px; color:var(--on-surface-variant); text-align:right; }
 .group-appearance-preview {
   display: flex;
   align-items: center;

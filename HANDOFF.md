@@ -7,6 +7,12 @@
 - Updated `docs/application/appearance-editor.md`, the application docs index, `docs/completeness/universal-feature-inventory.md`, and `CHANGELOG.md`. No network, credentials, remote fonts, or source writes are used.
 - Tests, lint, reviews, packaged/runtime interaction, and captures remain unrun/unverified in this bounded lane. The next owner should run the normal build/publication preflights and integrate this branch.
 
+## Luna Pages tab-group appearance lane — `codex/luna-site-tab-group-appearance`
+
+- Added a Pages-only group-header context menu with anchored **Edit group appearance…**, Escape/focus recovery, and Settings parity. Group appearance now persists a bounded icon, text/background colors, radius, header size, and header weight with a per-group reset; unsupported gradients, shadows, custom fonts, and color-space translation are explicit.
+- Updated `pages/app/SiteShell.tsx`, `pages/app/globals.css`, `docs/site/tab-groups.md`, `docs/completeness/universal-feature-inventory.md`, and `CHANGELOG.md`.
+- No tests, lint, reviews, runtime interaction, captures, or release evidence were run in this bounded lane. Sequential site builds and repository preflights are the permitted evidence.
+
 ## Luna Pages narrator parity lane — `codex/luna-site-narrator-parity`
 
 - Extended `pages/app/SiteShell.tsx` and `pages/app/globals.css` with factual local/network voice labels, an explicit unavailable saved-voice option that retains its stable `voiceURI`, a local preview action, and pending-notification replacement while an active utterance finishes.

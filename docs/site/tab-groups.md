@@ -4,8 +4,8 @@
 
 Groups can move up or down from both the rendered headers and Settings. The order is persisted locally, boundary controls disable at the first and last group, and moving a group preserves its members, collapse state, and active tab.
 
-Each group also exposes a bounded **Edit appearance** panel from the strip and Settings. It persists a two-character icon plus text and background colors, applies them live to the group header and preview, and has a per-group reset. Full typography, infinite color translation, and per-state appearance editing remain explicitly separate work.
-Each group appearance editor is also indexed by the command palette, which opens the owning Settings card and the exact editor for that group.
+Each group also exposes a bounded, anchored **Edit group appearance…** action from the header context menu, the strip header, and Settings. It persists a two-character icon, text/background colors, corner radius, header font size, and header weight, applies them live to the group header and preview, and has a per-group reset. Gradients, shadows, custom fonts, and color-space translation are explicitly unsupported here and are surfaced as such rather than silently dropped.
+Each group appearance editor is also indexed by the command palette, which opens the owning Settings card and the exact editor for that group. Context-menu Escape returns focus to the originating group header, and the anchored editor remains bounded at compact widths.
 
 The Pages site can create up to eight ordered local groups for its six known destinations. Pinned tabs remain in the stable pinned region. Unpinned members render below a group header; unassigned tabs remain in the ordinary region. Group controls create, rename, recolor, collapse, expand, and remove a group. Removing a group returns its members to the ordinary region.
 
@@ -21,7 +21,7 @@ Pinned tabs remain exclusively in the stable pinned region. Pinning a grouped ta
 
 ## Configuration
 
-`Preferences.tabGroups` uses schema version 2 and stores at most eight ordered records. Generated IDs match `group-[a-z0-9]{8,24}`. Names are trimmed strings from 1–48 characters. Colors are six-digit hex values under the existing accent contract. `collapsed` is boolean. Membership accepts only `home`, `features`, `docs`, `settings`, `changelog`, and `status`, with no tab assigned twice. Each record carries a bounded appearance object with a one- or two-character icon and six-digit text/background colors; schema-version 1 records migrate to the shipped appearance defaults.
+`Preferences.tabGroups` uses schema version 2 and stores at most eight ordered records. Generated IDs match `group-[a-z0-9]{8,24}`. Names are trimmed strings from 1–48 characters. Colors are six-digit hex values under the existing accent contract. `collapsed` is boolean. Membership accepts only `home`, `features`, `docs`, `settings`, `changelog`, and `status`, with no tab assigned twice. Each record carries a bounded appearance object with a one- or two-character icon, six-digit text/background colors, a 0–32px radius, a 12–24px header size, and a 400/500/600/700 weight; older appearance records migrate missing fields to shipped defaults.
 
 Creation and rename share one name validator that rejects blank, overlong, whitespace-altered, and control-character values. An invalid rename restores the last valid visible name and reports the boundary. Identifier generation makes at most eight collision-checked attempts and aborts without mutation if none is unique. Disabled create actions explain whether the name is invalid or the eight-group limit has been reached.
 
