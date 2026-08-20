@@ -288,11 +288,13 @@ p {
 .converter-meta progress { width: 100%; accent-color: var(--primary); }
 .converter-preview { max-height: 220px; overflow: auto; margin: 16px 0; padding: 16px; border-radius: var(--radius-sm); background: var(--surface-bright); color: var(--on-surface); white-space: pre-wrap; overflow-wrap: anywhere; }
 .converter-adapter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 20px; }
-.converter-adapter { display: grid; gap: 5px; padding: 14px; border: 1px solid var(--outline-variant); border-radius: var(--radius-sm); background: var(--surface-bright); }
-.converter-adapter span { font-size: .8rem; color: var(--on-surface-variant); }
-.converter-adapter small { color: var(--on-surface-variant); line-height: 1.45; }
-.converter-adapter.enabled { border-color: color-mix(in srgb, var(--primary) 55%, var(--outline-variant)); }
-.converter-adapter.disabled { opacity: .78; }
+.converter-adapter-category { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--outline-variant); border-radius: var(--radius-sm); background: var(--surface-bright); }
+.converter-format-list { display: grid; gap: 8px; }
+.converter-format { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--outline-variant); border-radius: 10px; }
+.converter-format span { font-size: .82rem; font-weight: 650; }
+.converter-format small { color: var(--on-surface-variant); line-height: 1.45; }
+.converter-format.enabled { border-color: color-mix(in srgb, var(--primary) 55%, var(--outline-variant)); }
+.converter-format.unavailable { opacity: .78; }
 .converter-catalog-search { display: grid; gap: 8px; margin-top: 20px; }
 .converter-queue { display: grid; gap: 8px; margin-top: 18px; padding: 14px; border: 1px solid var(--outline-variant); border-radius: var(--radius-sm); background: var(--surface-container-low); }
 .converter-queue-row { display: grid; grid-template-columns: minmax(150px, 1fr) 92px minmax(160px, 2fr); gap: 10px; align-items: start; padding-top: 8px; border-top: 1px solid var(--outline-variant); color: var(--on-surface-variant); font-size: .88rem; }

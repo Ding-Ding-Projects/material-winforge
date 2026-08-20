@@ -1,5 +1,7 @@
 # Changelog
 
+- Expanded the local converter catalog from category summaries to individually enumerated formats across Documents/PDF, Images, Audio, Video, Archives, Structured Data/Spreadsheets, Code/Text, and Binary Encodings. Every unavailable format is visibly disabled with its exact missing bundled-adapter reason, while JSON/CSV/JSONL/TSV adapters and bounded queue behavior remain unchanged. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
+
 - Extended the local appearance editor and desktop design reference with typography weight/style, underline and strikethrough, spacing, line-height, direction/alignment, continuous color fields with alpha and contrast-ratio disclosure, local presets/reset disclosure, and explicit unsupported-property behavior. No network, credentials, remote fonts, or source writes are used. Tests, lint, reviews, runtime interaction, captures, release, and publication remain unrun/unverified for this slice.
 
 - Added guided local Ollama pull and chat operation cards with 30-second/512 KiB bounds, cancellation and explicit no-success-on-timeout behavior; installed-model refresh reconciliation and fixed allowlisted harness previews remain local-only, with no cloud, payment, credential, telemetry, or arbitrary-shell semantics. Tests, lint, packaged interaction, screenshots, release, and publication remain unrun for this lane.
