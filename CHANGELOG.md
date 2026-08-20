@@ -179,3 +179,9 @@ All notable project changes are recorded here. Dates use ISO 8601 and entries li
 
 - Added bounded desktop/runtime TOTP state with strict `otpauth://totp/` and Base32 validation, RFC 6238-compatible local HMAC codes for SHA-1/SHA-256/SHA-512, 6/8 digit output, and 15–120 second countdowns.
 - Added issuer/account search, remove/clear, redacted JSON export, command-palette/settings discovery, and transient in-process QR/text registration state without network or credential-vault claims.
+
+## Unreleased — desktop notification center
+
+- Added a bounded desktop notification center with up to 200 validated local records, stable IDs, explicit unread/read state, non-blocking snackbar retention, and truthful empty/no-match states.
+- Added plain-text-first notification search with an adjacent anchored JavaScript regex opt-in, keyboard-accessible row selection, select-page/invert controls, bulk mark-read/dismiss actions, and local JSON export of the visible selection.
+- Kept notification history local-only: no upload, network request, credential, private vocabulary, source path, or secret is stored or exported. Runtime interaction, tests, lint, reviews, packaged verification, and captures remain unrun for this lane.

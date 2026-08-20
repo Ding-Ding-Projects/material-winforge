@@ -306,6 +306,12 @@ Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verific
 
 The desktop design/runtime surface in `main-app-design/WinForge M3.dc.html` now owns bounded local TOTP state. It validates `otpauth://totp/` URIs and Base32 secrets, supports SHA-1/SHA-256/SHA-512, 6/8 digits, 15–120 second periods, local Web Crypto HMAC generation, countdown/search/remove/clear, redacted export, palette/settings discovery, and transient QR/text registration state. Secrets and URI payloads remain excluded from ordinary exports/history and no network or credential-vault integration is claimed. Documentation: `docs/application/authenticator.md`.
 -
+## Desktop notification center
+
+The desktop design/runtime surface now keeps up to 200 validated notification records with stable local IDs, explicit unread/read state, non-blocking snackbars, plain-text-first search, an adjacent anchored JavaScript regex opt-in, visible-page selection and inverse selection, bulk mark-read/dismiss actions, and local JSON export. Rows expose keyboard activation, visible focus, a non-colour unread marker, and an `aria-hidden` emoji decoration only when the existing message-emoji preference is enabled. Stored records reject malformed, duplicate, oversized, unsafe, or unsupported values as a whole; no network request, credential, private vocabulary, source path, or secret is included in history or export.
+
+Changed `main-app-design/WinForge M3.dc.html`, `docs/application/notifications.md`, `docs/application/README.md`, `docs/completeness/universal-feature-inventory.md`, `CHANGELOG.md`, and this handoff. Source/diff, vocabulary, publication, and build preflights are the verification boundary; tests, lint, reviews, packaged runtime interaction, accessibility tooling, and captures remain unrun in this bounded lane.
+
 ## Desktop app-logo customization
 
 The desktop Settings surface now includes four bundled logo presets and a local PNG/JPEG picker. MIME and magic-byte checks, the 512 KiB file bound, decoded 2048×2048 pixel bound, and the 360,000-character local cache bound fail closed while retaining the previous valid mark. Preset/custom selection persists locally and updates the frameless title bar and Settings preview live. Product/package identity, installer identity, update feed, and application-data location remain fixed.
