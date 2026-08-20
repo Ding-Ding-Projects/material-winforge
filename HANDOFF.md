@@ -141,6 +141,12 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 
 ## Implemented source
 
+### Pages scheduled/external source states
+
+- Extended `pages/app/SiteShell.tsx` with explicit Local browser data, HTTPS API, and Home Assistant source choices, bounded refresh intervals, persisted availability state, and source-aware matching. The Pages surface activates local rules only; unavailable external choices are retained honestly and never mutate the base settings.
+- Updated `pages/app/globals.css`, `docs/site/scheduled-settings.md`, the site documentation index, `docs/completeness/universal-feature-inventory.md`, and `CHANGELOG.md`. No URL, token, credential, network request, redirect, or remote value is accepted by the landing surface.
+- Verification boundary: vocabulary/publication/diff preflights and sequential site builds only; tests, lint, runtime interaction, accessibility review, captures, release, and publication remain unrun/unverified for this lane.
+
 - Pages now includes a browser-local Narrator Settings card: opt-in speech synthesis, English/Cantonese/bilingual mode, runtime voice enumeration with stable voice IDs, automatic fallback for missing voices, bounded rate/pitch controls, a four-item serialized queue, and explicit unavailable/waiting states. See [`docs/site/narration.md`](docs/site/narration.md).
 - The Pages command palette now renders real bounded inline controls for language, separate English and Cantonese funny levels, theme, all four tab edges, density, accent color, message emoji, app-logo preset, and shared confirmed reset. Each control reuses its owning Settings setter; a separate result action clears the Settings filter and focuses the exact owning card.
 - Follow-up repairs add version-2 bounded logo snapshots and restore, shared history-aware preset/upload/reset mutations, palette-to-reset modal ownership transfer, Escape propagation from inline controls, action-accurate destination semantics, opener restoration with a contained focus loop and inert background, and flexible nested scrolling for short or magnified viewports. Personal vocabulary and logo bytes in Markdown exports remain excluded.
