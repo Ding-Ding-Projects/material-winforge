@@ -164,3 +164,10 @@ This repository bootstraps **WinForge · Material 3 Preview**: an Electron deskt
 - The bounded group-appearance slice adds schema-version 2 appearance migration, per-group icon/text/background controls, live rendering, strip and Settings entry points, and per-group reset. Full typography, infinite color translation, and per-state appearance editing remain incomplete; runtime interaction, tests, audits, reviews, and visual evidence remain unverified.
 - Group appearance editors are now independently discoverable in the command palette and route to their exact Settings editor. Full typography, infinite color translation, and per-state appearance editing remain incomplete.
 - The master-tab discovery slice adds a separate Settings search across every tab owned by this single site surface, with group/pinned context and focus routing. Cross-window ownership is explicitly bounded to one site instance; runtime interaction and visual evidence remain unverified.
+# Handoff — toy locks and Support Tickets
+
+Implemented on branch `luna/toy-locks` from base `72644297a61e7ca5765497088cae47eec5e99987`.
+
+Changed `pages/app/SiteShell.tsx`, `pages/app/globals.css`, `main-app-design/WinForge M3.dc.html`, the site/application toy-lock articles and indexes, the completeness inventory, `CHANGELOG.md`, and this handoff. The site persists only bounded salted hashes and local ticket metadata; it makes no network request and exposes self-service browser-storage or local application-data recovery without deleting anything.
+
+Runtime interaction, tests, lint, reviews, screenshots, packaged desktop verification, release, and issue/discussion updates were not run in this bounded lane.

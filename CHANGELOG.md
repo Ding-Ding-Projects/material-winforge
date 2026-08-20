@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — toy locks and Support Tickets
+
+- Added a bounded local UX lock wizard for major site and desktop targets with independent salted credential hashes, unlock durations, relock, locked-state discovery, and self-service recovery copy.
+- Added fictional local Support Tickets that never contact a service or delete local data.
+- Runtime interaction, tests, lint, captures, and packaged verification remain unverified for this slice.
+
 ## Unreleased
 
 - Added a local file converter surface with 2 MiB byte-bounded JSON/CSV/TXT detection, categorized adapter catalog, offline JSON ↔ CSV conversion, preview, progress, cancellation, atomic browser download, and truthful unavailable-adapter reasons. Runtime interaction, tests, lint, captures, release, and publication remain unrun for this lane.

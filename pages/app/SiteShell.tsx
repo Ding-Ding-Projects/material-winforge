@@ -115,6 +115,10 @@ type AuthenticatorEntry = {
   createdAt: string;
 };
 type AuthenticatorState = { schemaVersion: 1; entries: AuthenticatorEntry[] };
+type ToyLock = { id: string; label: string; salt: string; hash: string; durationMinutes: number; locked: boolean; unlockedUntil: string | null; createdAt: string };
+type ToyLockState = { schemaVersion: 1; locks: ToyLock[] };
+type SupportTicket = { id: string; category: string; description: string; severity: string; status: "opened" | "recovery-ready"; createdAt: string };
+type SupportTicketState = { schemaVersion: 1; tickets: SupportTicket[] };
 type SettingsHistoryAction =
   | "global-setting-changed"
   | "project-setting-changed"
@@ -242,13 +246,19 @@ const NARRATION_KEY = "winforge-material-preview-narration-v1";
 const SCHEDULE_KEY = "winforge-material-preview-schedules-v1";
 const SCHOOL_MODE_KEY = "winforge-material-preview-school-mode-v1";
 const AUTHENTICATOR_KEY = "winforge-material-preview-authenticator-v1";
+const TOY_LOCK_KEY = "winforge-material-preview-toy-locks-v1";
+const SUPPORT_TICKET_KEY = "winforge-material-preview-support-tickets-v1";
 const PREFERENCES_MAX_BYTES = 512 * 1024;
 const NOTIFICATION_MAX_BYTES = 128 * 1024;
 const SETTINGS_HISTORY_MAX_BYTES = 512 * 1024;
 const NARRATION_MAX_BYTES = 16 * 1024;
 const SCHEDULE_MAX_BYTES = 64 * 1024;
 const AUTHENTICATOR_MAX_BYTES = 64 * 1024;
+const TOY_LOCK_MAX_BYTES = 64 * 1024;
+const SUPPORT_TICKET_MAX_BYTES = 128 * 1024;
 const DEFAULT_AUTHENTICATOR: AuthenticatorState = { schemaVersion: 1, entries: [] };
+const DEFAULT_TOY_LOCKS: ToyLockState = { schemaVersion: 1, locks: [] };
+const DEFAULT_SUPPORT_TICKETS: SupportTicketState = { schemaVersion: 1, tickets: [] };
 const DEFAULT_SITE_SETTINGS: SiteSettingValues = {
   language: "en",
   funnyEnglish: 2,
@@ -700,6 +710,32 @@ async function hashSchoolCredential(credential: string, salt: string): Promise<s
   const data = new TextEncoder().encode(`${salt}:${credential}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return encodeBytes(new Uint8Array(digest));
+}
+function normalizeToyLocks(value: unknown): ToyLockState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Partial<ToyLockState>;
+  if (root.schemaVersion !== 1 || !Array.isArray(root.locks) || root.locks.length > 32) return null;
+  const locks: ToyLock[] = [];
+  for (const item of root.locks) {
+    if (!item || typeof item !== "object") return null;
+    const lock = item as Partial<ToyLock>;
+    if (typeof lock.id !== "string" || !/^toy-lock-[a-z0-9-]{4,80}$/.test(lock.id) || typeof lock.label !== "string" || !lock.label.trim() || lock.label.length > 96 || typeof lock.salt !== "string" || typeof lock.hash !== "string" || typeof lock.durationMinutes !== "number" || ![0, 15, 60, 1440].includes(lock.durationMinutes) || typeof lock.locked !== "boolean" || (lock.unlockedUntil !== null && typeof lock.unlockedUntil !== "string")) return null;
+    locks.push({ id: lock.id, label: lock.label.trim(), salt: lock.salt, hash: lock.hash, durationMinutes: lock.durationMinutes, locked: lock.locked, unlockedUntil: lock.unlockedUntil ?? null, createdAt: typeof lock.createdAt === "string" ? lock.createdAt : new Date().toISOString() });
+  }
+  return { schemaVersion: 1, locks };
+}
+function normalizeSupportTickets(value: unknown): SupportTicketState | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const root = value as Partial<SupportTicketState>;
+  if (root.schemaVersion !== 1 || !Array.isArray(root.tickets) || root.tickets.length > 100) return null;
+  const tickets: SupportTicket[] = [];
+  for (const item of root.tickets) {
+    if (!item || typeof item !== "object") return null;
+    const ticket = item as Partial<SupportTicket>;
+    if (typeof ticket.id !== "string" || !/^ticket-[a-z0-9-]{4,80}$/.test(ticket.id) || typeof ticket.category !== "string" || ticket.category.length > 80 || typeof ticket.description !== "string" || ticket.description.length > 1000 || typeof ticket.severity !== "string" || !["low", "medium", "high"].includes(ticket.severity) || !["opened", "recovery-ready"].includes(ticket.status as string) || typeof ticket.createdAt !== "string") return null;
+    tickets.push({ id: ticket.id, category: ticket.category, description: ticket.description, severity: ticket.severity, status: ticket.status as SupportTicket["status"], createdAt: ticket.createdAt });
+  }
+  return { schemaVersion: 1, tickets };
 }
 function boundSettingsHistory(history: SettingsHistory): SettingsHistory {
   const records: SettingsHistoryRecord[] = [];
@@ -1525,6 +1561,16 @@ export default function SiteShell({
   const [narration, setNarration] = useState<NarrationSettings>(DEFAULT_NARRATION);
   const [schedule, setSchedule] = useState<ScheduleState>(DEFAULT_SCHEDULE);
   const [authenticator, setAuthenticator] = useState<AuthenticatorState>(DEFAULT_AUTHENTICATOR);
+  const [toyLocks, setToyLocks] = useState<ToyLockState>(DEFAULT_TOY_LOCKS);
+  const [lockTarget, setLockTarget] = useState("site-settings");
+  const [lockLabel, setLockLabel] = useState("Site Settings");
+  const [lockCredential, setLockCredential] = useState("");
+  const [lockDuration, setLockDuration] = useState(15);
+  const [unlockCredential, setUnlockCredential] = useState("");
+  const [supportTickets, setSupportTickets] = useState<SupportTicketState>(DEFAULT_SUPPORT_TICKETS);
+  const [ticketCategory, setTicketCategory] = useState("Forgotten toy-lock credential");
+  const [ticketDescription, setTicketDescription] = useState("");
+  const [ticketSeverity, setTicketSeverity] = useState("low");
   const [authIssuer, setAuthIssuer] = useState("");
   const [authAccount, setAuthAccount] = useState("");
   const [authSecretOrUri, setAuthSecretOrUri] = useState("");
@@ -1952,6 +1998,10 @@ export default function SiteShell({
       try { const parsed = normalizeAuthenticator(JSON.parse(authenticatorRecord.raw)); if (parsed) setAuthenticator(parsed); else removeLocalRecord(AUTHENTICATOR_KEY); }
       catch { removeLocalRecord(AUTHENTICATOR_KEY); }
     }
+    const toyLockRecord = readLocalRecord(TOY_LOCK_KEY, TOY_LOCK_MAX_BYTES);
+    if (toyLockRecord.raw) { try { const parsed = normalizeToyLocks(JSON.parse(toyLockRecord.raw)); if (parsed) setToyLocks(parsed); else removeLocalRecord(TOY_LOCK_KEY); } catch { removeLocalRecord(TOY_LOCK_KEY); } }
+    const ticketRecord = readLocalRecord(SUPPORT_TICKET_KEY, SUPPORT_TICKET_MAX_BYTES);
+    if (ticketRecord.raw) { try { const parsed = normalizeSupportTickets(JSON.parse(ticketRecord.raw)); if (parsed) setSupportTickets(parsed); else removeLocalRecord(SUPPORT_TICKET_KEY); } catch { removeLocalRecord(SUPPORT_TICKET_KEY); } }
     setHydrated(true);
   }, []);
   useEffect(() => {
@@ -1970,6 +2020,8 @@ export default function SiteShell({
     if (!hydrated) return;
     if (!writeLocalRecord(AUTHENTICATOR_KEY, authenticator, AUTHENTICATOR_MAX_BYTES)) setPersistenceAvailable(false);
   }, [authenticator, hydrated]);
+  useEffect(() => { if (hydrated && !writeLocalRecord(TOY_LOCK_KEY, toyLocks, TOY_LOCK_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, toyLocks]);
+  useEffect(() => { if (hydrated && !writeLocalRecord(SUPPORT_TICKET_KEY, supportTickets, SUPPORT_TICKET_MAX_BYTES)) setPersistenceAvailable(false); }, [hydrated, supportTickets]);
   useEffect(() => {
     const tick = () => {
       const now = Date.now(); setAuthSeconds(Math.max(0, 30 - Math.floor((now / 1000) % 30)));
@@ -2726,6 +2778,30 @@ export default function SiteShell({
     setSchoolUnlockInput("");
     announce(`${schoolMode.name} is off. Your previous language, tone, vocabulary, and dim-sum choices are restored.`, "success", "School mode");
   };
+  const lockTargetIsLocked = (id: string) => toyLocks.locks.some((lock) => lock.id === id && lock.locked && (!lock.unlockedUntil || Date.parse(lock.unlockedUntil) > Date.now()));
+  const createToyLock = async () => {
+    const credential = lockCredential;
+    const label = lockLabel.trim();
+    if (!label || credential.length < 4 || credential.length > 128) { announce("Choose a target label and a 4–128 character toy-lock credential.", "warning", "Toy locks"); return; }
+    if (!(crypto?.subtle && crypto.getRandomValues)) { announce("This browser cannot create a local toy-lock hash.", "error", "Toy locks"); return; }
+    const saltBytes = new Uint8Array(16); crypto.getRandomValues(saltBytes); const salt = encodeBytes(saltBytes);
+    const hash = await hashSchoolCredential(credential, salt);
+    setToyLocks((current) => ({ schemaVersion: 1, locks: [...current.locks.filter((lock) => lock.id !== lockTarget), { id: lockTarget, label, salt, hash, durationMinutes: lockDuration, locked: true, unlockedUntil: null, createdAt: new Date().toISOString() }] }));
+    setLockCredential(""); announce(`${label} is locked for fun. This is not security or encryption.`, "success", "Toy locks");
+  };
+  const unlockToyLock = async (lock: ToyLock) => {
+    const candidate = await hashSchoolCredential(unlockCredential, lock.salt);
+    if (candidate !== lock.hash) { setUnlockCredential(""); announce("That toy-lock credential did not match. Recovery is clearing local app data or this site's browser storage.", "error", "Toy locks"); return; }
+    const until = lock.durationMinutes ? new Date(Date.now() + lock.durationMinutes * 60_000).toISOString() : null;
+    setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: false, unlockedUntil: until } : item) })); setUnlockCredential(""); announce(`${lock.label} unlocked locally${until ? ` for ${lock.durationMinutes} minutes` : " until reload"}.`, "success", "Toy locks");
+  };
+  const relockToyLock = (lock: ToyLock) => setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: true, unlockedUntil: null } : item) }));
+  const createSupportTicket = () => {
+    const description = ticketDescription.trim();
+    if (!description || description.length > 1000) { announce("Describe the local recovery question in 1–1000 characters.", "warning", "Support Tickets"); return; }
+    const ticket: SupportTicket = { id: `ticket-${Date.now().toString(36)}`, category: ticketCategory, description, severity: ticketSeverity, status: "recovery-ready", createdAt: new Date().toISOString() };
+    setSupportTickets((current) => ({ schemaVersion: 1, tickets: [ticket, ...current.tickets].slice(0, 100) })); setTicketDescription(""); announce("Support Ticket saved on this device. No network request was made; recovery means clearing local data yourself.", "success", "Support Tickets");
+  };
   const scheduleSettingOptions: Array<[SiteSettingKey, string, string]> = [
     ["language", "Language", "語言"],
     ["funnyEnglish", "English funny level", "英文玩味程度"],
@@ -3072,6 +3148,8 @@ export default function SiteShell({
     ],
     ["language", `Language mode English Cantonese bilingual ${prefs.language}`],
     ["school-mode", `School mode ${schoolMode.name} ${schoolMode.enabled ? "enabled English only locked" : "off local unlock"}`],
+    ["toy-locks", `Toy locks lock wizard locked targets unlock relock duration password local recovery not security`],
+    ["support-tickets", `Support Tickets local recovery ticket status no network clear browser storage`],
     ["funny-en", `English funny level tone ${prefs.funnyEnglish}`],
     ["funny-yue", `Cantonese funny level tone ${prefs.funnyCantonese}`],
     ["theme", `Theme system light dark ${prefs.theme}`],
@@ -3912,6 +3990,8 @@ export default function SiteShell({
     detail: dual("Manage local TOTP entries, live codes, and redacted exports", "管理本機 TOTP 記錄、即時驗證碼同刪走秘密資料嘅匯出", language),
     action: () => { setSettingsQuery(""); selectTab("settings", "authenticator-settings"); },
   });
+  commands.push({ id: "toy-locks", label: dual("Toy locks", "玩具鎖", language), detail: dual("Open local target lock wizard; locked targets remain discoverable", "開啟本機目標玩具鎖工具；鎖定目標仍然可搜尋", language), action: () => openSetting("toy-locks") });
+  commands.push({ id: "support-tickets", label: dual("Support Tickets", "支援票據", language), detail: dual("Open the fictional local recovery desk; no network or deletion", "開啟虛構本機復原服務台；冇網絡亦唔會刪資料", language), action: () => openSetting("support-tickets") });
   commands.push({
     id: "app-logo-upload",
     label: dual("Upload custom app logo", "上載自訂應用程式標誌", language),
@@ -5851,6 +5931,39 @@ export default function SiteShell({
                     <p className="supporting-copy">This is a self-imposed UX lock, not security. Recovery: clear this site's browser storage, then reload.</p>
                   </div>
                 )}
+              </SettingCard>
+              <SettingCard
+                id="toy-locks"
+                hidden={!settingsVisible("toy-locks")}
+                title="Toy locks"
+                description="Lock major site targets behind an individually salted local credential. This is a self-imposed UX speed bump, never security or encryption."
+                provenance={`${toyLocks.locks.length} local target locks · credentials are salted hashes only; no secrets enter exports, history, or logs`}
+              >
+                <div className="toy-lock-card">
+                  <p className="supporting-copy">Each target has its own credential and unlock duration. Locked targets stay discoverable in search and the command palette, labelled locked, then open this wizard. Recovery: clear this site's browser storage; the desktop equivalent is deleting its local application-data folder. Nothing is sent anywhere.</p>
+                  <div className="toy-lock-form">
+                    <label><span>Target</span><select value={lockTarget} onChange={(event) => { setLockTarget(event.target.value); setLockLabel(event.target.options[event.target.selectedIndex]?.text ?? event.target.value); }}><option value="site-settings">Site Settings</option><option value="site-docs">Documentation browser</option><option value="site-features">Feature map</option><option value="desktop-settings">Desktop Settings</option></select></label>
+                    <label><span>Target label</span><input value={lockLabel} maxLength={96} onChange={(event) => setLockLabel(event.target.value)} /></label>
+                    <label><span>New local credential</span><input type="password" value={lockCredential} maxLength={128} autoComplete="new-password" onChange={(event) => setLockCredential(event.target.value)} /></label>
+                    <label><span>Unlock duration</span><select value={lockDuration} onChange={(event) => setLockDuration(Number(event.target.value))}><option value={0}>Until reload</option><option value={15}>15 minutes</option><option value={60}>1 hour</option><option value={1440}>24 hours</option></select></label>
+                  </div>
+                  <button type="button" className="filled-button" onClick={createToyLock}>Lock this target…</button>
+                  <div className="toy-lock-list" aria-live="polite">{!toyLocks.locks.length && <p className="empty-state">No toy locks yet.</p>}{toyLocks.locks.map((lock) => <article key={lock.id} className={lockTargetIsLocked(lock.id) ? "toy-lock-row locked" : "toy-lock-row"}><div><strong>{lock.label}</strong><small>{lock.locked ? "Locked · discoverable in search and palette" : `Unlocked${lock.unlockedUntil ? ` until ${new Date(lock.unlockedUntil).toLocaleString()}` : " until reload"}`} · local only</small></div>{lock.locked ? <div className="toy-lock-unlock"><input type="password" aria-label={`Unlock ${lock.label}`} value={lockTarget === lock.id ? unlockCredential : ""} onFocus={() => setLockTarget(lock.id)} onChange={(event) => { setLockTarget(lock.id); setUnlockCredential(event.target.value); }} /><button type="button" className="outlined-button" onClick={() => unlockToyLock(lock)}>Unlock</button></div> : <button type="button" className="outlined-button" onClick={() => relockToyLock(lock)}>Lock again</button>}</article>)}</div>
+                </div>
+              </SettingCard>
+              <SettingCard
+                id="support-tickets"
+                hidden={!settingsVisible("support-tickets")}
+                title="Support Tickets"
+                description="A local recovery desk for forgotten toy-lock credentials. It never contacts a service or deletes data for you."
+                provenance={`${supportTickets.tickets.length} local ticket records · no network, account, or human support channel`}
+              >
+                <div className="support-ticket-card">
+                  <p className="supporting-copy"><strong>Plain disclosure:</strong> nothing is sent anywhere, no ticket exists outside this device, no network request is made, no data is collected, and nobody is reading it. The resolution is to open local recovery guidance and clear storage yourself.</p>
+                  <div className="support-ticket-form"><label><span>Category</span><select value={ticketCategory} onChange={(event) => setTicketCategory(event.target.value)}><option>Forgotten toy-lock credential</option><option>Unlock duration question</option><option>Recovery path question</option></select></label><label><span>Severity nobody will honour</span><select value={ticketSeverity} onChange={(event) => setTicketSeverity(event.target.value)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label className="support-ticket-description"><span>Description</span><textarea value={ticketDescription} maxLength={1000} onChange={(event) => setTicketDescription(event.target.value)} placeholder="Describe the local recovery question." /></label></div>
+                  <div className="support-ticket-actions"><button type="button" className="filled-button" onClick={createSupportTicket}>Create local ticket</button><button type="button" className="outlined-button" onClick={() => announce("Recovery path: clear this site's browser storage. For the desktop app, delete its local application-data folder. The app does not delete it for you.", "info", "Support Tickets")}>Show recovery path</button></div>
+                  <div className="support-ticket-list">{!supportTickets.tickets.length && <p className="empty-state">No local tickets yet.</p>}{supportTickets.tickets.map((ticket) => <article key={ticket.id}><div><strong>{ticket.category}</strong><small>{ticket.id} · {ticket.severity} · {ticket.status}</small><p>{ticket.description}</p></div><span className="support-ticket-status">Recovery ready</span></article>)}</div>
+                </div>
               </SettingCard>
               <SettingCard
                 id="authenticator-settings"
