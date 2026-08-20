@@ -12,6 +12,7 @@
 
 ## Unreleased — toy locks and Support Tickets
 
+- Extended toy locks from four major targets to every rendered target with deterministic exact IDs, independent salted local hashes and durations, a reusable anchored context-menu/keyboard wizard, locked target palette discovery, and preserved Support Tickets/recovery. The feature remains local UX-only: no security, encryption, network, or deletion. Tests, lint, reviews, captures, and release remain unrun for this slice.
 - Added a bounded local UX lock wizard for major site and desktop targets with independent salted credential hashes, unlock durations, relock, locked-state discovery, and self-service recovery copy.
 - Added fictional local Support Tickets that never contact a service or delete local data.
 - Runtime interaction, tests, lint, captures, and packaged verification remain unverified for this slice.

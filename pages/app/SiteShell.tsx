@@ -117,6 +117,7 @@ type AuthenticatorEntry = {
 type AuthenticatorState = { schemaVersion: 1; entries: AuthenticatorEntry[] };
 type ToyLock = { id: string; label: string; salt: string; hash: string; durationMinutes: number; locked: boolean; unlockedUntil: string | null; createdAt: string };
 type ToyLockState = { schemaVersion: 1; locks: ToyLock[] };
+const LOCK_TARGET_ID_PREFIX = "toy-target-";
 type SupportTicket = { id: string; category: string; description: string; severity: string; status: "opened" | "recovery-ready"; createdAt: string };
 type SupportTicketState = { schemaVersion: 1; tickets: SupportTicket[] };
 type LocalHistoryEvent = {
@@ -834,7 +835,7 @@ function normalizeToyLocks(value: unknown): ToyLockState | null {
   for (const item of root.locks) {
     if (!item || typeof item !== "object") return null;
     const lock = item as Partial<ToyLock>;
-    if (typeof lock.id !== "string" || !/^toy-lock-[a-z0-9-]{4,80}$/.test(lock.id) || typeof lock.label !== "string" || !lock.label.trim() || lock.label.length > 96 || typeof lock.salt !== "string" || typeof lock.hash !== "string" || typeof lock.durationMinutes !== "number" || ![0, 15, 60, 1440].includes(lock.durationMinutes) || typeof lock.locked !== "boolean" || (lock.unlockedUntil !== null && typeof lock.unlockedUntil !== "string")) return null;
+    if (typeof lock.id !== "string" || !/^(toy-lock-|toy-target-|element-|feature-|setting-|tab-|site-|desktop-)[a-z0-9-]{2,128}$/.test(lock.id) || typeof lock.label !== "string" || !lock.label.trim() || lock.label.length > 96 || typeof lock.salt !== "string" || typeof lock.hash !== "string" || typeof lock.durationMinutes !== "number" || ![0, 15, 60, 1440].includes(lock.durationMinutes) || typeof lock.locked !== "boolean" || (lock.unlockedUntil !== null && typeof lock.unlockedUntil !== "string")) return null;
     locks.push({ id: lock.id, label: lock.label.trim(), salt: lock.salt, hash: lock.hash, durationMinutes: lock.durationMinutes, locked: lock.locked, unlockedUntil: lock.unlockedUntil ?? null, createdAt: typeof lock.createdAt === "string" ? lock.createdAt : new Date().toISOString() });
   }
   return { schemaVersion: 1, locks };
@@ -1740,6 +1741,8 @@ export default function SiteShell({
   const [lockCredential, setLockCredential] = useState("");
   const [lockDuration, setLockDuration] = useState(15);
   const [unlockCredential, setUnlockCredential] = useState("");
+  const [lockWizardId, setLockWizardId] = useState<string | null>(null);
+  const [lockContextMenu, setLockContextMenu] = useState<{ id: string; label: string; top: number; left: number } | null>(null);
   const [supportTickets, setSupportTickets] = useState<SupportTicketState>(DEFAULT_SUPPORT_TICKETS);
   const [ticketCategory, setTicketCategory] = useState("Forgotten toy-lock credential");
   const [ticketDescription, setTicketDescription] = useState("");
@@ -2347,6 +2350,17 @@ export default function SiteShell({
     if (hydrated && !writeLocalRecord(APPEARANCE_KEY, appearanceState, 96 * 1024)) setPersistenceAvailable(false);
   }, [hydrated, appearanceState]);
   useEffect(() => {
+    const assignEveryRenderedTarget = () => {
+      const counts = new Map<string, number>();
+      document.querySelectorAll<HTMLElement>("main *").forEach((element) => {
+        if (element.dataset.appearanceTarget || ["SCRIPT", "STYLE"].includes(element.tagName)) return;
+        const source = element.id || element.getAttribute("aria-label") || element.getAttribute("role") || element.tagName.toLowerCase();
+        const slug = source.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 72) || "element";
+        const ordinal = (counts.get(slug) ?? 0) + 1; counts.set(slug, ordinal);
+        element.dataset.appearanceTarget = `element-${slug}-${ordinal}`;
+      });
+    };
+    assignEveryRenderedTarget();
     const apply = () => {
       document.querySelectorAll<HTMLElement>("[data-appearance-target]").forEach((element) => {
         const id = element.dataset.appearanceTarget;
@@ -2372,6 +2386,11 @@ export default function SiteShell({
       if (event.type === "contextmenu") event.preventDefault();
       const id = element.dataset.appearanceTarget;
       if (!id) return;
+      if (event.type === "contextmenu") {
+        const mouse = event as MouseEvent;
+        setLockContextMenu({ id, label: element.getAttribute("aria-label") || element.textContent?.trim().slice(0, 96) || id, top: Math.min(window.innerHeight - 180, Math.max(12, mouse.clientY)), left: Math.min(window.innerWidth - 280, Math.max(12, mouse.clientX)) });
+        return;
+      }
       const rect = element.getBoundingClientRect();
       setAppearanceEditorId(id);
       setAppearanceAnchor({ top: Math.min(window.innerHeight - 24, rect.bottom + 8), left: Math.min(window.innerWidth - 360, Math.max(12, rect.left)) });
@@ -2380,9 +2399,34 @@ export default function SiteShell({
     document.addEventListener("contextmenu", open);
     document.addEventListener("click", click);
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") { setAppearanceEditorId(null); setAppearanceAnchor(null); } };
+    const keyOpen = (event: KeyboardEvent) => {
+      const element = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>("[data-appearance-target]") : null;
+      if (!element || !["Enter", "F2"].includes(event.key)) return;
+      event.preventDefault();
+      setLockWizardId(element.dataset.appearanceTarget ?? null);
+    };
     document.addEventListener("keydown", close);
-    return () => { document.removeEventListener("contextmenu", open); document.removeEventListener("click", click); document.removeEventListener("keydown", close); };
-  }, [appearanceState]);
+    document.addEventListener("keydown", keyOpen);
+    return () => { document.removeEventListener("contextmenu", open); document.removeEventListener("click", click); document.removeEventListener("keydown", close); document.removeEventListener("keydown", keyOpen); };
+  }, [appearanceState, activeTab, prefs.tabOrder, prefs.tabGroups.groups, tabOverflowOpen, lockWizardId]);
+  useEffect(() => {
+    document.querySelectorAll<HTMLElement>("[data-appearance-target]").forEach((element) => {
+      const id = element.dataset.appearanceTarget;
+      if (!id) return;
+      element.dataset.lockTarget = `${LOCK_TARGET_ID_PREFIX}${id}`;
+      element.dataset.toyLocked = lockTargetIsLocked(id) ? "true" : "false";
+    });
+    const blockLocked = (event: MouseEvent) => {
+      const element = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>("[data-appearance-target]") : null;
+      const id = element?.dataset.appearanceTarget;
+      if (!element || !id || !lockTargetIsLocked(id)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setLockWizardId(id);
+    };
+    document.addEventListener("click", blockLocked, true);
+    return () => document.removeEventListener("click", blockLocked, true);
+  }, [toyLocks]);
   useEffect(() => {
     if (activeTab !== "settings") {
       setSettingsGridTarget(null);
@@ -3074,22 +3118,23 @@ export default function SiteShell({
     announce(`${schoolMode.name} is off. Your previous language, tone, vocabulary, and dim-sum choices are restored.`, "success", "School mode");
   };
   const lockTargetIsLocked = (id: string) => toyLocks.locks.some((lock) => lock.id === id && lock.locked && (!lock.unlockedUntil || Date.parse(lock.unlockedUntil) > Date.now()));
-  const createToyLock = async () => {
+  const createToyLock = async (requestedId = lockTarget, requestedLabel = lockLabel) => {
     const credential = lockCredential;
-    const label = lockLabel.trim();
+    const label = requestedLabel.trim();
     if (!label || credential.length < 4 || credential.length > 128) { announce("Choose a target label and a 4–128 character toy-lock credential.", "warning", "Toy locks"); return; }
     if (!(crypto?.subtle && crypto.getRandomValues)) { announce("This browser cannot create a local toy-lock hash.", "error", "Toy locks"); return; }
     const saltBytes = new Uint8Array(16); crypto.getRandomValues(saltBytes); const salt = encodeBytes(saltBytes);
     const hash = await hashSchoolCredential(credential, salt);
-    setToyLocks((current) => ({ schemaVersion: 1, locks: [...current.locks.filter((lock) => lock.id !== lockTarget), { id: lockTarget, label, salt, hash, durationMinutes: lockDuration, locked: true, unlockedUntil: null, createdAt: new Date().toISOString() }] }));
+    setToyLocks((current) => ({ schemaVersion: 1, locks: [...current.locks.filter((lock) => lock.id !== requestedId), { id: requestedId, label, salt, hash, durationMinutes: lockDuration, locked: true, unlockedUntil: null, createdAt: new Date().toISOString() }] }));
     appendLocalHistory("toy-lock", "created", "Toy lock credential metadata changed");
-    setLockCredential(""); announce(`${label} is locked for fun. This is not security or encryption.`, "success", "Toy locks");
+    setLockCredential(""); setLockWizardId(null); setLockContextMenu(null); announce(`${label} is locked for fun. This is not security or encryption.`, "success", "Toy locks");
   };
   const unlockToyLock = async (lock: ToyLock) => {
     const candidate = await hashSchoolCredential(unlockCredential, lock.salt);
     if (candidate !== lock.hash) { setUnlockCredential(""); announce("That toy-lock credential did not match. Recovery is clearing local app data or this site's browser storage.", "error", "Toy locks"); return; }
     const until = lock.durationMinutes ? new Date(Date.now() + lock.durationMinutes * 60_000).toISOString() : null;
-    setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: false, unlockedUntil: until } : item) })); appendLocalHistory("toy-lock", "updated", "Toy lock state changed"); setUnlockCredential(""); announce(`${lock.label} unlocked locally${until ? ` for ${lock.durationMinutes} minutes` : " until reload"}.`, "success", "Toy locks");
+    setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: false, unlockedUntil: until } : item) })); setUnlockCredential(""); setLockWizardId(null); setLockContextMenu(null); announce(`${lock.label} unlocked locally${until ? ` for ${lock.durationMinutes} minutes` : " until reload"}.`, "success", "Toy locks");
+    appendLocalHistory("toy-lock", "updated", "Toy lock state changed");
   };
   const relockToyLock = (lock: ToyLock) => { setToyLocks((current) => ({ schemaVersion: 1, locks: current.locks.map((item) => item.id === lock.id ? { ...item, locked: true, unlockedUntil: null } : item) })); appendLocalHistory("toy-lock", "updated", "Toy lock state changed"); };
   const createSupportTicket = () => {
@@ -4312,6 +4357,7 @@ export default function SiteShell({
     action: () => { setSettingsQuery(""); selectTab("settings", "authenticator-settings"); },
   });
   commands.push({ id: "toy-locks", label: dual("Toy locks", "玩具鎖", language), detail: dual("Open local target lock wizard; locked targets remain discoverable", "開啟本機目標玩具鎖工具；鎖定目標仍然可搜尋", language), action: () => openSetting("toy-locks") });
+  toyLocks.locks.forEach((lock) => commands.push({ id: `toy-lock-target-${lock.id}`, label: `${lock.locked ? "🔒 " : "🔓 "}${lock.label}`, detail: dual(`${lock.locked ? "Locked" : "Unlocked"} · local UX only · open anchored wizard`, `${lock.locked ? "已鎖定" : "已解鎖"} · 只限本機 UX · 開啟貼邊精靈`, language), action: () => { setLockWizardId(lock.id); setLockContextMenu(null); } }));
   commands.push({ id: "support-tickets", label: dual("Support Tickets", "支援票據", language), detail: dual("Open the fictional local recovery desk; no network or deletion", "開啟虛構本機復原服務台；冇網絡亦唔會刪資料", language), action: () => openSetting("support-tickets") });
   commands.push({
     id: "app-logo-upload",
@@ -7976,6 +8022,18 @@ export default function SiteShell({
           close={() => { setAppearanceEditorId(null); setAppearanceAnchor(null); }}
         />
       )}
+      {lockContextMenu && (
+        <aside className="toy-lock-context-menu" role="menu" style={{ top: lockContextMenu.top, left: lockContextMenu.left }} onKeyDown={(event) => { if (event.key === "Escape") setLockContextMenu(null); }}>
+          <strong>{lockContextMenu.label}</strong>
+          <button type="button" role="menuitem" onClick={() => { setLockTarget(lockContextMenu.id); setLockLabel(lockContextMenu.label); setLockWizardId(lockContextMenu.id); setLockContextMenu(null); }}>Lock this element…</button>
+          <button type="button" role="menuitem" onClick={() => { const element = document.querySelector<HTMLElement>(`[data-appearance-target="${CSS.escape(lockContextMenu.id)}"]`); if (element) { const rect = element.getBoundingClientRect(); setAppearanceEditorId(lockContextMenu.id); setAppearanceAnchor({ top: Math.min(window.innerHeight - 24, rect.bottom + 8), left: Math.min(window.innerWidth - 360, Math.max(12, rect.left)) }); } setLockContextMenu(null); }}>Edit appearance…</button>
+        </aside>
+      )}
+      {lockWizardId && (() => {
+        const lock = toyLocks.locks.find((item) => item.id === lockWizardId) ?? null;
+        const label = lock?.label ?? lockWizardId;
+        return <ToyLockWizard id={lockWizardId} label={label} lock={lock} credential={lock?.locked ? unlockCredential : lockCredential} duration={lockDuration} setCredential={lock?.locked ? setUnlockCredential : setLockCredential} setDuration={setLockDuration} create={() => createToyLock(lockWizardId, label)} unlock={() => lock && unlockToyLock(lock)} close={() => { setLockWizardId(null); setUnlockCredential(""); setLockCredential(""); }} language={language} />;
+      })()}
       <div
         className={`snackbar ${toast ? "visible" : ""}`}
         role="status"
@@ -8530,6 +8588,43 @@ function AppearanceEditor({
       </div>
       <div className="appearance-color-translations" aria-label={dual("Color translations", "顏色轉換", language)}><strong>{dual("Continuous color representations", "連續顏色表示", language)}</strong><code>HEX {translated.hex}</code><code>RGB {translated.rgb}</code><code>HSL {translated.hsl}</code><code>HSV {translated.hsv}</code><code>HWB {translated.hwb}</code><code>OKLab {translated.oklab}</code><code>CMYK {translated.cmyk}</code><small>{dual("Contrast disclosure: text and background are shown as chosen; review contrast before saving. OKLab conversion is currently unsupported and is disclosed rather than guessed.", "對比度披露：文字同背景會按你揀嘅值顯示；儲存前請檢查對比度。OKLab 轉換暫時未支援，會清楚講明而唔會亂估。", language)}</small></div>
       <div className="appearance-editor-actions"><button type="button" className="outlined-button" onClick={reset}>{dual("Reset this element", "重設呢個元素", language)}</button><button type="button" className="filled-button" onClick={close}>{dual("Done", "完成", language)}</button></div>
+    </aside>
+  );
+}
+
+function ToyLockWizard({
+  id,
+  label,
+  lock,
+  credential,
+  duration,
+  setCredential,
+  setDuration,
+  create,
+  unlock,
+  close,
+  language,
+}: {
+  id: string;
+  label: string;
+  lock: ToyLock | null;
+  credential: string;
+  duration: number;
+  setCredential: (value: string) => void;
+  setDuration: (value: number) => void;
+  create: () => void;
+  unlock: () => void;
+  close: () => void;
+  language: LanguageMode;
+}) {
+  const locked = Boolean(lock?.locked);
+  return (
+    <aside className="toy-lock-wizard" role="dialog" aria-modal="false" aria-labelledby="toy-lock-wizard-title">
+      <header><div><span className="eyebrow">{dual("Anchored toy-lock wizard", "貼邊玩具鎖精靈", language)}</span><h2 id="toy-lock-wizard-title">{locked ? dual("Unlock this element", "解鎖呢個元素", language) : dual("Lock this element…", "鎖定呢個元素…", language)}</h2><small>{id} · {label}</small></div><button type="button" onClick={close} aria-label={dual("Close toy-lock wizard", "關閉玩具鎖精靈", language)}>×</button></header>
+      <p>{dual("This is a local UX speed bump only. It is not security, encryption, or deletion, and recovery remains clearing this site's storage or the desktop app-data folder.", "呢個只係本機 UX 小阻滯，唔係安全、加密或者刪除；復原仍然係清除網站儲存或者桌面程式資料夾。", language)}</p>
+      <label><span>{locked ? dual("Local credential", "本機憑證", language) : dual("New local credential", "新本機憑證", language)}</span><input autoFocus type="password" value={credential} maxLength={128} onChange={(event) => setCredential(event.target.value)} autoComplete={locked ? "current-password" : "new-password"} /></label>
+      {!locked && <label><span>{dual("Unlock duration", "解鎖時限", language)}</span><select value={duration} onChange={(event) => setDuration(Number(event.target.value))}><option value={0}>{dual("Until reload", "直到重新載入", language)}</option><option value={15}>{dual("15 minutes", "15 分鐘", language)}</option><option value={60}>{dual("1 hour", "1 小時", language)}</option><option value={1440}>{dual("24 hours", "24 小時", language)}</option></select></label>}
+      <div className="toy-lock-wizard-actions"><button type="button" className="outlined-button" onClick={close}>{dual("Emergency exit", "緊急離開", language)}</button><button type="button" className="filled-button" onClick={locked ? unlock : create}>{locked ? dual("Unlock locally", "本機解鎖", language) : dual("Lock for fun", "鎖住玩吓", language)}</button></div>
     </aside>
   );
 }
