@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Pages tab-discovery depth
+
+- Added an always-available current-strip search with independent plain-text/JavaScript-regex state and an anchored full builder, while keeping per-group, group-name, and master-tab searches separate and transient.
+- Strengthened the All tabs bulk-close review with explicit contains/not-contains actions, exact eligible counts and previews, pinned/current-tab protection, unsaved-work disclosure, empty/invalid-query blocking, and focus-safe two-key/full-slider confirmation. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
+
 ## Unreleased — Pages tab-group appearance
 
 - Added a keyboard-accessible, anchored **Edit group appearance…** context-menu action for every Pages tab-group header, with local persistence and per-group reset for icon, text/background colors, corner radius, header size, and header weight. Unsupported gradients, shadows, custom fonts, and color-space translation are disclosed explicitly. Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.

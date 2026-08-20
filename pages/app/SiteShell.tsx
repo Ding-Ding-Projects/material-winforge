@@ -1976,6 +1976,13 @@ export default function SiteShell({
   const [tabOverflowSample, setTabOverflowSample] = useState(
     "Home\nFeature map\nDocumentation\nSettings\nChangelog\nStatus",
   );
+  const [stripSearchQuery, setStripSearchQuery] = useState("");
+  const [stripSearchRegex, setStripSearchRegex] = useState(false);
+  const [stripSearchBuilderOpen, setStripSearchBuilderOpen] = useState(false);
+  const [stripSearchFlags, setStripSearchFlags] = useState({ i: true, m: false });
+  const [stripSearchSample, setStripSearchSample] = useState(
+    "Home\nFeature map\nDocumentation\nSettings\nChangelog\nStatus",
+  );
   const [bulkCloseQuery, setBulkCloseQuery] = useState("");
   const [bulkCloseRegex, setBulkCloseRegex] = useState(false);
   const [bulkCloseBuilderOpen, setBulkCloseBuilderOpen] = useState(false);
@@ -5082,6 +5089,43 @@ export default function SiteShell({
           ),
         ).slice(0, 50)
       : [];
+  let stripSearchPattern: RegExp | null = null;
+  let stripSearchPatternError = "";
+  if (stripSearchRegex && stripSearchQuery)
+    try {
+      stripSearchPattern = new RegExp(
+        stripSearchQuery,
+        `${stripSearchFlags.i ? "i" : ""}${stripSearchFlags.m ? "m" : ""}`,
+      );
+    } catch (error) {
+      stripSearchPatternError =
+        error instanceof Error ? error.message : "Invalid regular expression";
+    }
+  const stripSearchMatches =
+    stripSearchRegex && !stripSearchPatternError && stripSearchQuery
+      ? Array.from(
+          stripSearchSample.matchAll(
+            new RegExp(
+              stripSearchQuery,
+              `${stripSearchFlags.i ? "i" : ""}${stripSearchFlags.m ? "m" : ""}g`,
+            ),
+          ),
+        ).slice(0, 50)
+      : [];
+  const currentStripTabs = orderedTabs.filter((tab) => {
+    const groupName = prefs.tabGroups.groups.find((group) => group.tabs.includes(tab.id))?.name ?? "Ungrouped";
+    const text = `${tab.en} ${tab.yue} ${groupName} ${prefs.pinnedTabs.includes(tab.id) ? "Pinned" : "Ordinary"}`;
+    return !stripSearchQuery || (stripSearchRegex
+      ? !!stripSearchPattern?.test(text)
+      : text.toLocaleLowerCase().includes(stripSearchQuery.toLocaleLowerCase()));
+  });
+  const currentStripIds = new Set(currentStripTabs.map((tab) => tab.id));
+  const stripPinnedTabs = pinnedTabs.filter((tab) => currentStripIds.has(tab.id));
+  const stripUngroupedTabs = ungroupedTabs.filter((tab) => currentStripIds.has(tab.id));
+  const stripRenderedGroups = renderedGroups.map((group) => ({
+    ...group,
+    members: group.members.filter((tab) => currentStripIds.has(tab.id)),
+  }));
   let moveGroupPattern: RegExp | null = null;
   let moveGroupPatternError = "";
   if (moveGroupRegex && moveGroupQuery)
@@ -5452,6 +5496,55 @@ export default function SiteShell({
         className="tab-strip"
         aria-label={dual("Primary navigation", "主要導覽", language)}
       >
+        <section className="tab-strip-search" aria-label={dual("Current tab strip search", "目前分頁列搜尋", language)}>
+          <label className="search-field" htmlFor="current-strip-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              id="current-strip-search"
+              maxLength={128}
+              value={stripSearchQuery}
+              onChange={(event) => setStripSearchQuery(event.target.value)}
+              placeholder={dual("Search this tab strip", "搜尋目前分頁列", language)}
+              aria-label={dual("Search this tab strip", "搜尋目前分頁列", language)}
+              aria-invalid={Boolean(stripSearchPatternError)}
+            />
+          </label>
+          <div className="builder-anchor">
+            <button
+              type="button"
+              className={stripSearchRegex ? "active" : ""}
+              onClick={() => setStripSearchBuilderOpen((value) => !value)}
+              aria-expanded={stripSearchBuilderOpen}
+              aria-controls="current-strip-regex"
+            >
+              {dual("Regex builder", "正規表示式工具", language)}
+            </button>
+            {stripSearchBuilderOpen && (
+              <RegexBuilder
+                builderId="current-strip-regex"
+                language={language}
+                query={stripSearchQuery}
+                setQuery={(value) => {
+                  setStripSearchQuery(value.slice(0, 128));
+                  setStripSearchRegex(true);
+                }}
+                regexMode={stripSearchRegex}
+                setRegexMode={setStripSearchRegex}
+                flags={stripSearchFlags}
+                setFlags={setStripSearchFlags}
+                error={stripSearchPatternError}
+                sample={stripSearchSample}
+                setSample={setStripSearchSample}
+                matches={stripSearchMatches}
+                announce={announce}
+                close={() => setStripSearchBuilderOpen(false)}
+              />
+            )}
+          </div>
+          <p className="tab-strip-search-meta" aria-live="polite">
+            {stripSearchPatternError || `${currentStripTabs.length} ${dual("matching tabs", "個符合分頁", language)}`}
+          </p>
+        </section>
         <div
           className="tab-collection"
           aria-label={dual("Site destinations", "網站目的地", language)}
@@ -5464,12 +5557,12 @@ export default function SiteShell({
               onKeyDown={handleTabKeyDown}
               aria-label={dual("Pinned tabs", "已釘選分頁", language)}
             >
-              {pinnedTabs.map((tab) => renderStripTab(tab, true))}
+              {stripPinnedTabs.map((tab) => renderStripTab(tab, true))}
             </div>
           )}
           <div ref={tabItemsRef} className="tab-items">
-            <div className="ungrouped-tab-items" role="tablist" aria-orientation={tabOrientation} aria-label={dual("Ungrouped tabs", "未分組分頁", language)} onKeyDown={handleTabKeyDown}>{ungroupedTabs.map((tab) => renderStripTab(tab, false))}</div>
-            {renderedGroups.map((group) => {
+            <div className="ungrouped-tab-items" role="tablist" aria-orientation={tabOrientation} aria-label={dual("Ungrouped tabs", "未分組分頁", language)} onKeyDown={handleTabKeyDown}>{stripUngroupedTabs.map((tab) => renderStripTab(tab, false))}</div>
+            {stripRenderedGroups.map((group) => {
               const search =
                 groupSearches[group.id] ?? defaultGroupSearch(group);
               let groupPattern: RegExp | null = null;
