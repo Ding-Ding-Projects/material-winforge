@@ -1,5 +1,12 @@
 # Handoff
 
+## Luna Ollama model-catalog and hardware-fit depth lane — `codex/luna-ollama-model-fit-depth`
+
+- Extended `pages/app/SiteShell.tsx` with bounded variant-level records from local `/api/tags`, digest/blob/modified/parameter/quantization fields, refresh provenance, completeness and stale/offline state, Installed-only and verdict filters, and conservative hardware evidence from browser RAM/storage APIs with VRAM explicitly unknown.
+- Added factual fit verdicts: Runs well, Runs with limits, Unlikely, and Unknown. Missing blob/context/RAM/disk evidence remains Unknown; disk/RAM shortfalls are conservative and no model name is treated as proof.
+- Updated `pages/app/globals.css`, `docs/application/ollama.md`, `docs/site/ollama.md`, `docs/completeness/universal-feature-inventory.md`, and this changelog/handoff. No cloud, payment, credential, telemetry upload, or arbitrary-shell semantics were added.
+- Verification boundary: vocabulary/publication/diff preflights and site builds are the permitted checks; tests, lint, packaged interaction, runtime hardware capture, and screenshots remain unrun.
+
 ## Luna desktop destructive-action confirmation parity lane — `codex/luna-desktop-destructive-confirmation`
 
 - Extended `main-app-design/WinForge M3.dc.html` so Restart Explorer uses the desktop super-confirmation pattern already used by Empty Recycle Bin: two independently operated acknowledgements, a 0–100 authorization slider, exact impact copy, Emergency exit, scrim and Escape cancellation, focus return, readable status/progress, submit locking, and reduced-motion CSS.

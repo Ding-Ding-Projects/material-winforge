@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Ollama catalog and conservative hardware-fit depth
+
+- Added variant-level local Ollama catalog records with digest, blob-size, modified-time, parameter-size, quantization, installed state, refresh source/timestamp, bounded completeness, and stale/offline status.
+- Added Installed-only and fit-verdict filters plus conservative Runs well / Runs with limits / Unlikely / Unknown evaluation from reported RAM, free browser storage, blob size, context, and metadata. Unknown evidence remains Unknown; no model name becomes a runtime promise. No cloud, payment, credential, telemetry upload, or arbitrary-shell path was added.
+- Tests, lint, runtime interaction, captures, release, and publication remain unrun for this lane.
+
 ## Unreleased — desktop destructive-action confirmation parity
 
 - Extended the desktop Restart Explorer confirmation to the shared destructive-action contract: exact impact and affected-data copy, two independent acknowledgements, a full-range slider, Emergency exit/scrim/Escape cancellation, focus return, readable progress, reduced-motion handling, and no bridge mutation before authorization completes.
