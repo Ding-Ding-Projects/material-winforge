@@ -34,7 +34,7 @@ The roadmap distinguishes source capability from proof. A checked item means the
 ## Repository maintenance, 2026-09-18
 
 - [x] Inventory the primary checkout, all linked worktrees, local and remote branches, stashes, reflogs, unresolved index entries, and conflict markers.
-- [x] Fetch `origin` and fast-forward `main` to `68f34e9e97a240360b841295bdb8c825c88e19fb`; verify the remote ref with `git ls-remote`.
+- [x] Fetch `origin`, verify the starting remote ref `68f34e9e97a240360b841295bdb8c825c88e19fb`, and push the final `main` ref `52adb64a01ffcce14ee5af4789a3748a9e32d034` with `git ls-remote` proof.
 - [x] Confirm there were no recoverable uncommitted files, half-finished changes, stashes, linked worktrees, or redundant branches to preserve or remove.
 - [x] Record the maintenance evidence and retention decisions in `HANDOFF.md`.
 - [x] Confirm that no removal was required because no safe redundant linked checkout, branch, or stash existed; create and verify the OneDrive archive before making that decision.

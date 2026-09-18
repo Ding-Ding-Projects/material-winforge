@@ -5,7 +5,7 @@
 ### Scope and inventory
 
 - Scope was limited to `C:\Users\cntow\Documents\GitHub\material-winforge`. No other repository or blocked family was inspected or modified.
-- The primary checkout is the only linked worktree discovered. It is on `main` at `d6dbfa9e3476b2c777c499ab5203adafdebba6da` and has no uncommitted changes.
+- The primary checkout is the only linked worktree discovered. It is on `main` at `52adb64a01ffcce14ee5af4789a3748a9e32d034` and has no uncommitted changes.
 - The local branch inventory contains only `main`; the only remote branch is `origin/main`. There are no stashes, unresolved index entries, conflict markers, submodules, or additional linked worktrees.
 - The ref inventory also contains three retained `refs/codex/snapshots/*` refs and the historical `v1.0.2` through `v1.0.95` tag set. No ref was deleted because ownership and load-bearing status for the snapshot refs are not proven.
 - A fresh writer check found no process writing this repository beyond the inspection shell. The open issue inventory for `Ding-Ding-Projects/material-winforge` is empty.
@@ -13,8 +13,8 @@
 ### Integration and verification
 
 - `origin` was fetched with pruning before any write.
-- The fetched `origin/main` is `68f34e9e97a240360b841295bdb8c825c88e19fb`; local `main` is two commits ahead, with no remote-ahead condition or divergence.
-- `git ls-remote origin refs/heads/main` returned `68f34e9e97a240360b841295bdb8c825c88e19fb`.
+- The fetched `origin/main` was `68f34e9e97a240360b841295bdb8c825c88e19fb`; local `main` was four commits ahead after the closeout records, with no remote-ahead condition or divergence.
+- `git push origin main` completed successfully, and `git ls-remote origin refs/heads/main` returned `52adb64a01ffcce14ee5af4789a3748a9e32d034`.
 - No preservation commit was needed because the checkout was clean and no half-finished local path existed. The two existing local commits remain factual preservation and maintenance records.
 - No conflict-resolution choice was required. The index remained free of unmerged entries and repository text contained no conflict markers.
 
@@ -34,12 +34,12 @@
 
 ### External blockers
 
-- The preservation push is blocked by the repository pre-push hook. `scripts/check-vocabulary.mjs` reports `Private vocabulary source is present but its lock is stale.` The source and lock are owned by the separate `agent-global-memory` checkout, which is outside this repository's scope, so the hook is not bypassed and this repository is not modified externally.
-- The final remote ref remains at `68f34e9e97a240360b841295bdb8c825c88e19fb`; local commits are preserved but not pushed because the pre-push check blocks the operation.
+- An earlier preservation attempt reported a stale private-source lock, but the final pre-push check passed with `Private vocabulary currency lock matches the configured private source.` and `Publication preflight passed for 134 tracked or proposed files with the configured private dictionary.` No bypass was used.
+- There are no current external blockers. The final remote ref is `52adb64a01ffcce14ee5af4789a3748a9e32d034`, matching local `main`.
 
 ### Next owner
 
-The next owner can start from `main` at `d6dbfa9e3476b2c777c499ab5203adafdebba6da`; the local checkout is two commits ahead of the remote, and the exact push blocker is recorded above. No release work, unrelated repository work, or blocked-family work was run.
+The next owner can start from `main` at `52adb64a01ffcce14ee5af4789a3748a9e32d034`; the local checkout and remote `main` agree. No release work, unrelated repository work, or blocked-family work was run.
 
 ## Luna desktop scheduled source depth lane — `codex/luna-desktop-scheduled-sources`
 
