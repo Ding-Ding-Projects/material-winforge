@@ -26,8 +26,8 @@
 
 ### Archive evidence
 
-- Archive path: `C:\Users\cntow\OneDrive\OakKayBackups\material-winforge\zips\material-winforge-20260918T183853Z.7z`.
-- Archive size: `2,662,869` bytes. The archive contains `203` files and `99` folders, including `168` Git-administrative-directory entries.
+- Archive path: `C:\Users\cntow\OneDrive\OakKayBackups\material-winforge\zips\material-winforge-20260918T184044Z.7z`.
+- Archive size: `2,705,831` bytes. The archive contains `316` entries, including `181` Git-administrative-directory entries.
 - Input inventory: `134` tracked files, `0` untracked non-ignored files, and `18,048` ignored paths excluded by Git's ignore rules.
 - Verification: `7z t` completed successfully with exit code `0`, and the listing was checked for a non-empty Git administrative directory and the expected input inventory.
 - No deletion followed the archive because there was no proven redundant task-owned candidate.
