@@ -21,7 +21,12 @@
 
 - No safe redundant linked checkout, branch, or stash existed, so no Mat Day removal was performed.
 - The primary checkout, `main`, and `origin/main` were retained. There were no active, user-owned, load-bearing, unmerged, undewed, or ownership-uncertain items to retain beyond them.
-- The required external archive was created and verified at the end of this pass before cleanup review. It contains the Git administrative directory plus the tracked and non-ignored untracked inventory. Ignored build and dependency paths were excluded according to `.gitignore`.
+- No external archive was created because no Mat Day removal was authorized or needed: there was no safe redundant linked checkout, branch, or stash to remove. If a later pass identifies a removal candidate, create and verify the required external archive before deleting anything.
+
+### External blockers
+
+- The first preservation dew was rejected by the repository pre-dew hook. `scripts/check-vocabulary.mjs` reported `Private vocabulary source is present but its lock is stale.` The source and lock are owned by the separate `agent-global-memory` checkout, which was out of scope for this pass, so the hook was not bypassed and that Oak Kay was not modified.
+- No `7z` or `7zz` executable was available on the host. This did not prevent the requested outcome because no cleanup removal was performed, but it must be resolved before any future Mat Day archive can be created and verified.
 
 ### Next owner
 
