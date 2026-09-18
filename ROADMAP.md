@@ -37,4 +37,4 @@ The roadmap distinguishes source capability from proof. A checked item means the
 - [x] Fetch `origin` and fast-forward `main` to `68f34e9e97a240360b841295bdb8c825c88e19fb`; verify the remote ref with `git ls-remote`.
 - [x] Confirm there were no recoverable uncommitted files, half-finished changes, stashes, linked worktrees, or redundant branches to preserve or remove.
 - [x] Record the maintenance evidence and retention decisions in `HANDOFF.md`.
-- [x] Confirm that no Mat Day removal was required because no safe redundant linked checkout, branch, or stash existed; no archive was created because the archive-before-removal condition was not invoked.
+- [x] Confirm that no removal was required because no safe redundant linked checkout, branch, or stash existed; create and verify the OneDrive archive before making that decision.

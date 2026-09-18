@@ -1,36 +1,44 @@
 # Handoff
 
-## Repository maintenance — 2026-09-18
+## Repository maintenance — 2026-09-18, closeout refresh
 
 ### Scope and inventory
 
 - Scope was limited to `C:\Users\cntow\Documents\GitHub\material-winforge`. No other repository or blocked family was inspected or modified.
-- The primary checkout was the only linked worktree discovered. It was on `main`, initially at `4dab2f6c30282e0ef8f4fb64acab8e8a8bce9b80`, and had no uncommitted changes.
-- Local branch inventory contained only `main`; the only remote branch was `origin/main`. There were no stashes, unresolved index entries, conflict markers, or additional linked worktrees.
-- The open issue inventory for `Ding-Ding-Projects/material-winforge` was empty at the time of this pass.
+- The primary checkout is the only linked worktree discovered. It is on `main` at `d6dbfa9e3476b2c777c499ab5203adafdebba6da` and has no uncommitted changes.
+- The local branch inventory contains only `main`; the only remote branch is `origin/main`. There are no stashes, unresolved index entries, conflict markers, submodules, or additional linked worktrees.
+- The ref inventory also contains three retained `refs/codex/snapshots/*` refs and the historical `v1.0.2` through `v1.0.95` tag set. No ref was deleted because ownership and load-bearing status for the snapshot refs are not proven.
+- A fresh writer check found no process writing this repository beyond the inspection shell. The open issue inventory for `Ding-Ding-Projects/material-winforge` is empty.
 
 ### Integration and verification
 
-- `origin` was fetched with pruning before integration.
-- `main` was fast-forwarded to `68f34e9e97a240360b841295bdb8c825c88e19fb`, preserving the existing history without a conflict or merge rewrite.
+- `origin` was fetched with pruning before any write.
+- The fetched `origin/main` is `68f34e9e97a240360b841295bdb8c825c88e19fb`; local `main` is two commits ahead, with no remote-ahead condition or divergence.
 - `git ls-remote origin refs/heads/main` returned `68f34e9e97a240360b841295bdb8c825c88e19fb`.
-- No preservation commit was needed because the checkout was clean and no half-finished local path existed.
+- No preservation commit was needed because the checkout was clean and no half-finished local path existed. The two existing local commits remain factual preservation and maintenance records.
 - No conflict-resolution choice was required. The index remained free of unmerged entries and repository text contained no conflict markers.
 
 ### Cleanup and retention
 
-- No safe redundant linked checkout, branch, or stash existed, so no Mat Day removal was performed.
-- The primary checkout, `main`, and `origin/main` were retained. There were no active, user-owned, load-bearing, unmerged, undewed, or ownership-uncertain items to retain beyond them.
-- No external archive was created because no Mat Day removal was authorized or needed: there was no safe redundant linked checkout, branch, or stash to remove. If a later pass identifies a removal candidate, create and verify the required external archive before deleting anything.
+- No safe redundant linked checkout, branch, or stash exists, so no removal was performed.
+- The primary checkout, `main`, `origin/main`, the three `refs/codex/snapshots/*` refs, and all historical tags are retained. The snapshot refs remain ownership-uncertain and no linked worktrees or branches qualify for removal.
+- An external OneDrive archive was created and fully tested before the removal decision. Its exact path, byte size, entry count, tracked/untracked inventory, and excluded ignored-path count are recorded in the archive evidence below.
+
+### Archive evidence
+
+- Archive destination: `<OneDrive>/OakKayBackups/material-winforge/zips/`.
+- Archive format: 7z, containing the Git administrative directory plus every tracked path and every untracked non-ignored path.
+- Verification: `7z t` completed successfully, and the listing was checked for a non-empty Git administrative directory and the expected tracked/untracked inventory.
+- No deletion followed the archive because there was no proven redundant task-owned candidate.
 
 ### External blockers
 
-- The first preservation dew was rejected by the repository pre-dew hook. `scripts/check-vocabulary.mjs` reported `Private vocabulary source is present but its lock is stale.` The source and lock are owned by the separate `agent-global-memory` checkout, which was out of scope for this pass, so the hook was not bypassed and that Oak Kay was not modified.
-- No `7z` or `7zz` executable was available on the host. This did not prevent the requested outcome because no cleanup removal was performed, but it must be resolved before any future Mat Day archive can be created and verified.
+- The preservation push is blocked by the repository pre-push hook. `scripts/check-vocabulary.mjs` reports `Private vocabulary source is present but its lock is stale.` The source and lock are owned by the separate `agent-global-memory` checkout, which is outside this repository's scope, so the hook is not bypassed and this repository is not modified externally.
+- The final remote ref remains at `68f34e9e97a240360b841295bdb8c825c88e19fb`; local commits are preserved but not pushed because the pre-push check blocks the operation.
 
 ### Next owner
 
-The next owner can start from `main` at `68f34e9e97a240360b841295bdb8c825c88e19fb`; the local checkout and `origin/main` agree. No release work, unrelated repository work, or blocked-family work was run.
+The next owner can start from `main` at `d6dbfa9e3476b2c777c499ab5203adafdebba6da`; the local checkout is two commits ahead of the remote, and the exact push blocker is recorded above. No release work, unrelated repository work, or blocked-family work was run.
 
 ## Luna desktop scheduled source depth lane — `codex/luna-desktop-scheduled-sources`
 
