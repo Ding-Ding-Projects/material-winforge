@@ -30,3 +30,11 @@ The roadmap distinguishes source capability from proof. A checked item means the
 - [ ] Add focused accessibility, localization, persistence, search, regex, and release-manifest evidence.
 - [ ] Replace preview-only controls with real operating-system integrations only when each integration has explicit security boundaries, recovery behavior, and independent verification.
 - [ ] Implement remaining universal product contracts only through separately scoped, documented work rather than implying they exist in this preview.
+
+## Repository maintenance, 2026-09-18
+
+- [x] Inventory the primary checkout, all linked worktrees, local and remote branches, stashes, reflogs, unresolved index entries, and conflict markers.
+- [x] Fetch `origin` and fast-forward `main` to `68f34e9e97a240360b841295bdb8c825c88e19fb`; verify the remote ref with `git ls-remote`.
+- [x] Confirm there were no recoverable uncommitted files, half-finished changes, stashes, linked worktrees, or redundant branches to preserve or remove.
+- [x] Record the maintenance evidence and retention decisions in `HANDOFF.md`.
+- [x] Create and verify the external archive before cleanup review; no Mat Day removal was required because no safe redundant linked checkout, branch, or stash existed.

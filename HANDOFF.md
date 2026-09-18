@@ -1,5 +1,32 @@
 # Handoff
 
+## Repository maintenance — 2026-09-18
+
+### Scope and inventory
+
+- Scope was limited to `C:\Users\cntow\Documents\GitHub\material-winforge`. No other repository or blocked family was inspected or modified.
+- The primary checkout was the only linked worktree discovered. It was on `main`, initially at `4dab2f6c30282e0ef8f4fb64acab8e8a8bce9b80`, and had no uncommitted changes.
+- Local branch inventory contained only `main`; the only remote branch was `origin/main`. There were no stashes, unresolved index entries, conflict markers, or additional linked worktrees.
+- The open issue inventory for `Ding-Ding-Projects/material-winforge` was empty at the time of this pass.
+
+### Integration and verification
+
+- `origin` was fetched with pruning before integration.
+- `main` was fast-forwarded to `68f34e9e97a240360b841295bdb8c825c88e19fb`, preserving the existing history without a conflict or merge rewrite.
+- `git ls-remote origin refs/heads/main` returned `68f34e9e97a240360b841295bdb8c825c88e19fb`.
+- No preservation commit was needed because the checkout was clean and no half-finished local path existed.
+- No conflict-resolution choice was required. The index remained free of unmerged entries and repository text contained no conflict markers.
+
+### Cleanup and retention
+
+- No safe redundant linked checkout, branch, or stash existed, so no Mat Day removal was performed.
+- The primary checkout, `main`, and `origin/main` were retained. There were no active, user-owned, load-bearing, unmerged, undewed, or ownership-uncertain items to retain beyond them.
+- The required external archive was created and verified at the end of this pass before cleanup review. It contains the Git administrative directory plus the tracked and non-ignored untracked inventory. Ignored build and dependency paths were excluded according to `.gitignore`.
+
+### Next owner
+
+The next owner can start from `main` at `68f34e9e97a240360b841295bdb8c825c88e19fb`; the local checkout and `origin/main` agree. No release work, unrelated repository work, or blocked-family work was run.
+
 ## Luna desktop scheduled source depth lane — `codex/luna-desktop-scheduled-sources`
 
 - Extended `main-app-design/WinForge M3.dc.html` scheduled settings from local-only rules to schema version 2 metadata for bounded HTTPS API and Home Assistant boolean-entity sources. Added source status, refresh interval, entity, URL, and credential-vault reference controls; only URL/entity/reference metadata persists and no token or response body is stored.
